@@ -373,11 +373,14 @@ ResolveStructExprField::visit (AST::StructExprFieldIdentifier &field)
 // rust-ast-resolve-type.h
 
 void
-ResolveTypePath::visit (AST::TypePathSegmentGeneric &seg)
+ResolveTypeToSimplePath::visit (AST::TypePathSegmentGeneric &seg)
 {
-  AST::GenericArgs &generics = seg.get_generic_args ();
-  for (auto &gt : generics.get_type_args ())
-    ResolveType::go (gt.get (), UNKNOWN_NODEID);
+  if (!path_only_flag)
+    {
+      AST::GenericArgs &generics = seg.get_generic_args ();
+      for (auto &gt : generics.get_type_args ())
+	ResolveType::go (gt.get (), UNKNOWN_NODEID);
+    }
 
   if (seg.is_error ())
     {
@@ -387,14 +390,12 @@ ResolveTypePath::visit (AST::TypePathSegmentGeneric &seg)
       return;
     }
 
-  if (seg.get_separating_scope_resolution ())
-    path_buffer += "::";
-
-  path_buffer += seg.get_ident_segment ().as_string ();
+  segs.push_back (AST::SimplePathSegment (seg.get_ident_segment ().as_string (),
+					  seg.get_locus ()));
 }
 
 void
-ResolveTypePath::visit (AST::TypePathSegment &seg)
+ResolveTypeToSimplePath::visit (AST::TypePathSegment &seg)
 {
   if (seg.is_error ())
     {
@@ -404,10 +405,8 @@ ResolveTypePath::visit (AST::TypePathSegment &seg)
       return;
     }
 
-  if (seg.get_separating_scope_resolution ())
-    path_buffer += "::";
-
-  path_buffer += seg.get_ident_segment ().as_string ();
+  segs.push_back (AST::SimplePathSegment (seg.get_ident_segment ().as_string (),
+					  seg.get_locus ()));
 }
 
 // rust-ast-resolve-expr.h
@@ -463,8 +462,8 @@ ResolvePath::resolve_path (AST::PathInExpression *expr)
     }
   else
     {
-      rust_error_at (expr->get_locus (), "unknown path %s",
-		     expr->as_string ().c_str ());
+      rust_error_at (expr->get_locus (), "unknown path %s lookup %s",
+		     expr->as_string ().c_str (), path_buf.c_str ());
     }
 }
 

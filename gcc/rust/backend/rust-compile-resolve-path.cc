@@ -78,19 +78,41 @@ ResolvePathRef::visit (HIR::PathInExpression &expr)
   Bfunction *fn = nullptr;
   if (!ctx->lookup_function_decl (lookup->get_ty_ref (), &fn))
     {
-      // it must resolve to some kind of HIR::Item
+      // it must resolve to some kind of HIR::Item or HIR::InheritImplItem
       HIR::Item *resolved_item = ctx->get_mappings ()->lookup_hir_item (
 	expr.get_mappings ().get_crate_num (), ref);
-      if (resolved_item == nullptr)
+      if (resolved_item != nullptr)
 	{
-	  rust_error_at (expr.get_locus (), "failed to lookup definition decl");
-	  return;
+	  if (!lookup->has_subsititions_defined ())
+	    CompileItem::compile (resolved_item, ctx);
+	  else
+	    CompileItem::compile (resolved_item, ctx, true, lookup);
 	}
-
-      if (!lookup->has_subsititions_defined ())
-	CompileItem::compile (resolved_item, ctx);
       else
-	CompileItem::compile (resolved_item, ctx, true, lookup);
+	{
+	  HIR::InherentImplItem *resolved_item
+	    = ctx->get_mappings ()->lookup_hir_implitem (
+	      expr.get_mappings ().get_crate_num (), ref);
+	  if (resolved_item != nullptr)
+	    {
+	      // FIXME
+	      gcc_unreachable ();
+	      TyTy::BaseType *self = nullptr;
+
+	      if (!lookup->has_subsititions_defined ())
+		CompileInherentImplItem::Compile (self, resolved_item, ctx,
+						  true);
+	      else
+		CompileInherentImplItem::Compile (self, resolved_item, ctx,
+						  true, lookup);
+	    }
+	  else
+	    {
+	      rust_error_at (expr.get_locus (),
+			     "failed to lookup definition decl");
+	      return;
+	    }
+	}
 
       if (!ctx->lookup_function_decl (lookup->get_ty_ref (), &fn))
 	{

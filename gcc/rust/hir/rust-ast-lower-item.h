@@ -306,11 +306,18 @@ public:
   {
     std::vector<HIR::Attribute> inner_attrs;
     std::vector<HIR::Attribute> outer_attrs;
-    std::vector<std::unique_ptr<HIR::GenericParam> > generic_params;
     std::vector<std::unique_ptr<HIR::WhereClauseItem> > where_clause_items;
 
     HIR::WhereClause where_clause (std::move (where_clause_items));
     HIR::Visibility vis = HIR::Visibility::create_public ();
+
+    std::vector<std::unique_ptr<HIR::GenericParam> > generic_params;
+    if (impl_block.has_generics ())
+      {
+	generic_params
+	  = lower_generic_params (impl_block.get_generic_params ());
+      }
+
     HIR::Type *trait_type
       = ASTLoweringType::translate (impl_block.get_type ().get ());
 
