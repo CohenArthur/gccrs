@@ -85,19 +85,20 @@ TypeCheckExpr::visit (HIR::BlockExpr &expr)
   TyTy::BaseType *block_tyty
     = new TyTy::TupleType (expr.get_mappings ().get_hirid ());
 
-  expr.iterate_stmts ([&] (HIR::Stmt *s) mutable -> bool {
-    bool is_final_stmt = expr.is_final_stmt (s);
-    bool has_final_expr = expr.has_expr () && expr.tail_expr_reachable ();
-    bool stmt_is_final_expr = is_final_stmt && !has_final_expr;
+  // 1 - Discard the type of all statements in the block
+  // 2 - If the last element of the block is an expression, then use its type
+  // 3 - If not, then stick to the unit type
 
+  expr.iterate_stmts ([&] (HIR::Stmt *s) mutable -> bool {
     auto resolved = TypeCheckStmt::Resolve (s, inside_loop);
+
     if (resolved == nullptr)
       {
 	rust_error_at (s->get_locus_slow (), "failure to resolve type");
 	return false;
       }
 
-    if (stmt_is_final_expr)
+    if (expr.is_final_stmt (s))
       {
 	delete block_tyty;
 	block_tyty = resolved;
@@ -105,6 +106,37 @@ TypeCheckExpr::visit (HIR::BlockExpr &expr)
 
     return true;
   });
+
+  // expr.iterate_stmts ([&] (HIR::Stmt *s) mutable -> bool {
+  //   bool is_final_stmt = expr.is_final_stmt (s);
+  //   bool has_final_expr = expr.has_expr () && expr.tail_expr_reachable ();
+  //   bool stmt_is_final_expr = is_final_stmt && !has_final_expr;
+
+  //   std::cout << "is_final_stmt: " << is_final_stmt << std::endl;
+  //   std::cout << "has_final_expr: " << has_final_expr << std::endl;
+  //   std::cout << "stmt_is_final_expr: " << stmt_is_final_expr << std::endl;
+
+  //   auto resolved = TypeCheckStmt::Resolve (s, inside_loop);
+  //   if (resolved == nullptr)
+  //     {
+  //   rust_error_at (s->get_locus_slow (), "failure to resolve type");
+  //   return false;
+  //     }
+
+  //   if (is_final_stmt && has_final_expr) {
+  //   delete block_tyty;
+  //   block_tyty = resolved;
+  //   }
+
+  //   // if (stmt_is_final_expr)
+  //   //   {
+  //   // delete block_tyty;
+
+  //   // block_tyty = resolved;
+  //   //   }
+
+  //   return true;
+  // });
 
   if (expr.has_expr ())
     {
