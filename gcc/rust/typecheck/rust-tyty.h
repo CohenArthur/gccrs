@@ -1057,22 +1057,12 @@ class USizeType : public BaseType
 {
 public:
   USizeType (HirId ref, std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ref, TypeKind::USIZE)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ref, TypeKind::USIZE, refs)
+  {}
 
   USizeType (HirId ref, HirId ty_ref, std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ty_ref, TypeKind::USIZE)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ty_ref, TypeKind::USIZE, refs)
+  {}
 
   void accept_vis (TyVisitor &vis) override;
 
