@@ -1127,23 +1127,13 @@ class ReferenceType : public BaseType
 public:
   ReferenceType (HirId ref, TyVar base,
 		 std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ref, TypeKind::REF), base (base)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ref, TypeKind::REF, refs), base (base)
+  {}
 
   ReferenceType (HirId ref, HirId ty_ref, TyVar base,
 		 std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ty_ref, TypeKind::REF), base (base)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ty_ref, TypeKind::REF, refs), base (base)
+  {}
 
   BaseType *get_base () const;
 
