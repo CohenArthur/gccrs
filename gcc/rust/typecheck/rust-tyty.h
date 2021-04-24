@@ -1103,22 +1103,12 @@ class CharType : public BaseType
 {
 public:
   CharType (HirId ref, std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ref, TypeKind::CHAR)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ref, TypeKind::CHAR, refs)
+  {}
 
   CharType (HirId ref, HirId ty_ref, std::set<HirId> refs = std::set<HirId> ())
-    : BaseType (ref, ty_ref, TypeKind::CHAR)
-  {
-    // TODO unused; should 'refs' be passed as the last argument to the
-    // 'BaseType' constructor call?  Potential change in behavior (if 'refs' is
-    // provided by caller)?
-    (void) refs;
-  }
+    : BaseType (ref, ty_ref, TypeKind::CHAR, refs)
+  {}
 
   void accept_vis (TyVisitor &vis) override;
 
