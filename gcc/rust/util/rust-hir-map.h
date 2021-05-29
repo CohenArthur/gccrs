@@ -25,6 +25,8 @@
 #include "rust-ast-full-decls.h"
 #include "rust-hir-full-decls.h"
 
+//#include "rust-hir-item.h"
+
 namespace Rust {
 
 // refers to a Crate
@@ -140,6 +142,9 @@ public:
 			      HIR::ImplBlock *item);
   HIR::ImplBlock *lookup_hir_impl_block (CrateNum crateNum, HirId id);
 
+  void insert_module (CrateNum crateNum, HirId id, HIR::Module *module);
+  HIR::Module *lookup_module (CrateNum crateNum, HirId id);
+
   void insert_hir_implitem (CrateNum crateNum, HirId id, HirId parent_impl_id,
 			    HIR::ImplItem *item);
   HIR::ImplItem *lookup_hir_implitem (CrateNum crateNum, HirId id,
@@ -252,6 +257,7 @@ private:
 
   std::map<DefId, HIR::Item *> defIdMappings;
   std::map<CrateNum, std::map<LocalDefId, HIR::Item *> > localDefIdMappings;
+  std::map<CrateNum, std::map<HirId, HIR::Module *> > hirModuleMappings;
   std::map<CrateNum, std::map<HirId, HIR::Item *> > hirItemMappings;
   std::map<CrateNum, std::map<HirId, HIR::Type *> > hirTypeMappings;
   std::map<CrateNum, std::map<HirId, HIR::Expr *> > hirExprMappings;

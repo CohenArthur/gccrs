@@ -972,6 +972,9 @@ public:
     UNLOADED,
   };
 
+  std::string as_string () const override;
+  Identifier get_name () const { return module_name; }
+  Location get_locus () const { return locus; }
 private:
   Identifier module_name;
   Location locus;
