@@ -105,7 +105,7 @@ public:
   void visit (HIR::ModuleBodied &module) override
   {
     for (auto &item : module.get_items ())
-      TypeCheckItem::Resolve (item.get ());
+      TypeCheckTopLevel::Resolve (item.get ());
   }
 
   void visit (HIR::StructStruct &struct_decl) override
