@@ -1,6 +1,6 @@
-mod Foo {
+mod _Foo {
     struct Bar(i32);
-    struct Baz(Bar);
+    struct _Baz(Bar);
 }
 
 fn main() {

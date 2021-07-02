@@ -22,6 +22,7 @@
 #include "rust-ast-full-decls.h"
 #include "rust-ast-resolve-base.h"
 #include "rust-ast-full.h"
+#include "rust-ast-resolve-toplevel.h"
 #include "rust-ast-resolve-type.h"
 #include "rust-ast-resolve-pattern.h"
 #include "rust-ast-resolve-stmt.h"
@@ -224,6 +225,9 @@ public:
     resolver->push_new_name_rib (resolver->get_name_scope ().peek ());
     resolver->push_new_type_rib (resolver->get_type_scope ().peek ());
     resolver->push_new_label_rib (resolver->get_type_scope ().peek ());
+
+    for (auto &item : module.get_items ())
+      ResolveTopLevel::go (item.get ());
 
     for (auto &item : module.get_items ())
       ResolveItem::go(item.get());

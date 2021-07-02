@@ -16,8 +16,8 @@ impl A::B::C::Foo {
     }
 }
 fn main() {
-    let a = A::B::C::Foo::new(); // { dg-warning "unused name" }
-    let b = A::B::C::Foo { // { dg-warning "unused name" }
+    let _a = A::B::C::Foo::new();
+    let _b = A::B::C::Foo {
         f: 33i32,
     };
 }

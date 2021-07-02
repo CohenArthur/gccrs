@@ -21,7 +21,6 @@
 
 #include "rust-ast-resolve-base.h"
 #include "rust-ast-resolve-type.h"
-#include "rust-ast-resolve-item.h"
 #include "rust-ast-resolve-implitem.h"
 #include "rust-ast-full.h"
 #include "rust-name-resolver.h"
@@ -59,8 +58,8 @@ public:
 
     // This crashes the compiler. Resolving top level is OK, but looks like it's
     // missing parts.
-    for (auto &item : module.get_items())
-      ResolveTopLevel::go (item.get(), path);
+    // for (auto &item : module.get_items())
+    //   ResolveTopLevel::go (item.get(), path);
   }
 
 
