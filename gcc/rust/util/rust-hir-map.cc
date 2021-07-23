@@ -331,6 +331,7 @@ Mappings::lookup_hir_impl_block (CrateNum crateNum, HirId id)
   return iy->second;
 }
 
+void
 Mappings::insert_module (CrateNum crateNum, HirId id, HIR::Module *module)
 {
   rust_assert (lookup_module (crateNum, id) == nullptr);
