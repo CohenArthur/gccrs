@@ -226,8 +226,10 @@ public:
     resolver->push_new_type_rib (resolver->get_type_scope ().peek ());
     resolver->push_new_label_rib (resolver->get_type_scope ().peek ());
 
+    auto path = CanonicalPath::new_seg (module.get_node_id(), module.get_name ());
+
     for (auto &item : module.get_items ())
-      ResolveTopLevel::go (item.get ());
+      ResolveTopLevel::go (item.get (), path);
 
     for (auto &item : module.get_items ())
       ResolveItem::go(item.get());

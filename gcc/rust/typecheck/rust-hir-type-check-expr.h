@@ -21,6 +21,7 @@
 
 #include "rust-hir-type-check-base.h"
 #include "rust-hir-full.h"
+#include "rust-system.h"
 #include "rust-tyty.h"
 #include "rust-tyty-call.h"
 #include "rust-hir-type-check-struct-field.h"
@@ -931,6 +932,9 @@ public:
     size_t offset = -1;
     TyTy::BaseType *tyseg
       = resolve_root_path (expr, &offset, &resolved_node_id);
+
+    rust_assert (tyseg != nullptr);
+
     if (tyseg->get_kind () == TyTy::TypeKind::ERROR)
       return;
 
@@ -1206,6 +1210,7 @@ private:
       folded_array_capacity (nullptr), inside_loop (inside_loop)
   {}
 
+  // FIXME: is it accepted that this can return Tyty::ErrorType or nullptr in case of error ?
   TyTy::BaseType *resolve_root_path (HIR::PathInExpression &expr,
 				     size_t *offset,
 				     NodeId *root_resolved_node_id)
@@ -1269,8 +1274,6 @@ private:
 
 		return new TyTy::ErrorType (expr.get_mappings ().get_hirid ());
 	      }
-            // MARC: why is this not an error to have a NodeId not referering to any HIR?
-            // Is it because we may be using a to-be-completed HIR graph ?
 	    return root_tyty;
 	  }
 
