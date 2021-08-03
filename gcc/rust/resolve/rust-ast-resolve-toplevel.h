@@ -41,8 +41,8 @@ public:
   };
 
   void visit (AST::ModuleBodied& module) override {
-          auto path = prefix.append (CanonicalPath::new_seg (module.get_node_id(),
-                          module.get_name()));
+    auto path = prefix.append (CanonicalPath::new_seg (module.get_node_id(),
+                                                       module.get_name()));
     resolver->get_name_scope ().insert (
       path, module.get_node_id (), module.get_locus (), false,
       [&] (const CanonicalPath &, NodeId, Location locus) -> void {
