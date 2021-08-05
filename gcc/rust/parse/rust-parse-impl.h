@@ -392,7 +392,7 @@ Parser<ManagedTokenSource>::done_end_of_file ()
 // in a crate
 template <typename ManagedTokenSource>
 std::vector<std::unique_ptr<AST::Item>>
-Parser<ManagedTokenSource>::parse_items (std::vector<Error> &error_table)
+Parser<ManagedTokenSource>::parse_items ()
 {
   std::vector<std::unique_ptr<AST::Item>> items;
 
@@ -428,7 +428,7 @@ Parser<ManagedTokenSource>::parse_crate ()
   AST::AttrVec inner_attrs = parse_inner_attributes ();
 
   // parse items
-  std::vector<std::unique_ptr<AST::Item>> items = parse_items (error_table);
+  std::vector<std::unique_ptr<AST::Item>> items = parse_items ();
 
   // emit all errors
   for (const auto &error : error_table)
