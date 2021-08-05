@@ -20,6 +20,12 @@
 #include "rust-ast-full.h"
 #include "rust-ast-visitor.h"
 #include "rust-diagnostics.h"
+#include "rust-lex.h"
+#include "rust-parse.h"
+#include "rust-linemap.h"
+
+// FIXME: ARTHUR: Remove this
+extern Linemap *rust_get_linemap();
 
 namespace Rust {
 // Visitor used to expand attributes.
@@ -2015,6 +2021,7 @@ public:
 		     "cannot strip block expression in this position - outer "
 		     "attributes not allowed");
   }
+
   void visit (AST::Module &module) override
   {
     // strip test based on outer attrs
@@ -2036,6 +2043,26 @@ public:
 	    return;
 	  }
       }
+
+    // Parse the module's items if they haven't been expanded and the file
+    // should be parsed (i.e isn't hidden behind an untrue or impossible cfg
+    // directive)
+    if (!module.is_marked_for_strip ()
+	&& module.get_kind () == AST::Module::ModuleKind::UNLOADED)
+      {
+	// auto filename = module.get_filename (); // FIXME: ARTHUR
+        auto filename = "/home/kagounard/Git/gccrs/module.rs";
+
+	RAIIFile file_wrap (filename);
+	Linemap *linemap = rust_get_linemap (); // FIXME: ARTHUR: Is this correct?
+
+	Lexer lex (filename, std::move (file_wrap), linemap);
+	Parser<Lexer> parser (std::move (lex));
+
+	auto items = parser.parse_items ();
+
+	module.set_items (items);
+      } // FIXME: ARTHUR: Put all of this in a method for the Module class
 
     // strip items if required
     expand_pointer_allow_strip (module.get_items ());

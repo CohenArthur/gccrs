@@ -1055,6 +1055,15 @@ public:
    * the module. */
   void add_crate_name (std::vector<std::string> &names) const override;
 
+  // Add items to the module, turning it from an unloaded module to a loaded one
+  // FIXME: ARTHUR: Move this to a private function and call it from a public
+  // 'load_from_file' method
+  void set_items (std::vector<std::unique_ptr<Item>> &items)
+  {
+    clone_items (items); // FIXME: ARTHUR: Move the vector instead
+    kind = ModuleKind::LOADED;
+  }
+
   // Returns the kind of the module
   enum ModuleKind get_kind () const { return kind; }
 
