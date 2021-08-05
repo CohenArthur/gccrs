@@ -585,8 +585,10 @@ public:
   Parser (ManagedTokenSource tokenSource) : lexer (std::move (tokenSource)) {}
 
   // Parse items without parsing an entire crate. This function is the main
-  // parsing loop of AST::Crate::parse_crate()
-  std::vector<std::unique_ptr<AST::Item> > parse_items ();
+  // parsing loop of AST::Crate::parse_crate(). It takes a mutable reference
+  // on a vector of errors as parameter in which errors will be appended.
+  std::vector<std::unique_ptr<AST::Item> >
+  parse_items (std::vector<Error> &error_table);
 
   // Main entry point for parser.
   AST::Crate parse_crate ();

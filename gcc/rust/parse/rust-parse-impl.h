@@ -392,7 +392,7 @@ Parser<ManagedTokenSource>::done_end_of_file ()
 // in a crate
 template <typename ManagedTokenSource>
 std::vector<std::unique_ptr<AST::Item>>
-Parser<ManagedTokenSource>::parse_items ()
+Parser<ManagedTokenSource>::parse_items (std::vector<Error> &error_table)
 {
   std::vector<std::unique_ptr<AST::Item>> items;
 
@@ -404,7 +404,7 @@ Parser<ManagedTokenSource>::parse_items ()
 	{
 	  Error error (lexer.peek_token ()->get_locus (),
 		       "failed to parse item in crate");
-	  add_error (std::move (error));
+	  error_table.push_back (std::move (error));
 
 	  // TODO: should all items be cleared?
 	  items = std::vector<std::unique_ptr<AST::Item>> ();
@@ -428,7 +428,7 @@ Parser<ManagedTokenSource>::parse_crate ()
   AST::AttrVec inner_attrs = parse_inner_attributes ();
 
   // parse items
-  std::vector<std::unique_ptr<AST::Item>> items = parse_items ();
+  std::vector<std::unique_ptr<AST::Item>> items = parse_items (error_table);
 
   // emit all errors
   for (const auto &error : error_table)
