@@ -579,13 +579,14 @@ private:
   bool done_end_of_file ();
 
   void add_error (Error error) { error_table.push_back (std::move (error)); }
+  std::vector<Error> &get_errors () { return error_table; }
 
 public:
   // Construct parser with specified "managed" token source.
   Parser (ManagedTokenSource tokenSource) : lexer (std::move (tokenSource)) {}
 
   // Parse items without parsing an entire crate. This function is the main
-  // parsing loop of AST::Crate::parse_crate()
+  // parsing loop of AST::Crate::parse_crate().
   std::vector<std::unique_ptr<AST::Item> > parse_items ();
 
   // Main entry point for parser.
