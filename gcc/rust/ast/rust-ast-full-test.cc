@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#include <dirent.h>
+
 #include "rust-ast-full.h"
 #include "rust-diagnostics.h"
 #include "rust-ast-visitor.h"
@@ -4048,6 +4050,88 @@ Module::add_crate_name (std::vector<std::string> &names) const
 
   for (const auto &item : items)
     item->add_crate_name (names);
+}
+
+static bool
+check_for_file (std::string dir_name, std::string file_name)
+{
+  DIR *dir = opendir (dir_name.c_str ());
+  if (!dir)
+    return false;
+
+  struct dirent *entry;
+
+  while ((entry = readdir (dir)) != NULL)
+    {
+      if (std::string (entry->d_name) == file_name)
+	return true;
+    }
+
+  closedir (dir);
+
+  return false;
+}
+
+// FIXME: This function should also check if the module has a `path` outer
+// attribute and fetch the path from here in that case, i.e:
+// ```
+// #[path="<dir>/<subdir>/<file>.rs"]
+// mod <mod_name>;
+// ```
+std::string
+Module::get_filename ()
+{
+// TODO: Not windows compliant, at least not always. We need to have some
+// sort of #ifdef but where should it be put? Since this could also be used
+// elsewhere in the compiler
+#define SEPARATOR "/"
+  rust_assert (kind == Module::ModuleKind::UNLOADED);
+
+  std::string outer_path (outer_filename);
+  std::string expected_fname = module_name + ".rs";
+
+  auto dir_slash_pos = outer_path.rfind (SEPARATOR);
+  std::string current_directory_name;
+
+  // If we haven't found a separator, then we have to look for files in the
+  // current directory ('.')
+  if (dir_slash_pos == std::string::npos)
+    current_directory_name = std::string (".");
+  else
+    current_directory_name = outer_path.substr (0, dir_slash_pos).c_str ();
+
+  // FIXME: The module name should actually be a path (dir::subdir::file), and
+  // we should use the components in that path to figure out where to load the
+  // file from. For now, assume that we are looking for something simple
+
+  // FIXME: We also have to search for <directory>/<outer_path>/<module_name>.rs
+  // In rustc, this is done via the concept of `DirOwnernship`, which is based
+  // on whether or not the current file is titled `mod.rs`.
+
+  // First, we search for <directory>/<module_name>.rs
+  bool file_mod_found = check_for_file (current_directory_name, expected_fname);
+
+  // Then, search for <directory>/<module_name>/mod.rs
+  current_directory_name += SEPARATOR + module_name;
+  bool dir_mod_found = check_for_file (current_directory_name, "mod.rs");
+
+  if (file_mod_found && dir_mod_found)
+    rust_error_at (locus,
+		   "two candidates found for module %s: %s.rs and %s%smod.rs",
+		   module_name.c_str (), module_name.c_str (),
+		   module_name.c_str (), SEPARATOR);
+
+  if (!file_mod_found && !dir_mod_found)
+    rust_error_at (locus, "no candidate found for module %s",
+		   module_name.c_str ());
+
+  if (file_mod_found)
+    return expected_fname;
+  if (dir_mod_found)
+    return current_directory_name + SEPARATOR + "mod.rs";
+
+  return std::string ();
+#undef SEPARATOR
 }
 
 void

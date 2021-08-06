@@ -977,6 +977,9 @@ private:
   Location locus;
   ModuleKind kind;
 
+  // Name of the file including the module
+  const char *outer_filename;
+
   // bool has_inner_attrs;
   std::vector<Attribute> inner_attrs;
   // bool has_items;
@@ -998,10 +1001,11 @@ public:
 
   // Unloaded module constructor
   Module (Identifier module_name, Visibility visibility,
-	  std::vector<Attribute> outer_attrs, Location locus)
+	  std::vector<Attribute> outer_attrs, Location locus,
+	  const char *outer_filename)
     : VisItem (std::move (visibility), std::move (outer_attrs)),
       module_name (module_name), locus (locus), kind (ModuleKind::UNLOADED),
-      inner_attrs (std::vector<Attribute> ()),
+      outer_filename (outer_filename), inner_attrs (std::vector<Attribute> ()),
       items (std::vector<std::unique_ptr<Item>> ())
   {}
 
@@ -1013,7 +1017,8 @@ public:
 	  std::vector<Attribute> outer_attrs = std::vector<Attribute> ())
     : VisItem (std::move (visibility), std::move (outer_attrs)),
       module_name (name), locus (locus), kind (ModuleKind::LOADED),
-      inner_attrs (std::move (inner_attrs)), items (std::move (items))
+      outer_filename (nullptr), inner_attrs (std::move (inner_attrs)),
+      items (std::move (items))
   {}
 
   // Copy constructor with vector clone
@@ -1048,6 +1053,9 @@ public:
 
     return *this;
   }
+
+  // Search for the filename associated with an external module
+  std::string get_filename ();
 
   void accept_vis (ASTVisitor &vis) override;
 
