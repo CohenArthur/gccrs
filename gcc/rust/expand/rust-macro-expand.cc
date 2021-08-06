@@ -23,9 +23,7 @@
 #include "rust-lex.h"
 #include "rust-parse.h"
 #include "rust-linemap.h"
-
-// FIXME: ARTHUR: Remove this
-extern Linemap *rust_get_linemap();
+#include "rust-session-manager.h"
 
 namespace Rust {
 // Visitor used to expand attributes.
@@ -2051,15 +2049,19 @@ public:
 	&& module.get_kind () == AST::Module::ModuleKind::UNLOADED)
       {
 	// auto filename = module.get_filename (); // FIXME: ARTHUR
-        auto filename = "/home/kagounard/Git/gccrs/module.rs";
+	auto filename = "/home/kagounard/Git/gccrs/module.rs";
 
 	RAIIFile file_wrap (filename);
-	Linemap *linemap = rust_get_linemap (); // FIXME: ARTHUR: Is this correct?
+	Linemap *linemap
+	  = Session::get_instance ().linemap;
 
 	Lexer lex (filename, std::move (file_wrap), linemap);
 	Parser<Lexer> parser (std::move (lex));
 
 	auto items = parser.parse_items ();
+
+	for (const auto &item : items)
+	  std::cerr << "item: " << item->as_string () << std::endl;
 
 	module.set_items (items);
       } // FIXME: ARTHUR: Put all of this in a method for the Module class
