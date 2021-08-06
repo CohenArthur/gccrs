@@ -206,11 +206,39 @@ public:
 
     auto resolver = Resolver::get ();
     NodeId resolved_node = UNKNOWN_NODEID;
+
+    // Lookup type in the following priority order:
+    // - Type Namespace
+    // - Within "modules" (ie. not only mod)
+
     if (!resolver->get_type_scope ().lookup (canonical_path, &resolved_node))
       {
-	rust_error_at (path.get_locus_slow (), "failed to resolve TypePath: %s",
-		       canonical_path.get ().c_str ());
-	return UNKNOWN_NODEID;
+        // Try to find if we can find a name that matches a prefix for the type we are looking for.
+        canonical_path.iterate([&] (const CanonicalPath &p) mutable -> bool {
+          if (resolver->get_name_scope ().lookup (p, &resolved_node))
+            return false;
+          return true;
+        });
+
+        if (resolved_node != UNKNOWN_NODEID)
+          {
+            resolver->iterate_type_ribs ([&] (Rib *r) {
+              if (resolved_node == UNKNOWN_NODEID)
+                {
+                  r->lookup_name (canonical_path, &resolved_node);
+                  return true;
+                }
+              return false;
+            });
+            return resolved_node;
+            //            rust_error_at (path.get_locus_slow(), "FIXME %d", resolved_node);
+          }
+        else
+          {
+            rust_error_at (path.get_locus_slow (), "failed to resolve TypePath: %s",
+                           canonical_path.get ().c_str ());
+            return UNKNOWN_NODEID;
+          }
       }
 
     return resolved_node;

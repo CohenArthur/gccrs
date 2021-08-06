@@ -49,6 +49,11 @@ class CanonicalPath
 public:
   CanonicalPath (const CanonicalPath &other) : segs (other.segs) {}
 
+  CanonicalPath (const CanonicalPath &other, int startfrom)
+  {
+    segs = std::vector<std::pair<NodeId, std::string>> (other.segs.begin() + startfrom, other.segs.end());
+  }
+
   CanonicalPath &operator= (const CanonicalPath &other)
   {
     segs = other.segs;
@@ -124,6 +129,7 @@ public:
 
   bool operator< (const CanonicalPath &b) const { return get () < b.get (); }
 
+  //  std::vector<std::pair<NodeId, std::string>> & get_segs() { return segs; }
 private:
   explicit CanonicalPath (std::vector<std::pair<NodeId, std::string>> path)
     : segs (path)
@@ -321,14 +327,25 @@ public:
   void append_reference_for_def (NodeId refId, NodeId defId)
   {
     bool ok = false;
-    iterate ([&] (Rib *r) mutable -> bool {
-      if (r->decl_was_declared_here (defId))
-	{
-	  ok = true;
-	  r->append_reference_for_def (defId, refId);
-	}
-      return true;
-    });
+
+    //    Resolver *resolver = Resolver::get ();
+
+    // resolver->iterate_type_ribs ([&] (Rib *r) {
+    //   if (r->decl_was_declared_here (defId))
+    //     {
+    //       ok = true;
+    //       r->append_reference_for_def (defId, refId);
+    //     }
+    // });
+
+    // iterate ([&] (Rib *r) mutable -> bool {
+    //   if (r->decl_was_declared_here (defId))
+    //     {
+    //       ok = true;
+    //       r->append_reference_for_def (defId, refId);
+    //     }
+    //   return true;
+    // });
     rust_assert (ok);
   }
 
@@ -438,14 +455,15 @@ public:
       cb (it->second);
   }
 
-  void iterate_type_ribs (std::function<void (Rib *)> cb)
+  void iterate_type_ribs (std::function<bool (Rib *)> cb)
   {
     for (auto it = type_ribs.begin (); it != type_ribs.end (); it++)
       {
 	if (it->first == global_type_node_id)
 	  continue;
 
-	cb (it->second);
+	if (cb (it->second))
+          break;
       }
   }
 

@@ -1,19 +1,15 @@
-mod A {
-    pub mod B {
-        pub mod C {
-            pub struct Foo {
-            }
-        }
+mod foomod {
+    pub struct Foo {
     }
 }
 
-impl A::B::C::Foo {
+impl foomod::Foo {
     pub fn new() -> Self {
-        A::B::C::Foo {
+        foomod::Foo {
         }
     }
 }
  
 fn main() {
-   let _a = A::B::C::Foo::new();
+   let _a = foomod::Foo::new();
 }
