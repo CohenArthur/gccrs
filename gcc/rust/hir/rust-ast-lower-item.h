@@ -55,7 +55,7 @@ public:
     return resolver.translated;
   }
 
-  void visit (AST::ModuleBodied &module) override
+  void visit (AST::Module &module) override
   {
     auto crate_num = mappings->get_current_crate ();
     Analysis::NodeMapping mapping (crate_num, module.get_node_id (),

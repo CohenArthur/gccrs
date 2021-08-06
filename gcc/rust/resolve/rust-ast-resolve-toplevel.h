@@ -40,7 +40,8 @@ public:
     item->accept_vis (resolver);
   };
 
-  void visit (AST::ModuleBodied& module) override {
+  void visit (AST::Module &module) override
+  {
     auto path = prefix.append (CanonicalPath::new_seg (module.get_node_id(),
                                                        module.get_name()));
     resolver->get_name_scope ().insert (
@@ -62,7 +63,6 @@ public:
     // for (auto &item : module.get_items())
     //   ResolveTopLevel::go (item.get(), path);
   }
-
 
   void visit (AST::TypeAlias &alias) override
   {

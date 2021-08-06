@@ -216,7 +216,7 @@ public:
     resolver->get_type_scope ().pop ();
   }
 
-  void visit (AST::ModuleBodied &module) override
+  void visit (AST::Module &module) override
   {
     NodeId scope_node_id = module.get_node_id ();
     resolver->get_name_scope ().push (scope_node_id);
