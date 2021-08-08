@@ -324,30 +324,30 @@ public:
 
   CrateNum get_crate_num () const { return crate_num; }
 
-  void append_reference_for_def (NodeId refId, NodeId defId)
-  {
-    bool ok = false;
+  void append_reference_for_def (NodeId refId, NodeId defId);
+  // {
+  //   bool ok = false;
 
-    //    Resolver *resolver = Resolver::get ();
+  //   Resolver *resolver = Resolver::get ();
 
-    // resolver->iterate_type_ribs ([&] (Rib *r) {
-    //   if (r->decl_was_declared_here (defId))
-    //     {
-    //       ok = true;
-    //       r->append_reference_for_def (defId, refId);
-    //     }
-    // });
+  //   // resolver->iterate_type_ribs ([&] (Rib *r) {
+  //   //   if (r->decl_was_declared_here (defId))
+  //   //     {
+  //   //       ok = true;
+  //   //       r->append_reference_for_def (defId, refId);
+  //   //     }
+  //   // });
 
-    // iterate ([&] (Rib *r) mutable -> bool {
-    //   if (r->decl_was_declared_here (defId))
-    //     {
-    //       ok = true;
-    //       r->append_reference_for_def (defId, refId);
-    //     }
-    //   return true;
-    // });
-    rust_assert (ok);
-  }
+  //   // iterate ([&] (Rib *r) mutable -> bool {
+  //   //   if (r->decl_was_declared_here (defId))
+  //   //     {
+  //   //       ok = true;
+  //   //       r->append_reference_for_def (defId, refId);
+  //   //     }
+  //   //   return true;
+  //   // });
+  //   rust_assert (ok);
+  // }
 
 private:
   CrateNum crate_num;
@@ -462,7 +462,7 @@ public:
 	if (it->first == global_type_node_id)
 	  continue;
 
-	if (cb (it->second))
+	if (!cb (it->second))
           break;
       }
   }
