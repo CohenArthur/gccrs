@@ -2041,6 +2041,10 @@ public:
 	    return;
 	  }
       }
+    else
+      {
+	std::string mod_file = module.get_filename ();
+      }
 
     // Parse the module's items if they haven't been expanded and the file
     // should be parsed (i.e isn't hidden behind an untrue or impossible cfg

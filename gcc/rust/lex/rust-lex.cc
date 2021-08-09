@@ -120,8 +120,8 @@ is_non_decimal_int_literal_separator (char character)
 
 // this compiles fine, so any intellisense saying otherwise is fake news
 Lexer::Lexer (const char *filename, RAIIFile file_input, Linemap *linemap)
-  : input (std::move (file_input)), current_line (1), current_column (1),
-    line_map (linemap),
+  : filename (filename), input (std::move (file_input)), current_line (1),
+    current_column (1), line_map (linemap),
     /*input_source (input.get_raw ()), */
     input_queue{InputSource (input.get_raw ())},
     /*token_source (this),*/

@@ -136,8 +136,11 @@ public:
   void split_current_token (TokenId new_left, TokenId new_right);
 
   Linemap *get_line_map () { return line_map; }
+  const char *get_filename () { return filename; }
 
 private:
+  // Original filename used to instantiate the lexer
+  const char *filename;
   // File for use as input.
   RAIIFile input;
   // TODO is this actually required? could just have file storage in InputSource
