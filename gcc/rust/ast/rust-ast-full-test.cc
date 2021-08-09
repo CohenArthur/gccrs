@@ -4071,7 +4071,6 @@ std::string
 Module::get_filename ()
 {
   rust_assert (kind == Module::ModuleKind::UNLOADED);
-  rust_assert (!module_name.contains (":"));
 
   std::string outer_path (outer_filename);
   std::string expected_fname = module_name + ".rs";
