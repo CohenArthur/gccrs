@@ -4058,7 +4058,7 @@ file_exists (const std::string path)
 {
   // Simply check if the file exists
   // FIXME: This does not work on Windows
-  return access(path.c_str(), F_OK) != -1;
+  return access (path.c_str (), F_OK) != -1;
 }
 
 // FIXME: This function should also check if the module has a `path` outer
