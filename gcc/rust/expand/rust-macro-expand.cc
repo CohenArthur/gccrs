@@ -2041,10 +2041,6 @@ public:
 	    return;
 	  }
       }
-    else
-      {
-	std::string mod_file = module.get_filename ();
-      }
 
     // Parse the module's items if they haven't been expanded and the file
     // should be parsed (i.e isn't hidden behind an untrue or impossible cfg
@@ -2052,23 +2048,8 @@ public:
     if (!module.is_marked_for_strip ()
 	&& module.get_kind () == AST::Module::ModuleKind::UNLOADED)
       {
-	// auto filename = module.get_filename (); // FIXME: ARTHUR
-	auto filename = "/home/kagounard/Git/gccrs/module.rs";
-
-	RAIIFile file_wrap (filename);
-	Linemap *linemap
-	  = Session::get_instance ().linemap;
-
-	Lexer lex (filename, std::move (file_wrap), linemap);
-	Parser<Lexer> parser (std::move (lex));
-
-	auto items = parser.parse_items ();
-
-	for (const auto &item : items)
-	  std::cerr << "item: " << item->as_string () << std::endl;
-
-	module.set_items (items);
-      } // FIXME: ARTHUR: Put all of this in a method for the Module class
+	module.load_items ();
+      }
 
     // strip items if required
     expand_pointer_allow_strip (module.get_items ());
