@@ -193,7 +193,7 @@ public:
       = ResolveTypeToCanonicalPath::resolve (path,
 					     canonicalize_type_with_generics,
 					     true);
-    if (canonical_path.is_error ())
+    if (canonical_path.is_empty ())
       {
 	rust_error_at (path.get_locus (),
 		       "Failed to resolve canonical path for TypePath");
@@ -201,16 +201,49 @@ public:
       }
 
     CanonicalPath lookup = canonical_path;
-    if (!prefix.is_error ())
+    if (!prefix.is_empty ())
       lookup = prefix.append (canonical_path);
 
     auto resolver = Resolver::get ();
     NodeId resolved_node = UNKNOWN_NODEID;
+
+    // Lookup type in the following priority order:
+    // - Type Namespace
+    // - Within "modules" (ie. not only mod)
+
     if (!resolver->get_type_scope ().lookup (canonical_path, &resolved_node))
       {
-	rust_error_at (path.get_locus_slow (), "failed to resolve TypePath: %s",
-		       canonical_path.get ().c_str ());
-	return UNKNOWN_NODEID;
+        NodeId mod_candidate = UNKNOWN_NODEID;
+        // Try to find if we can find a name that matches a prefix for the type we are looking for.
+        canonical_path.iterate([&] (const CanonicalPath &p) mutable -> bool {
+          if (resolver->get_name_scope ().lookup (p, &mod_candidate))
+            return false;
+          return true;
+        });
+
+        if (mod_candidate != UNKNOWN_NODEID)
+          {
+            resolver->iterate_type_ribs ([&] (Rib *r) {
+              //              if (resolved_node == UNKNOWN_NODEID)
+              //                {
+                  r->lookup_name (canonical_path, &resolved_node);
+                  if (resolved_node != UNKNOWN_NODEID)
+                    {
+                      printf("%s -> %d\n", canonical_path.get().c_str(), resolved_node);
+                      return false;
+                    }
+                  //                }
+              return true;
+            });
+            return resolved_node;
+            //            rust_error_at (path.get_locus_slow(), "FIXME %d", resolved_node);
+          }
+        else
+          {
+            rust_error_at (path.get_locus_slow (), "failed to resolve TypePath: %s",
+                           canonical_path.get ().c_str ());
+            return UNKNOWN_NODEID;
+          }
       }
 
     return resolved_node;

@@ -49,6 +49,11 @@ class CanonicalPath
 public:
   CanonicalPath (const CanonicalPath &other) : segs (other.segs) {}
 
+  CanonicalPath (const CanonicalPath &other, int startfrom)
+  {
+    segs = std::vector<std::pair<NodeId, std::string>> (other.segs.begin() + startfrom, other.segs.end());
+  }
+
   CanonicalPath &operator= (const CanonicalPath &other)
   {
     segs = other.segs;
@@ -80,12 +85,12 @@ public:
 
   static CanonicalPath create_empty () { return CanonicalPath ({}); }
 
-  bool is_error () const { return segs.size () == 0; }
+  bool is_empty () const { return segs.size () == 0; }
 
   CanonicalPath append (const CanonicalPath &other) const
   {
-    rust_assert (!other.is_error ());
-    if (is_error ())
+    rust_assert (!other.is_empty ());
+    if (is_empty ())
       return CanonicalPath (other.segs);
 
     std::vector<std::pair<NodeId, std::string>> copy (segs);
@@ -124,6 +129,7 @@ public:
 
   bool operator< (const CanonicalPath &b) const { return get () < b.get (); }
 
+  //  std::vector<std::pair<NodeId, std::string>> & get_segs() { return segs; }
 private:
   explicit CanonicalPath (std::vector<std::pair<NodeId, std::string>> path)
     : segs (path)
@@ -135,7 +141,7 @@ private:
 class Rib
 {
 public:
-  // Rusts uses local_def_ids assigned by def_collector on the AST
+  // Rust uses local_def_ids assigned by def_collector on the AST
   // lets use NodeId instead
   Rib (CrateNum crateNum, NodeId node_id)
     : crate_num (crateNum), node_id (node_id)
@@ -318,19 +324,30 @@ public:
 
   CrateNum get_crate_num () const { return crate_num; }
 
-  void append_reference_for_def (NodeId refId, NodeId defId)
-  {
-    bool ok = false;
-    iterate ([&] (Rib *r) mutable -> bool {
-      if (r->decl_was_declared_here (defId))
-	{
-	  ok = true;
-	  r->append_reference_for_def (defId, refId);
-	}
-      return true;
-    });
-    rust_assert (ok);
-  }
+  void append_reference_for_def (NodeId refId, NodeId defId);
+  // {
+  //   bool ok = false;
+
+  //   Resolver *resolver = Resolver::get ();
+
+  //   // resolver->iterate_type_ribs ([&] (Rib *r) {
+  //   //   if (r->decl_was_declared_here (defId))
+  //   //     {
+  //   //       ok = true;
+  //   //       r->append_reference_for_def (defId, refId);
+  //   //     }
+  //   // });
+
+  //   // iterate ([&] (Rib *r) mutable -> bool {
+  //   //   if (r->decl_was_declared_here (defId))
+  //   //     {
+  //   //       ok = true;
+  //   //       r->append_reference_for_def (defId, refId);
+  //   //     }
+  //   //   return true;
+  //   // });
+  //   rust_assert (ok);
+  // }
 
 private:
   CrateNum crate_num;
@@ -438,14 +455,15 @@ public:
       cb (it->second);
   }
 
-  void iterate_type_ribs (std::function<void (Rib *)> cb)
+  void iterate_type_ribs (std::function<bool (Rib *)> cb)
   {
     for (auto it = type_ribs.begin (); it != type_ribs.end (); it++)
       {
 	if (it->first == global_type_node_id)
 	  continue;
 
-	cb (it->second);
+	if (!cb (it->second))
+          break;
       }
   }
 
