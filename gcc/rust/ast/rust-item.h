@@ -977,6 +977,12 @@ private:
   Location locus;
   ModuleKind kind;
 
+#if defined(HAVE_DOS_BASED_FILE_SYSTEM)
+  constexpr static const char *separator = "\\";
+#else
+  constexpr static const char *separator = "/";
+#endif /* HAVE_DOS_BASED_FILE_SYSTEM */
+
   // Name of the file including the module
   const char *outer_filename;
 

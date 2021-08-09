@@ -4081,16 +4081,12 @@ check_for_file (std::string dir_name, std::string file_name)
 std::string
 Module::get_filename ()
 {
-// TODO: Not windows compliant, at least not always. We need to have some
-// sort of #ifdef but where should it be put? Since this could also be used
-// elsewhere in the compiler
-#define SEPARATOR "/"
   rust_assert (kind == Module::ModuleKind::UNLOADED);
 
   std::string outer_path (outer_filename);
   std::string expected_fname = module_name + ".rs";
 
-  auto dir_slash_pos = outer_path.rfind (SEPARATOR);
+  auto dir_slash_pos = outer_path.rfind (separator);
   std::string current_directory_name;
 
   // If we haven't found a separator, then we have to look for files in the
@@ -4112,14 +4108,14 @@ Module::get_filename ()
   bool file_mod_found = check_for_file (current_directory_name, expected_fname);
 
   // Then, search for <directory>/<module_name>/mod.rs
-  current_directory_name += SEPARATOR + module_name;
+  current_directory_name += separator + module_name;
   bool dir_mod_found = check_for_file (current_directory_name, "mod.rs");
 
   if (file_mod_found && dir_mod_found)
     rust_error_at (locus,
 		   "two candidates found for module %s: %s.rs and %s%smod.rs",
 		   module_name.c_str (), module_name.c_str (),
-		   module_name.c_str (), SEPARATOR);
+		   module_name.c_str (), separator);
 
   if (!file_mod_found && !dir_mod_found)
     rust_error_at (locus, "no candidate found for module %s",
@@ -4128,10 +4124,9 @@ Module::get_filename ()
   if (file_mod_found)
     return expected_fname;
   if (dir_mod_found)
-    return current_directory_name + SEPARATOR + "mod.rs";
+    return current_directory_name + separator + "mod.rs";
 
   return std::string ();
-#undef SEPARATOR
 }
 
 void
