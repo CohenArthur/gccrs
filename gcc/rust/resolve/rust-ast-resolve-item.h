@@ -229,7 +229,7 @@ public:
     auto path = CanonicalPath::new_seg (module.get_node_id(), module.get_name ());
 
     for (auto &item : module.get_items ())
-      ResolveTopLevel::go (item.get (), path);
+      ResolveTopLevel::go (item.get ());
 
     for (auto &item : module.get_items ())
       ResolveItem::go(item.get());

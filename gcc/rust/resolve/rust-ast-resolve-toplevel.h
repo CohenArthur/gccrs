@@ -60,8 +60,8 @@ public:
 
     // This crashes the compiler. Resolving top level is OK, but looks like it's
     // missing parts.
-    // for (auto &item : module.get_items())
-    //   ResolveTopLevel::go (item.get(), path);
+    for (auto &item : module.get_items())
+      ResolveTopLevel::go (item.get(), path);
   }
 
   void visit (AST::TypeAlias &alias) override
