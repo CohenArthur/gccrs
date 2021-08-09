@@ -17,7 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include <dirent.h>
+// FIXME: This does not work on Windows
+#include <unistd.h>
 
 #include "rust-ast-full.h"
 #include "rust-diagnostics.h"
@@ -4053,23 +4054,11 @@ Module::add_crate_name (std::vector<std::string> &names) const
 }
 
 static bool
-check_for_file (std::string dir_name, std::string file_name)
+file_exists (const std::string path)
 {
-  DIR *dir = opendir (dir_name.c_str ());
-  if (!dir)
-    return false;
-
-  struct dirent *entry;
-
-  while ((entry = readdir (dir)) != NULL)
-    {
-      if (std::string (entry->d_name) == file_name)
-	return true;
-    }
-
-  closedir (dir);
-
-  return false;
+  // Simply check if the file exists
+  // FIXME: This does not work on Windows
+  return access(path.c_str(), F_OK) != -1;
 }
 
 // FIXME: This function should also check if the module has a `path` outer
@@ -4082,6 +4071,7 @@ std::string
 Module::get_filename ()
 {
   rust_assert (kind == Module::ModuleKind::UNLOADED);
+  rust_assert (!module_name.contains (":"));
 
   std::string outer_path (outer_filename);
   std::string expected_fname = module_name + ".rs";
@@ -4096,20 +4086,18 @@ Module::get_filename ()
   else
     current_directory_name = outer_path.substr (0, dir_slash_pos).c_str ();
 
-  // FIXME: The module name should actually be a path (dir::subdir::file), and
-  // we should use the components in that path to figure out where to load the
-  // file from. For now, assume that we are looking for something simple
-
   // FIXME: We also have to search for <directory>/<outer_path>/<module_name>.rs
   // In rustc, this is done via the concept of `DirOwnernship`, which is based
   // on whether or not the current file is titled `mod.rs`.
 
   // First, we search for <directory>/<module_name>.rs
-  bool file_mod_found = check_for_file (current_directory_name, expected_fname);
+  bool file_mod_found
+    = file_exists (current_directory_name + separator + expected_fname);
 
   // Then, search for <directory>/<module_name>/mod.rs
   current_directory_name += separator + module_name;
-  bool dir_mod_found = check_for_file (current_directory_name, "mod.rs");
+  bool dir_mod_found
+    = file_exists (current_directory_name + separator + "mod.rs");
 
   if (file_mod_found && dir_mod_found)
     rust_error_at (locus,
