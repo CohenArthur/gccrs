@@ -4126,12 +4126,7 @@ Module::get_filename ()
       final_candidate = "";
     }
 
-  if (file_mod_found)
-    return expected_file_path;
-  if (dir_mod_found)
-    return current_directory_name + expected_dir_path;
-
-  return std::string ();
+  return final_candidate;
 }
 
 void
