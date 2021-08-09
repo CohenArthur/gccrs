@@ -4087,11 +4087,13 @@ Module::get_filename ()
   if (dir_slash_pos == std::string::npos)
     current_directory_name = std::string (".") + separator;
   else
-    current_directory_name = including_fname.substr (0, dir_slash_pos) + separator;
+    current_directory_name
+      = including_fname.substr (0, dir_slash_pos) + separator;
 
-  // FIXME: We also have to search for <directory>/<including_fname>/<module_name>.rs
-  // In rustc, this is done via the concept of `DirOwnernship`, which is based
-  // on whether or not the current file is titled `mod.rs`.
+  // FIXME: We also have to search for
+  // <directory>/<including_fname>/<module_name>.rs In rustc, this is done via
+  // the concept of `DirOwnernship`, which is based on whether or not the
+  // current file is titled `mod.rs`.
 
   // First, we search for <directory>/<module_name>.rs
   bool file_mod_found
@@ -4099,18 +4101,30 @@ Module::get_filename ()
 
   // Then, search for <directory>/<module_name>/mod.rs
   current_directory_name += module_name + separator;
-  bool dir_mod_found
-    = file_exists (current_directory_name + expected_dir_path);
+  bool dir_mod_found = file_exists (current_directory_name + expected_dir_path);
+
+  std::string final_candidate;
+
+  if (file_mod_found)
+    final_candidate = expected_file_path;
+  if (dir_mod_found)
+    final_candidate = current_directory_name + expected_dir_path;
 
   if (file_mod_found && dir_mod_found)
-    rust_error_at (locus,
-		   "two candidates found for module %s: %s.rs and %s%smod.rs",
-		   module_name.c_str (), module_name.c_str (),
-		   module_name.c_str (), separator);
+    {
+      rust_error_at (locus,
+		     "two candidates found for module %s: %s.rs and %s%smod.rs",
+		     module_name.c_str (), module_name.c_str (),
+		     module_name.c_str (), separator);
+      final_candidate = "";
+    }
 
   if (!file_mod_found && !dir_mod_found)
-    rust_error_at (locus, "no candidate found for module %s",
-		   module_name.c_str ());
+    {
+      rust_error_at (locus, "no candidate found for module %s",
+		     module_name.c_str ());
+      final_candidate = "";
+    }
 
   if (file_mod_found)
     return expected_file_path;
