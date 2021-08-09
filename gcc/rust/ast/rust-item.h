@@ -1062,6 +1062,8 @@ public:
 
   // Search for the filename associated with an external module
   std::string get_filename ();
+  // Load the items contained in an external module
+  void load_items ();
 
   void accept_vis (ASTVisitor &vis) override;
 
