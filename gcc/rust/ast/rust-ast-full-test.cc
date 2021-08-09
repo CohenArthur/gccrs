@@ -4072,31 +4072,35 @@ Module::get_filename ()
 {
   rust_assert (kind == Module::ModuleKind::UNLOADED);
 
-  std::string outer_path (outer_filename);
-  std::string expected_fname = module_name + ".rs";
+  // This corresponds to the path of the file 'including' the module. So the
+  // file that contains the 'mod <file>;' directive
+  std::string including_fname (outer_filename);
 
-  auto dir_slash_pos = outer_path.rfind (separator);
+  std::string expected_file_path = module_name + ".rs";
+  std::string expected_dir_path = "mod.rs";
+
+  auto dir_slash_pos = including_fname.rfind (separator);
   std::string current_directory_name;
 
   // If we haven't found a separator, then we have to look for files in the
   // current directory ('.')
   if (dir_slash_pos == std::string::npos)
-    current_directory_name = std::string (".");
+    current_directory_name = std::string (".") + separator;
   else
-    current_directory_name = outer_path.substr (0, dir_slash_pos).c_str ();
+    current_directory_name = including_fname.substr (0, dir_slash_pos) + separator;
 
-  // FIXME: We also have to search for <directory>/<outer_path>/<module_name>.rs
+  // FIXME: We also have to search for <directory>/<including_fname>/<module_name>.rs
   // In rustc, this is done via the concept of `DirOwnernship`, which is based
   // on whether or not the current file is titled `mod.rs`.
 
   // First, we search for <directory>/<module_name>.rs
   bool file_mod_found
-    = file_exists (current_directory_name + separator + expected_fname);
+    = file_exists (current_directory_name + expected_file_path);
 
   // Then, search for <directory>/<module_name>/mod.rs
-  current_directory_name += separator + module_name;
+  current_directory_name += module_name + separator;
   bool dir_mod_found
-    = file_exists (current_directory_name + separator + "mod.rs");
+    = file_exists (current_directory_name + expected_dir_path);
 
   if (file_mod_found && dir_mod_found)
     rust_error_at (locus,
@@ -4109,9 +4113,9 @@ Module::get_filename ()
 		   module_name.c_str ());
 
   if (file_mod_found)
-    return expected_fname;
+    return expected_file_path;
   if (dir_mod_found)
-    return current_directory_name + separator + "mod.rs";
+    return current_directory_name + expected_dir_path;
 
   return std::string ();
 }
