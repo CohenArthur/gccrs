@@ -237,8 +237,8 @@ public:
 
   // delete those constructors so we don't access the singleton in any
   // other way than via `get_instance()`
-  Session(Session const&) = delete;
-  void operator=(Session const&) = delete;
+  Session (Session const &) = delete;
+  void operator= (Session const &) = delete;
 
   bool handle_option (enum opt_code code, const char *arg, HOST_WIDE_INT value,
 		      int kind, location_t loc,
