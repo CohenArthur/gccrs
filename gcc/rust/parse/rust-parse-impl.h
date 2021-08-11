@@ -6587,7 +6587,7 @@ Parser<ManagedTokenSource>::parse_path_expr_segment ()
 template <typename ManagedTokenSource>
 AST::QualifiedPathInExpression
 Parser<ManagedTokenSource>::parse_qualified_path_in_expression (
-  bool pratt_parse)
+  Location pratt_parsed_loc)
 {
   /* Note: the Rust grammar is defined in such a way that it is impossible to
    * determine whether a prospective qualified path is a
@@ -6602,7 +6602,7 @@ Parser<ManagedTokenSource>::parse_qualified_path_in_expression (
 
   // parse the qualified path type (required)
   AST::QualifiedPathType qual_path_type
-    = parse_qualified_path_type (pratt_parse);
+    = parse_qualified_path_type (pratt_parsed_loc);
   if (qual_path_type.is_error ())
     {
       // TODO: should this create a parse error?
@@ -6668,12 +6668,13 @@ Parser<ManagedTokenSource>::parse_qualified_path_in_expression (
 // Parses the type syntactical construction at the start of a qualified path.
 template <typename ManagedTokenSource>
 AST::QualifiedPathType
-Parser<ManagedTokenSource>::parse_qualified_path_type (bool pratt_parse)
+Parser<ManagedTokenSource>::parse_qualified_path_type (
+  Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
+  Location locus = pratt_parsed_loc;
   /* TODO: should this actually be error? is there anywhere where this could be
    * valid? */
-  if (!pratt_parse)
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
       if (!skip_token (LEFT_ANGLE))
@@ -6681,11 +6682,6 @@ Parser<ManagedTokenSource>::parse_qualified_path_type (bool pratt_parse)
 	  // skip after somewhere?
 	  return AST::QualifiedPathType::create_error ();
 	}
-    }
-  else
-    {
-      // move back by 1 if pratt parsing due to skipping '<'
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   // parse type (required)
@@ -7312,10 +7308,10 @@ Parser<ManagedTokenSource>::parse_expr_without_block (AST::AttrVec outer_attrs)
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::BlockExpr>
 Parser<ManagedTokenSource>::parse_block_expr (AST::AttrVec outer_attrs,
-					      bool pratt_parse)
+					      Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
       if (!skip_token (LEFT_CURLY))
@@ -7323,10 +7319,6 @@ Parser<ManagedTokenSource>::parse_block_expr (AST::AttrVec outer_attrs,
 	  skip_after_end_block ();
 	  return nullptr;
 	}
-    }
-  else
-    {
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   AST::AttrVec inner_attrs = parse_inner_attributes ();
@@ -7619,20 +7611,13 @@ Parser<ManagedTokenSource>::parse_literal_expr (AST::AttrVec outer_attrs)
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::ReturnExpr>
 Parser<ManagedTokenSource>::parse_return_expr (AST::AttrVec outer_attrs,
-					       bool pratt_parse)
+					       Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (RETURN_TOK);
-    }
-  else
-    {
-      // minus 7 chars for 6 in return and a space
-      // or just TODO: pass in location data
-      locus = lexer.peek_token ()->get_locus () - 7;
     }
 
   // parse expression to return, if it exists
@@ -7651,20 +7636,13 @@ Parser<ManagedTokenSource>::parse_return_expr (AST::AttrVec outer_attrs,
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::BreakExpr>
 Parser<ManagedTokenSource>::parse_break_expr (AST::AttrVec outer_attrs,
-					      bool pratt_parse)
+					      Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (BREAK);
-    }
-  else
-    {
-      // minus 6 chars for 5 in return and a space
-      // or just TODO: pass in location data
-      locus = lexer.peek_token ()->get_locus () - 6;
     }
 
   // parse label (lifetime) if it exists - create dummy first
@@ -7689,20 +7667,13 @@ Parser<ManagedTokenSource>::parse_break_expr (AST::AttrVec outer_attrs,
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::ContinueExpr>
 Parser<ManagedTokenSource>::parse_continue_expr (AST::AttrVec outer_attrs,
-						 bool pratt_parse)
+						 Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (CONTINUE);
-    }
-  else
-    {
-      // minus 9 chars for 8 in return and a space
-      // or just TODO: pass in location data
-      locus = lexer.peek_token ()->get_locus () - 9;
     }
 
   // parse label (lifetime) if it exists - create dummy first
@@ -7747,11 +7718,11 @@ Parser<ManagedTokenSource>::parse_loop_label ()
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::IfExpr>
 Parser<ManagedTokenSource>::parse_if_expr (AST::AttrVec outer_attrs,
-					   bool pratt_parse)
+					   Location pratt_parsed_loc)
 {
   // TODO: make having outer attributes an error?
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
       if (!skip_token (IF))
@@ -7759,10 +7730,6 @@ Parser<ManagedTokenSource>::parse_if_expr (AST::AttrVec outer_attrs,
 	  skip_after_end_block ();
 	  return nullptr;
 	}
-    }
-  else
-    {
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   // detect accidental if let
@@ -7909,11 +7876,11 @@ Parser<ManagedTokenSource>::parse_if_expr (AST::AttrVec outer_attrs,
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::IfLetExpr>
 Parser<ManagedTokenSource>::parse_if_let_expr (AST::AttrVec outer_attrs,
-					       bool pratt_parse)
+					       Location pratt_parsed_loc)
 {
   // TODO: make having outer attributes an error?
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
       if (!skip_token (IF))
@@ -7921,10 +7888,6 @@ Parser<ManagedTokenSource>::parse_if_let_expr (AST::AttrVec outer_attrs,
 	  skip_after_end_block ();
 	  return nullptr;
 	}
-    }
-  else
-    {
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   // detect accidental if expr parsed as if let expr
@@ -8101,10 +8064,10 @@ template <typename ManagedTokenSource>
 std::unique_ptr<AST::LoopExpr>
 Parser<ManagedTokenSource>::parse_loop_expr (AST::AttrVec outer_attrs,
 					     AST::LoopLabel label,
-					     bool pratt_parse)
+					     Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       if (label.is_error ())
 	locus = lexer.peek_token ()->get_locus ();
@@ -8119,9 +8082,7 @@ Parser<ManagedTokenSource>::parse_loop_expr (AST::AttrVec outer_attrs,
     }
   else
     {
-      if (label.is_error ())
-	locus = lexer.peek_token ()->get_locus () - 1;
-      else
+      if (!label.is_error ())
 	locus = label.get_locus ();
     }
 
@@ -8147,10 +8108,10 @@ template <typename ManagedTokenSource>
 std::unique_ptr<AST::WhileLoopExpr>
 Parser<ManagedTokenSource>::parse_while_loop_expr (AST::AttrVec outer_attrs,
 						   AST::LoopLabel label,
-						   bool pratt_parse)
+						   Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       if (label.is_error ())
 	locus = lexer.peek_token ()->get_locus ();
@@ -8165,9 +8126,7 @@ Parser<ManagedTokenSource>::parse_while_loop_expr (AST::AttrVec outer_attrs,
     }
   else
     {
-      if (label.is_error ())
-	locus = lexer.peek_token ()->get_locus () - 1;
-      else
+      if (!label.is_error ())
 	locus = label.get_locus ();
     }
 
@@ -8424,20 +8383,13 @@ Parser<ManagedTokenSource>::parse_labelled_loop_expr (AST::AttrVec outer_attrs)
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::MatchExpr>
 Parser<ManagedTokenSource>::parse_match_expr (AST::AttrVec outer_attrs,
-					      bool pratt_parse)
+					      Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (MATCH_TOK);
-    }
-  else
-    {
-      // TODO: probably just pass in location data as param
-      // get current pos then move back 6 - 5 for match, 1 for space
-      locus = lexer.peek_token ()->get_locus () - 6;
     }
 
   /* parse scrutinee expression, which is required (and HACK to prevent struct
@@ -8712,16 +8664,14 @@ Parser<ManagedTokenSource>::parse_async_block_expr (AST::AttrVec outer_attrs)
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::UnsafeBlockExpr>
 Parser<ManagedTokenSource>::parse_unsafe_block_expr (AST::AttrVec outer_attrs,
-						     bool pratt_parse)
+						     Location pratt_parsed_loc)
 {
-  Location locus;
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
       skip_token (UNSAFE);
     }
-  else
-    locus = lexer.peek_token ()->get_locus () - 1;
 
   // parse block expression (required)
   std::unique_ptr<AST::BlockExpr> block_expr = parse_block_expr ();
@@ -8745,18 +8695,13 @@ Parser<ManagedTokenSource>::parse_unsafe_block_expr (AST::AttrVec outer_attrs,
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::ArrayExpr>
 Parser<ManagedTokenSource>::parse_array_expr (AST::AttrVec outer_attrs,
-					      bool pratt_parse)
+					      Location pratt_parsed_loc)
 {
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (LEFT_SQUARE);
-    }
-  else
-    {
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   // parse optional inner attributes
@@ -8934,19 +8879,14 @@ Parser<ManagedTokenSource>::parse_closure_param ()
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::ExprWithoutBlock>
 Parser<ManagedTokenSource>::parse_grouped_or_tuple_expr (
-  AST::AttrVec outer_attrs, bool pratt_parse)
+  AST::AttrVec outer_attrs, Location pratt_parsed_loc)
 {
   // adjustment to allow Pratt parsing to reuse function without copy-paste
-  Location locus = Linemap::unknown_location ();
-  if (!pratt_parse)
+  Location locus = pratt_parsed_loc;
+  if (locus == Linemap::unknown_location ())
     {
       locus = lexer.peek_token ()->get_locus ();
-
       skip_token (LEFT_PAREN);
-    }
-  else
-    {
-      locus = lexer.peek_token ()->get_locus () - 1;
     }
 
   // parse optional inner attributes
@@ -12542,7 +12482,7 @@ Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
 	// qualified path
 	// HACK: add outer attrs to path
 	AST::QualifiedPathInExpression path
-	  = parse_qualified_path_in_expression (true);
+	  = parse_qualified_path_in_expression (tok->get_locus ());
 	path.set_outer_attrs (std::move (outer_attrs));
 	return std::unique_ptr<AST::QualifiedPathInExpression> (
 	  new AST::QualifiedPathInExpression (std::move (path)));
@@ -12585,7 +12525,8 @@ Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
 	new AST::LiteralExpr ("false", AST::Literal::BOOL,
 			      tok->get_type_hint (), {}, tok->get_locus ()));
     case LEFT_PAREN:
-      return parse_grouped_or_tuple_expr (std::move (outer_attrs), true);
+      return parse_grouped_or_tuple_expr (std::move (outer_attrs),
+					  tok->get_locus ());
 
       /*case PLUS: { // unary plus operator
 	  // invoke parse_expr recursively with appropriate priority, etc. for
@@ -12817,41 +12758,43 @@ Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
       return parse_range_to_inclusive_expr (tok, std::move (outer_attrs));
     case RETURN_TOK:
       // FIXME: is this really a null denotation expression?
-      return parse_return_expr (std::move (outer_attrs), true);
+      return parse_return_expr (std::move (outer_attrs), tok->get_locus ());
     case BREAK:
       // FIXME: is this really a null denotation expression?
-      return parse_break_expr (std::move (outer_attrs), true);
+      return parse_break_expr (std::move (outer_attrs), tok->get_locus ());
     case CONTINUE:
-      return parse_continue_expr (std::move (outer_attrs), true);
+      return parse_continue_expr (std::move (outer_attrs), tok->get_locus ());
     case LEFT_CURLY:
       // ok - this is an expression with block for once.
-      return parse_block_expr (std::move (outer_attrs), true);
+      return parse_block_expr (std::move (outer_attrs), tok->get_locus ());
     case IF:
       // if or if let, so more lookahead to find out
       if (lexer.peek_token (1)->get_id () == LET)
 	{
 	  // if let expr
-	  return parse_if_let_expr (std::move (outer_attrs), true);
+	  return parse_if_let_expr (std::move (outer_attrs), tok->get_locus ());
 	}
       else
 	{
 	  // if expr
-	  return parse_if_expr (std::move (outer_attrs), true);
+	  return parse_if_expr (std::move (outer_attrs), tok->get_locus ());
 	}
     case LOOP:
       return parse_loop_expr (std::move (outer_attrs), AST::LoopLabel::error (),
-			      true);
+			      tok->get_locus ());
     case WHILE:
       return parse_while_loop_expr (std::move (outer_attrs),
-				    AST::LoopLabel::error (), true);
+				    AST::LoopLabel::error (),
+				    tok->get_locus ());
     case MATCH_TOK:
       // also an expression with block
-      return parse_match_expr (std::move (outer_attrs), true);
+      return parse_match_expr (std::move (outer_attrs), tok->get_locus ());
     case LEFT_SQUARE:
       // array definition expr (not indexing)
-      return parse_array_expr (std::move (outer_attrs), true);
+      return parse_array_expr (std::move (outer_attrs), tok->get_locus ());
     case UNSAFE:
-      return parse_unsafe_block_expr (std::move (outer_attrs), true);
+      return parse_unsafe_block_expr (std::move (outer_attrs),
+				      tok->get_locus ());
     default:
       if (!restrictions.expr_can_be_null)
 	add_error (Error (tok->get_locus (),

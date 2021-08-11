@@ -20,6 +20,7 @@
 #define RUST_NAME_RESOLVER_H
 
 #include "rust-system.h"
+#include "rust-canonical-path.h"
 #include "rust-hir-map.h"
 #include "rust-hir-type-check.h"
 
@@ -44,99 +45,6 @@ namespace Resolver {
 // impl Trait for Struct {
 //    fn f(&self) {} // <::a::Struct as ::a::Trait>::f
 // }
-class CanonicalPath
-{
-public:
-  CanonicalPath (const CanonicalPath &other) : segs (other.segs) {}
-
-  CanonicalPath (const CanonicalPath &other, int startfrom)
-  {
-    segs = std::vector<std::pair<NodeId, std::string>> (other.segs.begin() + startfrom, other.segs.end());
-  }
-
-  CanonicalPath &operator= (const CanonicalPath &other)
-  {
-    segs = other.segs;
-    return *this;
-  }
-
-  static CanonicalPath new_seg (NodeId id, const std::string &path)
-  {
-    rust_assert (!path.empty ());
-    return CanonicalPath ({std::pair<NodeId, std::string> (id, path)});
-  }
-
-  std::string get () const
-  {
-    std::string buf;
-    for (size_t i = 0; i < segs.size (); i++)
-      {
-	bool have_more = (i + 1) < segs.size ();
-	const std::string &seg = segs.at (i).second;
-	buf += seg + (have_more ? "::" : "");
-      }
-    return buf;
-  }
-
-  static CanonicalPath get_big_self (NodeId id)
-  {
-    return CanonicalPath::new_seg (id, "Self");
-  }
-
-  static CanonicalPath create_empty () { return CanonicalPath ({}); }
-
-  bool is_empty () const { return segs.size () == 0; }
-
-  CanonicalPath append (const CanonicalPath &other) const
-  {
-    rust_assert (!other.is_empty ());
-    if (is_empty ())
-      return CanonicalPath (other.segs);
-
-    std::vector<std::pair<NodeId, std::string>> copy (segs);
-    for (auto &s : other.segs)
-      copy.push_back (s);
-
-    return CanonicalPath (copy);
-  }
-
-  // if we have the path A::B::C this will give a callback for each segment
-  // example:
-  //   A
-  //   A::B
-  //   A::B::C
-  void iterate (std::function<bool (const CanonicalPath &)> cb) const
-  {
-    std::vector<std::pair<NodeId, std::string>> buf;
-    for (auto &seg : segs)
-      {
-	buf.push_back (seg);
-	if (!cb (CanonicalPath (buf)))
-	  return;
-      }
-  }
-
-  NodeId get_id () const
-  {
-    rust_assert (!segs.empty ());
-    return segs.back ().first;
-  }
-
-  bool operator== (const CanonicalPath &b) const
-  {
-    return get ().compare (b.get ()) == 0;
-  }
-
-  bool operator< (const CanonicalPath &b) const { return get () < b.get (); }
-
-  //  std::vector<std::pair<NodeId, std::string>> & get_segs() { return segs; }
-private:
-  explicit CanonicalPath (std::vector<std::pair<NodeId, std::string>> path)
-    : segs (path)
-  {}
-
-  std::vector<std::pair<NodeId, std::string>> segs;
-};
 
 class Rib
 {
@@ -173,6 +81,9 @@ public:
     reverse_mappings.insert (std::pair<NodeId, CanonicalPath> (id, path));
     decls_within_rib.insert (std::pair<NodeId, Location> (id, locus));
     references[id] = {};
+
+    auto mappings = Analysis::Mappings::get ();
+    mappings->insert_canonical_path (mappings->get_current_crate (), id, path);
   }
 
   bool lookup_name (const CanonicalPath &ident, NodeId *id)
@@ -373,6 +284,11 @@ struct Definition
   NodeId node;
   NodeId parent;
   // add kind ?
+
+  bool is_equal (const Definition &other)
+  {
+    return node == other.node && parent == other.parent;
+  }
 };
 
 class Resolver
