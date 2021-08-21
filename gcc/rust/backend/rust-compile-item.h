@@ -301,7 +301,7 @@ public:
       }
   }
 
-  void visit (HIR::ModuleBodied &module) override
+  void visit (HIR::Module &module) override
   {
     for (auto &item : module.get_items ())
       CompileItem::compile (item.get (), ctx, compile_fns);
