@@ -177,7 +177,14 @@ TyTyResolveCompile::visit (const TyTy::ADTType &type)
 	  tree compiled_field_ty
 	    = TyTyResolveCompile::compile (ctx, field->get_field_type ());
 
-	  Backend::typed_identifier f (field->get_name (), compiled_field_ty,
+	  auto field_name = field->get_name ();
+	  if (type.is_tuple_struct ())
+	    field_name = "__" + field_name;
+
+	  rust_debug_loc (type.get_locus (), "field_name: %s",
+			  field_name.c_str ());
+
+	  Backend::typed_identifier f (field_name, compiled_field_ty,
 				       ctx->get_mappings ()->lookup_location (
 					 type.get_ty_ref ()));
 	  fields.push_back (std::move (f));
