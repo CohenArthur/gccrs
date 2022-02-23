@@ -34,6 +34,14 @@ make_string (Location locus, std::string value)
 			  PrimitiveCoreType::CORETYPE_STR, {}, locus));
 }
 
+std::unique_ptr<AST::Expr>
+make_integer (Location locus, int value)
+{
+  return std::unique_ptr<AST::Expr> (
+    new AST::LiteralExpr (std::to_string (value), AST::Literal::INT,
+			  PrimitiveCoreType::CORETYPE_INT, {}, locus));
+}
+
 std::unique_ptr<AST::BlockExpr>
 make_block (Location locus,
 	    std::vector<std::unique_ptr<AST::Stmt>> &&statements = {},
@@ -58,6 +66,19 @@ make_not (Location locus, std::unique_ptr<AST::Expr> &&expr)
 {
   return std::unique_ptr<AST::Expr> (
     new AST::NegationExpr (std::move (expr), NegationOperator::NOT, {}, locus));
+}
+
+std::unique_ptr<AST::Expr>
+make_function_call (Location locus, std::string fn_name,
+		    std::vector<std::unique_ptr<AST::Expr>> &&args = {})
+{
+  auto fn_name_path = AST::PathIdentSegment (fn_name, locus);
+  auto fn_path_sgmt = AST::PathExprSegment (fn_name_path, locus);
+  auto fn_path = std::unique_ptr<AST::PathInExpression> (
+    new AST::PathInExpression ({fn_path_sgmt}, {}, locus));
+
+  return std::unique_ptr<AST::Expr> (
+    new AST::CallExpr (std::move (fn_path), std::move (args), {}, locus));
 }
 } // namespace
 
@@ -123,22 +144,9 @@ MacroBuiltin::panic (Location invoc_locus, AST::MacroInvocData &invoc)
 
   // FIXME: Add call to display error message before exiting
 
-  auto exit_args = std::vector<std::unique_ptr<AST::Expr>> ();
-  auto exit_code = std::unique_ptr<AST::Expr> (
-    new AST::LiteralExpr ("101", AST::Literal::LitType::INT,
-			  PrimitiveCoreType::CORETYPE_INT,
-			  std::vector<AST::Attribute> (), invoc_locus));
-
-  exit_args.emplace_back (std::move (exit_code));
-
-  auto exit_path = AST::PathIdentSegment ("exit", invoc_locus);
-  auto path = AST::PathExprSegment (exit_path, invoc_locus);
-  auto path_expr = std::unique_ptr<AST::PathInExpression> (
-    new AST::PathInExpression ({path}, {}, invoc_locus));
-
-  auto node = AST::SingleASTNode (std::unique_ptr<AST::Expr> (
-    new AST::CallExpr (std::move (path_expr), std::move (exit_args), {},
-		       invoc_locus)));
+  auto node = AST::SingleASTNode (
+    make_function_call (invoc_locus, "exit",
+			{make_integer (invoc_locus, 101)}));
 
   return AST::ASTFragment ({node});
 }
