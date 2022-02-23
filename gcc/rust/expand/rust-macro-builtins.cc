@@ -144,10 +144,11 @@ MacroBuiltin::panic (Location invoc_locus, AST::MacroInvocData &invoc)
 
   // FIXME: Add call to display error message before exiting
 
-  auto node = AST::SingleASTNode (
-    make_function_call (invoc_locus, "exit",
-			{make_integer (invoc_locus, 101)}));
-
-  return AST::ASTFragment ({node});
+  //  auto node = AST::SingleASTNode (
+  //    make_function_call (invoc_locus, "exit",
+  //			{make_integer (invoc_locus, 101)}));
+  //
+  // return AST::ASTFragment ({node});
+  return AST::ASTFragment::create_empty ();
 }
 } // namespace Rust
