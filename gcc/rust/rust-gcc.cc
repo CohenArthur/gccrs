@@ -480,6 +480,13 @@ Gcc_backend::Gcc_backend ()
   this->define_builtin ("sqrtf32", BUILT_IN_SQRTF, "__builtin_sqrtf", "sqrtf",
 			math_function_type_f32, builtin_const);
 
+  // FIXME: Is this correct?
+  // The compiler uses __builtin_trap for some exception handling
+  // cases.
+  this->define_builtin ("trap", BUILT_IN_TRAP, "__builtin_trap", "trap",
+			build_function_type (void_type_node, void_list_node),
+			builtin_noreturn);
+
   // We use __builtin_return_address in the thunk we build for
   // functions which call recover, and for runtime.getcallerpc.
   // t = build_function_type_list (ptr_type_node, unsigned_type_node,
@@ -497,12 +504,6 @@ Gcc_backend::Gcc_backend ()
   // this->define_builtin (
   //   BUILT_IN_EXTRACT_RETURN_ADDR, "__builtin_extract_return_addr", NULL,
   //   build_function_type_list (ptr_type_node, ptr_type_node, NULL_TREE), 0);
-
-  // The compiler uses __builtin_trap for some exception handling
-  // cases.
-  // this->define_builtin (BUILT_IN_TRAP, "__builtin_trap", NULL,
-  //       		build_function_type (void_type_node, void_list_node),
-  //       		builtin_noreturn);
 
   // The runtime uses __builtin_prefetch.
   // this->define_builtin (BUILT_IN_PREFETCH, "__builtin_prefetch", NULL,
