@@ -18,6 +18,7 @@
 
 #include "rust-macro-builtins.h"
 #include "rust-diagnostics.h"
+#include "rust-ast.h"
 #include "rust-expr.h"
 #include "rust-macro-invoc-lexer.h"
 #include "rust-parse.h"
@@ -32,6 +33,32 @@ make_string (Location locus, std::string value)
     new AST::LiteralExpr (value, AST::Literal::STRING,
 			  PrimitiveCoreType::CORETYPE_STR, {}, locus));
 }
+
+std::unique_ptr<AST::BlockExpr>
+make_block (Location locus,
+	    std::vector<std::unique_ptr<AST::Stmt>> &&statements = {},
+	    std::unique_ptr<AST::Expr> &&trailing_expr = nullptr)
+{
+  return std::unique_ptr<AST::BlockExpr> (
+    new AST::BlockExpr (std::move (statements), std::move (trailing_expr), {},
+			{}, locus, Location ()));
+}
+
+std::unique_ptr<AST::Expr>
+make_if (Location locus, std::unique_ptr<AST::Expr> condition,
+	 std::unique_ptr<AST::BlockExpr> block)
+{
+  return std::unique_ptr<AST::Expr> (
+    new AST::IfExprConseqElse (std::move (condition), std::move (block),
+			       nullptr, {}, locus));
+}
+
+std::unique_ptr<AST::Expr>
+make_not (Location locus, std::unique_ptr<AST::Expr> &&expr)
+{
+  return std::unique_ptr<AST::Expr> (
+    new AST::NegationExpr (std::move (expr), NegationOperator::NOT, {}, locus));
+}
 } // namespace
 
 AST::ASTFragment
@@ -42,7 +69,7 @@ MacroBuiltin::assert (Location invoc_locus, AST::MacroInvocData &invoc)
   MacroInvocLexer lex (std::move (token_stream));
   Parser<MacroInvocLexer> parser (std::move (lex));
 
-  std::vector<std::unique_ptr<AST::SingleASTNode>> nodes;
+  std::vector<AST::SingleASTNode> nodes;
 
   if (parser.peek_current_token ()->get_id () == TokenId::END_OF_FILE)
     {
@@ -61,20 +88,17 @@ MacroBuiltin::assert (Location invoc_locus, AST::MacroInvocData &invoc)
       //      // For now generate a trap or something
       // }
       auto condition = parser.parse_expr ();
-      auto if_expr = std::unique_ptr<AST::BlockExpr> (
-	new AST::BlockExpr ({}, nullptr, {}, {}, invoc_locus, Location ()));
-      auto else_expr = std::unique_ptr<AST::BlockExpr> (
-	new AST::BlockExpr ({}, nullptr, {}, {}, invoc_locus, Location ()));
 
-      auto if_block = std::unique_ptr<AST::Expr> (
-	new AST::IfExprConseqElse (std::move (condition), std::move (if_expr),
-				   std::move (else_expr), {}, invoc_locus));
-      auto if_node = std::unique_ptr<AST::SingleASTNode> (
-	new AST::SingleASTNode (std::move (if_block)));
-      nodes.emplace_back (std::move (if_node));
+      // FIXME: Add call to panic here
+      auto if_expr = make_block (invoc_locus);
+      auto if_block
+	= make_if (invoc_locus, make_not (invoc_locus, std::move (condition)),
+		   std::move (if_expr));
+
+      nodes.emplace_back (AST::SingleASTNode (std::move (if_block)));
     }
 
-  return AST::ASTFragment::create_empty ();
+  return AST::ASTFragment (nodes);
 }
 
 AST::ASTFragment
