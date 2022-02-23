@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 // This file is part of GCC.
@@ -21,8 +20,8 @@
 #include "rust-diagnostics.h"
 #include "rust-ast.h"
 #include "rust-expr.h"
-#include "rust-macro-invoc-lexer.h"
 #include "rust-parse.h"
+#include "rust-macro-invoc-lexer.h"
 #include "rust-session-manager.h"
 
 namespace Rust {
@@ -110,5 +109,37 @@ MacroBuiltin::file (Location invoc_locus, AST::MacroInvocData &invoc)
   auto file_str = AST::SingleASTNode (make_string (invoc_locus, current_file));
 
   return AST::ASTFragment ({file_str});
+}
+
+AST::ASTFragment
+MacroBuiltin::panic (Location invoc_locus, AST::MacroInvocData &invoc)
+{
+  // FIXME: rustc switches panic implementations based on the rust edition:
+  // Either panic2021 or panic2015
+  // It resolves to one of the two macros, which are defined in the
+  // core library.
+  // We can resolve to them later on once we compile the core library, but for
+  // now add a call to a simple trap handler.
+
+  // FIXME: Add call to display error message before exiting
+
+  auto exit_args = std::vector<std::unique_ptr<AST::Expr>> ();
+  auto exit_code = std::unique_ptr<AST::Expr> (
+    new AST::LiteralExpr ("101", AST::Literal::LitType::INT,
+			  PrimitiveCoreType::CORETYPE_INT,
+			  std::vector<AST::Attribute> (), invoc_locus));
+
+  exit_args.emplace_back (std::move (exit_code));
+
+  auto exit_path = AST::PathIdentSegment ("exit", invoc_locus);
+  auto path = AST::PathExprSegment (exit_path, invoc_locus);
+  auto path_expr = std::unique_ptr<AST::PathInExpression> (
+    new AST::PathInExpression ({path}, {}, invoc_locus));
+
+  auto node = AST::SingleASTNode (std::unique_ptr<AST::Expr> (
+    new AST::CallExpr (std::move (path_expr), std::move (exit_args), {},
+		       invoc_locus)));
+
+  return AST::ASTFragment ({node});
 }
 } // namespace Rust

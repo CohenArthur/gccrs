@@ -31,6 +31,9 @@ public:
 
   static AST::ASTFragment file (Location invoc_locus,
 				AST::MacroInvocData &invoc);
+
+  static AST::ASTFragment panic (Location invoc_locus,
+				 AST::MacroInvocData &invoc);
 };
 } // namespace Rust
 

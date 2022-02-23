@@ -747,6 +747,11 @@ Mappings::insert_macro_def (AST::MacroRulesDefinition *macro)
     builtin_macros = {
       {"assert", MacroBuiltin::assert},
       {"file", MacroBuiltin::file},
+      /* rustc expands both {core, std}_panic to the same builtin */
+      {"core_panic", MacroBuiltin::panic},
+      {"std_panic", MacroBuiltin::panic},
+      // FIXME: Remove this once we can compile libcore?
+      {"panic", MacroBuiltin::panic},
     };
 
   auto builtin = builtin_macros.find (macro->get_rule_name ());
