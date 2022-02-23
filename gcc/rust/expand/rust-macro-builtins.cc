@@ -19,6 +19,8 @@
 #include "rust-macro-builtins.h"
 #include "rust-diagnostics.h"
 #include "rust-expr.h"
+#include "rust-macro-invoc-lexer.h"
+#include "rust-parse.h"
 #include "rust-session-manager.h"
 
 namespace Rust {
@@ -35,7 +37,42 @@ make_string (Location locus, std::string value)
 AST::ASTFragment
 MacroBuiltin::assert (Location invoc_locus, AST::MacroInvocData &invoc)
 {
-  rust_debug ("assert!() called");
+  auto token_stream = invoc.get_delim_tok_tree ().to_token_stream ();
+
+  MacroInvocLexer lex (std::move (token_stream));
+  Parser<MacroInvocLexer> parser (std::move (lex));
+
+  std::vector<std::unique_ptr<AST::SingleASTNode>> nodes;
+
+  if (parser.peek_current_token ()->get_id () == TokenId::END_OF_FILE)
+    {
+      rust_error_at (
+	invoc_locus,
+	"%<assert!()%> requires a boolean expression as an argument");
+      return AST::ASTFragment::create_empty ();
+    }
+  else
+    {
+      // FIXME:
+      // Expand to the following code:
+      // if <condition> {
+      // } else {
+      //      panic!("assertion failed");
+      //      // For now generate a trap or something
+      // }
+      auto condition = parser.parse_expr ();
+      auto if_expr = std::unique_ptr<AST::BlockExpr> (
+	new AST::BlockExpr ({}, nullptr, {}, {}, invoc_locus, Location ()));
+      auto else_expr = std::unique_ptr<AST::BlockExpr> (
+	new AST::BlockExpr ({}, nullptr, {}, {}, invoc_locus, Location ()));
+
+      auto if_block = std::unique_ptr<AST::Expr> (
+	new AST::IfExprConseqElse (std::move (condition), std::move (if_expr),
+				   std::move (else_expr), {}, invoc_locus));
+      auto if_node = std::unique_ptr<AST::SingleASTNode> (
+	new AST::SingleASTNode (std::move (if_block)));
+      nodes.emplace_back (std::move (if_node));
+    }
 
   return AST::ASTFragment::create_empty ();
 }
