@@ -20,6 +20,7 @@
 #include "rust-diagnostics.h"
 #include "rust-ast.h"
 #include "rust-expr.h"
+#include "rust-macro.h"
 #include "rust-parse.h"
 #include "rust-macro-invoc-lexer.h"
 #include "rust-session-manager.h"
@@ -80,6 +81,18 @@ make_function_call (Location locus, std::string fn_name,
   return std::unique_ptr<AST::Expr> (
     new AST::CallExpr (std::move (fn_path), std::move (args), {}, locus));
 }
+
+std::unique_ptr<AST::Expr>
+make_macro_call (Location locus, std::string macro_name,
+		 AST::DelimTokenTree token_tree)
+{
+  auto macro_path = AST::SimplePathSegment (macro_name, locus);
+  auto macro_invoc_data
+    = AST::MacroInvocData (AST::SimplePath ({macro_path}), token_tree);
+
+  return std::unique_ptr<AST::Expr> (
+    new AST::MacroInvocation (macro_invoc_data, {}, locus));
+}
 } // namespace
 
 AST::ASTFragment
@@ -110,8 +123,10 @@ MacroBuiltin::assert (Location invoc_locus, AST::MacroInvocData &invoc)
       // }
       auto condition = parser.parse_expr ();
 
-      // FIXME: Add call to panic here
-      auto if_expr = make_block (invoc_locus);
+      auto panic_tt = *invoc.get_delim_tok_tree ().clone_delim_token_tree ();
+      auto if_expr
+	= make_block (invoc_locus, {},
+		      make_macro_call (invoc_locus, "panic", panic_tt));
       auto if_block
 	= make_if (invoc_locus, make_not (invoc_locus, std::move (condition)),
 		   std::move (if_expr));
