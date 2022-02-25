@@ -20,6 +20,7 @@
 #include "rust-diagnostics.h"
 #include "rust-ast.h"
 #include "rust-expr.h"
+#include "rust-item.h"
 #include "rust-macro.h"
 #include "rust-parse.h"
 #include "rust-macro-invoc-lexer.h"
@@ -45,12 +46,33 @@ make_integer (Location locus, int value)
 
 std::unique_ptr<AST::BlockExpr>
 make_block (Location locus,
-	    std::vector<std::unique_ptr<AST::Stmt>> &&statements = {},
-	    std::unique_ptr<AST::Expr> &&trailing_expr = nullptr)
+	    std::vector<std::unique_ptr<AST::Stmt>> statements = {},
+	    std::unique_ptr<AST::Expr> trailing_expr = nullptr)
 {
   return std::unique_ptr<AST::BlockExpr> (
     new AST::BlockExpr (std::move (statements), std::move (trailing_expr), {},
 			{}, locus, Location ()));
+}
+
+std::unique_ptr<AST::Stmt>
+make_function (Location locus, std::string name,
+	       AST::FunctionQualifiers qualifiers
+	       = AST::FunctionQualifiers (AsyncConstStatus::NONE, false),
+	       std::vector<std::unique_ptr<AST::GenericParam>> generic_params
+	       = {},
+	       std::vector<AST::FunctionParam> params = {},
+	       std::unique_ptr<AST::Type> return_type = nullptr,
+	       AST::WhereClause where_clause
+	       = AST::WhereClause::create_empty (),
+	       std::unique_ptr<AST::BlockExpr> body = nullptr,
+	       AST::Visibility vis = AST::Visibility::create_public (),
+	       std::vector<AST::Attribute> attributes = {})
+{
+  return std::unique_ptr<AST::Stmt> (
+    new AST::Function (name, qualifiers, std::move (generic_params),
+		       std::move (params), std::move (return_type),
+		       where_clause, std::move (body), vis,
+		       std::move (attributes), locus));
 }
 
 std::unique_ptr<AST::Expr>
@@ -158,9 +180,27 @@ MacroBuiltin::panic (Location invoc_locus, AST::MacroInvocData &invoc)
   // now add a call to a simple trap handler.
 
   // FIXME: Add call to display error message before exiting
+  // FIXME: Use builtins instead of trap function
 
-  auto node = AST::SingleASTNode (make_function_call (invoc_locus, "trap", {}));
+  std::vector<std::unique_ptr<AST::ExternalItem>> items;
 
-  return AST::ASTFragment ({node});
+  // FIXME: Add proper exit arguments here
+  auto fn = std::unique_ptr<AST::ExternalItem> (new AST::ExternalFunctionItem (
+    "exit", {}, nullptr, AST::WhereClause::create_empty (), {}, {}, {},
+    AST::Visibility::create_public (), {}, invoc_locus));
+  items.emplace_back (std::move (fn));
+  auto extern_block = std::unique_ptr<AST::Item> (
+    new AST::ExternBlock ("c", std::move (items),
+			  AST::Visibility::create_public (), {}, {},
+			  invoc_locus));
+
+  std::vector<std::unique_ptr<AST::Stmt>> stmts;
+  stmts.emplace_back (std::move (extern_block));
+
+  // FIXME: Add arguments here
+  auto call = make_function_call (invoc_locus, "exit");
+  auto block = make_block (invoc_locus, std::move (stmts), std::move (call));
+
+  return AST::ASTFragment ({AST::SingleASTNode (std::move (block))});
 }
 } // namespace Rust
