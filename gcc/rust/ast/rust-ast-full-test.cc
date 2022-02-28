@@ -1378,6 +1378,9 @@ MacroInvocation::as_string () const
 
   str += "\n " + invoc_data.as_string ();
 
+  str += "\n has semicolon: ";
+  str += has_semicolon () ? "true" : "false";
+
   return str;
 }
 

@@ -453,6 +453,10 @@ protected:
  * compile time */
 class MacroInvocation : public TypeNoBounds,
 			public Pattern,
+			public MacroItem,
+			public TraitItem,
+			public TraitImplItem,
+			public InherentImplItem,
 			public ExprWithoutBlock
 {
   std::vector<Attribute> outer_attrs;
@@ -533,6 +537,28 @@ protected:
   /*virtual*/ MacroInvocation *clone_macro_invocation_impl () const
   {
     return new MacroInvocation (*this);
+  }
+
+  Item *clone_item_impl () const override
+  {
+    return clone_macro_invocation_impl ();
+  }
+
+  bool is_item () const override { return !has_semicolon (); }
+
+  TraitItem *clone_trait_item_impl () const override
+  {
+    return clone_macro_invocation_impl ();
+  };
+
+  TraitImplItem *clone_trait_impl_item_impl () const override
+  {
+    return clone_macro_invocation_impl ();
+  };
+
+  InherentImplItem *clone_inherent_impl_item_impl () const override
+  {
+    return clone_macro_invocation_impl ();
   }
 };
 

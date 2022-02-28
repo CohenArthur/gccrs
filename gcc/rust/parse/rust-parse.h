@@ -75,6 +75,7 @@ private:
  * features should be parsed in a certain way. */
 struct ParseRestrictions
 {
+  // FIXME: ARTHUR: Should we add the `parsing_item` bool here? -> Yes!
   bool can_be_struct_expr = true;
   /* Whether the expression was entered from a unary expression - prevents stuff
    * like struct exprs being parsed from a dereference. */
@@ -91,7 +92,8 @@ public:
 
   std::unique_ptr<AST::Expr>
   parse_expr (AST::AttrVec outer_attrs = AST::AttrVec (),
-	      ParseRestrictions restrictions = ParseRestrictions ());
+	      ParseRestrictions restrictions = ParseRestrictions (),
+	      bool parsing_item = false);
 
   std::unique_ptr<AST::LiteralExpr> parse_literal_expr (AST::AttrVec outer_attrs
 							= AST::AttrVec ());
@@ -281,10 +283,12 @@ private:
   std::unique_ptr<AST::Expr>
   parse_expr (int right_binding_power,
 	      AST::AttrVec outer_attrs = AST::AttrVec (),
-	      ParseRestrictions restrictions = ParseRestrictions ());
+	      ParseRestrictions restrictions = ParseRestrictions (),
+	      bool parsing_item = false);
   std::unique_ptr<AST::Expr>
   null_denotation (const_TokenPtr t, AST::AttrVec outer_attrs = AST::AttrVec (),
-		   ParseRestrictions restrictions = ParseRestrictions ());
+		   ParseRestrictions restrictions = ParseRestrictions (),
+		   bool parsing_item = false);
   std::unique_ptr<AST::Expr>
   left_denotation (const_TokenPtr t, std::unique_ptr<AST::Expr> left,
 		   AST::AttrVec outer_attrs = AST::AttrVec (),
@@ -470,7 +474,8 @@ private:
 		    ParseRestrictions restrictions = ParseRestrictions ());
   std::unique_ptr<AST::MacroInvocation>
   parse_macro_invocation_partial (AST::PathInExpression path,
-				  AST::AttrVec outer_attrs);
+				  AST::AttrVec outer_attrs,
+				  bool parsing_item = false);
   std::unique_ptr<AST::StructExprStruct>
   parse_struct_expr_struct_partial (AST::PathInExpression path,
 				    AST::AttrVec outer_attrs);
@@ -490,7 +495,8 @@ private:
   std::unique_ptr<AST::ExprWithBlock>
   parse_expr_with_block (AST::AttrVec outer_attrs);
   std::unique_ptr<AST::ExprWithoutBlock>
-  parse_expr_without_block (AST::AttrVec outer_attrs = AST::AttrVec ());
+  parse_expr_without_block (AST::AttrVec outer_attrs = AST::AttrVec (),
+			    bool parsing_item = false);
   // When given a pratt_parsed_loc, use it as the location of the
   // first token parsed in the expression (the parsing of that first
   // token should be skipped).

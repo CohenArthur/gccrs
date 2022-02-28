@@ -861,7 +861,9 @@ public:
   add_crate_name (std::vector<std::string> &names ATTRIBUTE_UNUSED) const
   {}
 
-  bool is_item () const override final { return true; }
+  // FIXME: ARTHUR: Is it okay to have removed that final? Is it *required*
+  // behavior that we have items that can also be expressions?
+  bool is_item () const override { return true; }
 
 protected:
   // Clone function implementation as pure virtual method
