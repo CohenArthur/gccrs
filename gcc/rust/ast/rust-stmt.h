@@ -336,9 +336,6 @@ protected:
   }
 };
 
-/* Replaced definition of MacroInvocationSemi with forward decl - defined in
- * rust-macro.h */
-class MacroInvocationSemi;
 } // namespace AST
 } // namespace Rust
 

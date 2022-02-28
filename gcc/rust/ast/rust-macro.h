@@ -27,7 +27,6 @@ namespace AST {
 
 // Decls as definitions moved to rust-ast.h
 class MacroItem;
-class MacroInvocationSemi;
 
 enum MacroFragSpec
 {
@@ -463,14 +462,18 @@ class MacroInvocation : public TypeNoBounds,
   // this is the expanded macro
   ASTFragment fragment;
 
+  // Important for when we actually expand the macro
+  bool is_semi_coloned;
+
 public:
   std::string as_string () const override;
 
   MacroInvocation (MacroInvocData invoc_data,
-		   std::vector<Attribute> outer_attrs, Location locus)
+		   std::vector<Attribute> outer_attrs, Location locus,
+		   bool is_semi_coloned = false)
     : outer_attrs (std::move (outer_attrs)),
       invoc_data (std::move (invoc_data)), locus (locus),
-      fragment (ASTFragment::create_empty ())
+      fragment (ASTFragment::create_empty ()), is_semi_coloned (is_semi_coloned)
   {}
 
   Location get_locus () const override final { return locus; }
@@ -502,6 +505,8 @@ public:
   ASTFragment &get_fragment () { return fragment; }
 
   void set_fragment (ASTFragment &&f) { fragment = std::move (f); }
+
+  bool has_semicolon () const { return is_semi_coloned; }
 
 protected:
   /* Use covariance to implement clone function as returning this object rather
