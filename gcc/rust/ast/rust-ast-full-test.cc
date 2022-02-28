@@ -1275,17 +1275,18 @@ TypeAlias::as_string () const
   return str;
 }
 
-std::string
-MacroInvocationSemi::as_string () const
-{
-  std::string str = "MacroInvocationSemi: ";
-
-  str += append_attributes (outer_attrs, OUTER);
-
-  str += "\n" + invoc_data.as_string ();
-
-  return str;
-}
+// FIXME: ARTHUR: Check if this is necessary for MacroInvocation
+// std::string
+// MacroInvocationSemi::as_string () const
+// {
+//   std::string str = "MacroInvocationSemi: ";
+//
+//   str += append_attributes (outer_attrs, OUTER);
+//
+//   str += "\n" + invoc_data.as_string ();
+//
+//   return str;
+// }
 
 std::string
 ExternBlock::as_string () const
@@ -4917,12 +4918,6 @@ Lifetime::accept_vis (ASTVisitor &vis)
 
 void
 LifetimeParam::accept_vis (ASTVisitor &vis)
-{
-  vis.visit (*this);
-}
-
-void
-MacroInvocationSemi::accept_vis (ASTVisitor &vis)
 {
   vis.visit (*this);
 }

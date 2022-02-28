@@ -157,7 +157,7 @@ private:
   std::unique_ptr<AST::TokenTree> parse_token_tree ();
   std::unique_ptr<AST::MacroRulesDefinition>
   parse_macro_rules_def (AST::AttrVec outer_attrs);
-  std::unique_ptr<AST::MacroInvocationSemi>
+  std::unique_ptr<AST::MacroInvocation>
   parse_macro_invocation_semi (AST::AttrVec outer_attrs);
   std::unique_ptr<AST::MacroInvocation>
   parse_macro_invocation (AST::AttrVec outer_attrs);

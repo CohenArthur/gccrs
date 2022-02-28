@@ -1529,7 +1529,7 @@ Parser<ManagedTokenSource>::parse_macro_rules_def (AST::AttrVec outer_attrs)
 
 // Parses a semi-coloned (except for full block) macro invocation item.
 template <typename ManagedTokenSource>
-std::unique_ptr<AST::MacroInvocationSemi>
+std::unique_ptr<AST::MacroInvocation>
 Parser<ManagedTokenSource>::parse_macro_invocation_semi (
   AST::AttrVec outer_attrs)
 {
@@ -1618,10 +1618,10 @@ Parser<ManagedTokenSource>::parse_macro_invocation_semi (
 	    {
 	      // as this is the end, allow recovery (probably) - may change
 
-	      return std::unique_ptr<AST::MacroInvocationSemi> (
-		new AST::MacroInvocationSemi (std::move (invoc_data),
-					      std::move (outer_attrs),
-					      macro_locus));
+	      return std::unique_ptr<AST::MacroInvocation> (
+		new AST::MacroInvocation (std::move (invoc_data),
+					  std::move (outer_attrs), macro_locus),
+		true);
 	    }
 	}
 
@@ -1630,9 +1630,10 @@ Parser<ManagedTokenSource>::parse_macro_invocation_semi (
 		  t->get_token_description (),
 		  lexer.peek_token ()->get_token_description ());
 
-      return std::unique_ptr<AST::MacroInvocationSemi> (
-	new AST::MacroInvocationSemi (std::move (invoc_data),
-				      std::move (outer_attrs), macro_locus));
+      return std::unique_ptr<AST::MacroInvocation> (
+	new AST::MacroInvocation (std::move (invoc_data),
+				  std::move (outer_attrs), macro_locus),
+	true);
     }
   else
     {
@@ -11825,10 +11826,11 @@ Parser<ManagedTokenSource>::parse_path_based_stmt_or_expr (
 	      {
 		lexer.skip_token ();
 
-		std::unique_ptr<AST::MacroInvocationSemi> stmt (
-		  new AST::MacroInvocationSemi (std::move (invoc_data),
-						std::move (outer_attrs),
-						stmt_or_expr_loc));
+		std::unique_ptr<AST::MacroInvocation> stmt (
+		  new AST::MacroInvocation (std::move (invoc_data),
+					    std::move (outer_attrs),
+					    stmt_or_expr_loc),
+		  true);
 		return ExprOrStmt (std::move (stmt));
 	      }
 
@@ -11836,7 +11838,8 @@ Parser<ManagedTokenSource>::parse_path_based_stmt_or_expr (
 	    std::unique_ptr<AST::MacroInvocation> expr (
 	      new AST::MacroInvocation (std::move (invoc_data),
 					std::move (outer_attrs),
-					stmt_or_expr_loc));
+					stmt_or_expr_loc),
+	      false);
 	    return ExprOrStmt (std::move (expr));
 	  }
 	else
@@ -12145,10 +12148,10 @@ Parser<ManagedTokenSource>::parse_macro_invocation_maybe_semi (
 	{
 	  lexer.skip_token ();
 
-	  std::unique_ptr<AST::MacroInvocationSemi> stmt (
-	    new AST::MacroInvocationSemi (std::move (invoc_data),
-					  std::move (outer_attrs),
-					  macro_locus));
+	  std::unique_ptr<AST::MacroInvocation> stmt (
+	    new AST::MacroInvocation (std::move (invoc_data),
+				      std::move (outer_attrs), macro_locus),
+	    true);
 	  return ExprOrStmt (std::move (stmt));
 	}
 
