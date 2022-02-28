@@ -26,7 +26,7 @@
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define RUST_ATTRIBUTE_GCC_DIAG(m, n)                                          \
   __attribute__ ((__format__ (__gcc_tdiag__, m, n)))                           \
-    __attribute__ ((__nonnull__ (m)))
+  __attribute__ ((__nonnull__ (m)))
 #else
 #define RUST_ATTRIBUTE_GCC_DIAG(m, n)
 #endif

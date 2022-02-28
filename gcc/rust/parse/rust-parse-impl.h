@@ -7200,7 +7200,11 @@ Parser<ManagedTokenSource>::parse_expr_stmt_without_block (
   // attempt to parse via parse_expr_without_block - seems to work
   std::unique_ptr<AST::ExprWithoutBlock> expr = nullptr;
   Location locus = lexer.peek_token ()->get_locus ();
-  expr = parse_expr_without_block (std::move (outer_attrs), true);
+
+  auto restrictions = ParseRestrictions ();
+  restrictions.expr_can_be_stmt = true;
+
+  expr = parse_expr_without_block (std::move (outer_attrs), restrictions);
   if (expr == nullptr)
     {
       // expr is required, error
@@ -7227,8 +7231,8 @@ Parser<ManagedTokenSource>::parse_expr_stmt_without_block (
  * disambiguates). */
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::ExprWithoutBlock>
-Parser<ManagedTokenSource>::parse_expr_without_block (AST::AttrVec outer_attrs,
-						      bool parsing_item)
+Parser<ManagedTokenSource>::parse_expr_without_block (
+  AST::AttrVec outer_attrs, ParseRestrictions restrictions)
 {
   /* Notes on types of expr without block:
    *  - literal expr          tokens that are literals
@@ -7300,8 +7304,7 @@ Parser<ManagedTokenSource>::parse_expr_without_block (AST::AttrVec outer_attrs,
 	 * essentially downcast */
 
 	std::unique_ptr<AST::Expr> expr
-	  = parse_expr (std::move (outer_attrs), ParseRestrictions (),
-			parsing_item);
+	  = parse_expr (std::move (outer_attrs), restrictions);
 
 	if (expr == nullptr)
 	  {
@@ -12339,8 +12342,7 @@ template <typename ManagedTokenSource>
 std::unique_ptr<AST::Expr>
 Parser<ManagedTokenSource>::parse_expr (int right_binding_power,
 					AST::AttrVec outer_attrs,
-					ParseRestrictions restrictions,
-					bool parsing_expr_item)
+					ParseRestrictions restrictions)
 {
   const_TokenPtr current_token = lexer.peek_token ();
   // Special hack because we are allowed to return nullptr, in that case we
@@ -12359,8 +12361,7 @@ Parser<ManagedTokenSource>::parse_expr (int right_binding_power,
 
   // parse null denotation (unary part of expression)
   std::unique_ptr<AST::Expr> expr
-    = null_denotation (current_token, std::move (outer_attrs), restrictions,
-		       parsing_expr_item);
+    = null_denotation (current_token, std::move (outer_attrs), restrictions);
 
   if (expr == nullptr)
     {
@@ -12394,11 +12395,9 @@ Parser<ManagedTokenSource>::parse_expr (int right_binding_power,
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::Expr>
 Parser<ManagedTokenSource>::parse_expr (AST::AttrVec outer_attrs,
-					ParseRestrictions restrictions,
-					bool parsing_item)
+					ParseRestrictions restrictions)
 {
-  return parse_expr (LBP_LOWEST, std::move (outer_attrs), restrictions,
-		     parsing_item);
+  return parse_expr (LBP_LOWEST, std::move (outer_attrs), restrictions);
 }
 
 /* Determines action to take when finding token at beginning of expression.
@@ -12409,8 +12408,7 @@ template <typename ManagedTokenSource>
 std::unique_ptr<AST::Expr>
 Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
 					     AST::AttrVec outer_attrs,
-					     ParseRestrictions restrictions,
-					     bool parsing_item)
+					     ParseRestrictions restrictions)
 {
   /* note: tok is previous character in input stream, not current one, as
    * parse_expr skips it before passing it in */
@@ -12440,8 +12438,7 @@ Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
 	  case EXCLAM:
 	    // macro
 	    return parse_macro_invocation_partial (std::move (path),
-						   std::move (outer_attrs),
-						   parsing_item);
+						   std::move (outer_attrs));
 	    case LEFT_CURLY: {
 	      bool not_a_block
 		= lexer.peek_token (1)->get_id () == IDENTIFIER
@@ -14342,7 +14339,8 @@ Parser<ManagedTokenSource>::parse_function_call_expr (
 template <typename ManagedTokenSource>
 std::unique_ptr<AST::MacroInvocation>
 Parser<ManagedTokenSource>::parse_macro_invocation_partial (
-  AST::PathInExpression path, AST::AttrVec outer_attrs, bool parsing_item)
+  AST::PathInExpression path, AST::AttrVec outer_attrs,
+  ParseRestrictions restrictions)
 {
   // macro invocation
   if (!skip_token (EXCLAM))
@@ -14369,7 +14367,7 @@ Parser<ManagedTokenSource>::parse_macro_invocation_partial (
 
   return std::unique_ptr<AST::MacroInvocation> (new AST::MacroInvocation (
     AST::MacroInvocData (std::move (converted_path), std::move (tok_tree)),
-    std::move (outer_attrs), macro_locus, parsing_item));
+    std::move (outer_attrs), macro_locus, restrictions.expr_can_be_stmt));
 }
 
 /* Parses a struct expr struct with a path in expression already parsed (but not
