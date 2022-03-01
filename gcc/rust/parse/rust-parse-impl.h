@@ -12438,7 +12438,8 @@ Parser<ManagedTokenSource>::null_denotation (const_TokenPtr tok,
 	  case EXCLAM:
 	    // macro
 	    return parse_macro_invocation_partial (std::move (path),
-						   std::move (outer_attrs));
+						   std::move (outer_attrs),
+						   restrictions);
 	    case LEFT_CURLY: {
 	      bool not_a_block
 		= lexer.peek_token (1)->get_id () == IDENTIFIER

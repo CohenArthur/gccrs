@@ -959,6 +959,8 @@ public:
   {
     return clone_expr_without_block_impl ();
   }
+
+  virtual ExprWithoutBlock *to_stmt () const { return clone_expr_impl (); }
 };
 
 /* HACK: IdentifierExpr, delete when figure out identifier vs expr problem in

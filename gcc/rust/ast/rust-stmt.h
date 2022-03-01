@@ -211,8 +211,9 @@ public:
   std::string as_string () const override;
 
   ExprStmtWithoutBlock (std::unique_ptr<ExprWithoutBlock> expr, Location locus)
-    : ExprStmt (locus), expr (std::move (expr))
+    : ExprStmt (locus), expr (std::move (expr->to_stmt ()))
   {}
+
   /*ExprStmtWithoutBlock (std::unique_ptr<Expr> expr, Location locus)
     : ExprStmt (locus), expr (std::move (expr))
   {}*/

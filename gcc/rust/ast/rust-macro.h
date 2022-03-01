@@ -560,6 +560,18 @@ protected:
   {
     return clone_macro_invocation_impl ();
   }
+
+  ExprWithoutBlock *to_stmt () const override
+  
+   
+   
+   
+  { 
+    auto new_impl  = clone_macro_invocation_impl();
+    new_impl->is_semi_coloned = true;
+
+    return new_impl;
+  }
 };
 
 // more generic meta item path-only form
