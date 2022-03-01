@@ -37,6 +37,9 @@ ResolveExpr::go (AST::Expr *expr, NodeId parent, const CanonicalPath &prefix,
 void
 ResolveExpr::visit (AST::MacroInvocation &expr)
 {
+  if (expr.has_semicolon ())
+    return;
+
   AST::ASTFragment &fragment = expr.get_fragment ();
   for (auto &node : fragment.get_nodes ())
     node.accept_vis (*this);

@@ -102,6 +102,9 @@ public:
 
   void visit (AST::MacroInvocation &expr) override
   {
+    if (expr.has_semicolon ())
+      return;
+
     AST::ASTFragment &fragment = expr.get_fragment ();
 
     // FIXME
