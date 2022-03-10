@@ -128,7 +128,7 @@ public:
   TypeParam (TypeParam &&other) = default;
   TypeParam &operator= (TypeParam &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -173,7 +173,7 @@ public:
     return std::unique_ptr<WhereClauseItem> (clone_where_clause_item_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -201,7 +201,7 @@ public:
       node_id (Analysis::Mappings::get ()->get_next_node_id ())
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -276,7 +276,7 @@ public:
   TypeBoundWhereClauseItem &operator= (TypeBoundWhereClauseItem &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -356,7 +356,7 @@ public:
   // Returns whether the WhereClause has no items.
   bool is_empty () const { return where_clause_items.empty (); }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   NodeId get_node_id () const { return node_id; }
 
@@ -462,7 +462,7 @@ public:
   SelfParam (SelfParam &&other) = default;
   SelfParam &operator= (SelfParam &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -511,7 +511,7 @@ public:
       }
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   AsyncConstStatus get_const_status () const { return const_status; }
   bool is_unsafe () const { return has_unsafe; }
@@ -580,7 +580,7 @@ public:
     return FunctionParam (nullptr, nullptr, {}, Location ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -685,7 +685,7 @@ public:
     return Visibility (IN_PATH, std::move (in_path));
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
 protected:
   // Clone function implementation - not currently virtual but may be if
@@ -825,7 +825,7 @@ public:
   Method (Method &&other) = default;
   Method &operator= (Method &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -937,7 +937,7 @@ public:
    * visibility)? */
   bool has_visibility () const { return !visibility.is_error (); }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // TODO: this mutable getter seems really dodgy. Think up better way.
   Visibility &get_vis () { return visibility; }
@@ -1080,7 +1080,7 @@ public:
   Module (Module &&other) = default;
   Module &operator= (Module &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -1111,7 +1111,7 @@ class ExternCrate : public VisItem
       "extern crate foo"
       "extern crate std as cool_std"  */
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether extern crate declaration has an as clause.
   bool has_as_clause () const { return !as_clause_name.empty (); }
@@ -1169,7 +1169,7 @@ public:
     return std::unique_ptr<UseTree> (clone_use_tree_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   Location get_locus () const { return locus; }
 
@@ -1215,7 +1215,7 @@ public:
    * PATH_PREFIXED. */
   bool has_path () const { return !path.is_empty (); }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1296,7 +1296,7 @@ public:
   // Returns whether has inner tree elements.
   bool has_trees () const { return !trees.empty (); }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1341,7 +1341,7 @@ public:
   // Returns whether has identifier (or, rather, is allowed to).
   bool has_identifier () const { return bind_type == IDENTIFIER; }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1363,7 +1363,7 @@ class UseDeclaration : public VisItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   UseDeclaration (std::unique_ptr<UseTree> use_tree, Visibility visibility,
 		  std::vector<Attribute> outer_attrs, Location locus)
@@ -1433,7 +1433,7 @@ class Function : public VisItem, public InherentImplItem, public TraitImplItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether function has generic parameters.
   bool has_generics () const { return !generic_params.empty (); }
@@ -1605,7 +1605,7 @@ class TypeAlias : public VisItem, public TraitImplItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether type alias has generic parameters.
   bool has_generics () const { return !generic_params.empty (); }
@@ -1878,7 +1878,7 @@ public:
 			Location ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: this mutable getter seems really dodgy. Think up better way.
   std::vector<Attribute> &get_outer_attrs () { return outer_attrs; }
@@ -1907,7 +1907,7 @@ class StructStruct : public Struct
   bool is_unit;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Mega-constructor with all possible fields
   StructStruct (std::vector<StructField> fields, Identifier struct_name,
@@ -2025,7 +2025,7 @@ public:
     return TupleField (nullptr, Visibility::create_error (), Location ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   NodeId get_node_id () const { return node_id; }
 
@@ -2049,7 +2049,7 @@ class TupleStruct : public Struct
   std::vector<TupleField> fields;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Mega-constructor with all possible fields
   TupleStruct (std::vector<TupleField> fields, Identifier struct_name,
@@ -2101,7 +2101,7 @@ public:
     return std::unique_ptr<EnumItem> (clone_item_impl ());
   }
 
-  virtual std::string as_string () const;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // not pure virtual as not abstract
   virtual void accept_vis (ASTVisitor &vis);
@@ -2136,7 +2136,7 @@ public:
       tuple_fields (std::move (tuple_fields))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -2173,7 +2173,7 @@ public:
       struct_fields (std::move (struct_fields))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -2226,7 +2226,7 @@ public:
   EnumItemDiscriminant (EnumItemDiscriminant &&other) = default;
   EnumItemDiscriminant &operator= (EnumItemDiscriminant &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -2262,7 +2262,7 @@ class Enum : public VisItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether "enum" has generic parameters.
   bool has_generics () const { return !generic_params.empty (); }
@@ -2377,7 +2377,7 @@ class Union : public VisItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether union has generic params.
   bool has_generics () const { return !generic_params.empty (); }
@@ -2476,7 +2476,7 @@ class ConstantItem : public VisItem,
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ConstantItem (std::string ident, Visibility vis, std::unique_ptr<Type> type,
 		std::unique_ptr<Expr> const_expr,
@@ -2589,7 +2589,7 @@ class StaticItem : public VisItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   StaticItem (Identifier name, bool is_mut, std::unique_ptr<Type> type,
 	      std::unique_ptr<Expr> expr, Visibility vis,
@@ -2772,7 +2772,7 @@ public:
   TraitFunctionDecl (TraitFunctionDecl &&other) = default;
   TraitFunctionDecl &operator= (TraitFunctionDecl &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // Invalid if function name is empty, so base stripping on that.
   void mark_for_strip () { function_name = ""; }
@@ -2859,7 +2859,7 @@ public:
   TraitItemFunc (TraitItemFunc &&other) = default;
   TraitItemFunc &operator= (TraitItemFunc &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -2997,7 +2997,7 @@ public:
   TraitMethodDecl (TraitMethodDecl &&other) = default;
   TraitMethodDecl &operator= (TraitMethodDecl &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // Invalid if method name is empty, so base stripping on that.
   void mark_for_strip () { function_name = ""; }
@@ -3087,7 +3087,7 @@ public:
   TraitItemMethod (TraitItemMethod &&other) = default;
   TraitItemMethod &operator= (TraitItemMethod &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -3193,7 +3193,7 @@ public:
   TraitItemConst (TraitItemConst &&other) = default;
   TraitItemConst &operator= (TraitItemConst &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -3289,7 +3289,7 @@ public:
   TraitItemType (TraitItemType &&other) = default;
   TraitItemType &operator= (TraitItemType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -3337,7 +3337,7 @@ class Trait : public VisItem
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether trait has generic parameters.
   bool has_generics () const { return !generic_params.empty (); }
@@ -3605,7 +3605,7 @@ class InherentImpl : public Impl
   std::vector<std::unique_ptr<InherentImplItem>> impl_items;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether inherent impl block has inherent impl items.
   bool has_impl_items () const { return !impl_items.empty (); }
@@ -3678,7 +3678,7 @@ class TraitImpl : public Impl
   std::vector<std::unique_ptr<TraitImplItem>> impl_items;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether trait impl has impl items.
   bool has_impl_items () const { return !impl_items.empty (); }
@@ -3786,7 +3786,7 @@ public:
     return std::unique_ptr<ExternalItem> (clone_external_item_impl ());
   }
 
-  virtual std::string as_string () const;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const override final { return locus; }
 
@@ -3891,7 +3891,7 @@ public:
   ExternalStaticItem (ExternalStaticItem &&other) = default;
   ExternalStaticItem &operator= (ExternalStaticItem &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -4008,7 +4008,7 @@ public:
   NamedFunctionParam (NamedFunctionParam &&other) = default;
   NamedFunctionParam &operator= (NamedFunctionParam &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // Based on idea that nane should never be empty.
   void mark_for_strip () { param_type = nullptr; };
@@ -4151,7 +4151,7 @@ public:
   ExternalFunctionItem (ExternalFunctionItem &&other) = default;
   ExternalFunctionItem &operator= (ExternalFunctionItem &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -4220,7 +4220,7 @@ class ExternBlock : public VisItem
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether extern block has inner attributes.
   bool has_inner_attrs () const { return !inner_attrs.empty (); }

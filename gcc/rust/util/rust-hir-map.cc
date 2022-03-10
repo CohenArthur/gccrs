@@ -68,7 +68,7 @@ NodeMapping::get_defid (CrateNum crate_num, LocalDefId local_defid)
 }
 
 std::string
-NodeMapping::as_string () const
+NodeMapping::as_string (IndentManager indentation) const
 {
   std::ostringstream ss;
   ss << "["

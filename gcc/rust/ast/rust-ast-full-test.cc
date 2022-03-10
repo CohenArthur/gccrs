@@ -177,6 +177,7 @@ Crate::as_string () const
   rust_debug ("beginning crate recursive as-string");
 
   std::string str ("Crate: ");
+  auto indentation = IndentManager();
 
   // inner attributes
   str += append_attributes (inner_attrs, INNER);
@@ -199,7 +200,7 @@ Crate::as_string () const
 	      return "NULL_POINTER_MARK";
 	    }
 
-	  str += "\n  " + item->as_string ();
+	  str += "\n  " + item->as_string (indentation.increment());
 	}
     }
 
@@ -207,7 +208,7 @@ Crate::as_string () const
 }
 
 std::string
-Attribute::as_string () const
+Attribute::as_string (IndentManager indentation) const
 {
   std::string path_str = path.as_string ();
   if (attr_input == nullptr)
@@ -241,7 +242,7 @@ Attribute::operator= (Attribute const &other)
 }
 
 std::string
-DelimTokenTree::as_string () const
+DelimTokenTree::as_string (IndentManager indentation) const
 {
   std::string start_delim;
   std::string end_delim;
@@ -287,7 +288,7 @@ DelimTokenTree::as_string () const
 }
 
 std::string
-Token::as_string () const
+Token::as_string (IndentManager indentation) const
 {
   if (tok_ref->has_str ())
     {
@@ -303,13 +304,13 @@ Token::as_string () const
 }
 
 std::string
-SimplePathSegment::as_string () const
+SimplePathSegment::as_string (IndentManager indentation) const
 {
   return segment_name;
 }
 
 std::string
-SimplePath::as_string () const
+SimplePath::as_string (IndentManager indentation) const
 {
   std::string path;
   if (has_opening_scope_resolution)
@@ -343,7 +344,7 @@ SimplePath::as_string () const
 }
 
 std::string
-Visibility::as_string () const
+Visibility::as_string (IndentManager indentation) const
 {
   switch (public_vis_type)
     {
@@ -364,7 +365,7 @@ Visibility::as_string () const
 
 // Creates a string that reflects the visibility stored.
 std::string
-VisItem::as_string () const
+VisItem::as_string (IndentManager indentation) const
 {
   // FIXME: can't do formatting on string to make identation occur.
   std::string str;
@@ -382,9 +383,9 @@ VisItem::as_string () const
 }
 
 std::string
-Module::as_string () const
+Module::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string () + "mod " + module_name;
+  std::string str = VisItem::as_string (indentation) + "mod " + module_name;
 
   // Return early if we're dealing with an unloaded module as their body resides
   // in a different file
@@ -422,9 +423,9 @@ Module::as_string () const
 }
 
 std::string
-StaticItem::as_string () const
+StaticItem::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += indent_spaces (stay) + "static";
 
@@ -455,9 +456,9 @@ StaticItem::as_string () const
 }
 
 std::string
-ExternCrate::as_string () const
+ExternCrate::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "extern crate " + referenced_crate;
 
@@ -468,9 +469,9 @@ ExternCrate::as_string () const
 }
 
 std::string
-TupleStruct::as_string () const
+TupleStruct::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "struct " + struct_name;
 
@@ -519,9 +520,9 @@ TupleStruct::as_string () const
 }
 
 std::string
-ConstantItem::as_string () const
+ConstantItem::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "const " + identifier;
 
@@ -547,9 +548,9 @@ ConstantItem::as_string () const
 }
 
 std::string
-InherentImpl::as_string () const
+InherentImpl::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "impl ";
 
@@ -603,7 +604,7 @@ InherentImpl::as_string () const
 }
 
 std::string
-Method::as_string () const
+Method::as_string (IndentManager indentation) const
 {
   std::string str ("Method: \n ");
 
@@ -666,9 +667,9 @@ Method::as_string () const
 }
 
 std::string
-StructStruct::as_string () const
+StructStruct::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "struct " + struct_name;
 
@@ -721,9 +722,9 @@ StructStruct::as_string () const
 }
 
 std::string
-UseDeclaration::as_string () const
+UseDeclaration::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   // DEBUG: null pointer check
   if (use_tree == nullptr)
@@ -740,7 +741,7 @@ UseDeclaration::as_string () const
 }
 
 std::string
-UseTreeGlob::as_string () const
+UseTreeGlob::as_string (IndentManager indentation) const
 {
   switch (glob_type)
     {
@@ -760,7 +761,7 @@ UseTreeGlob::as_string () const
 }
 
 std::string
-UseTreeList::as_string () const
+UseTreeList::as_string (IndentManager indentation) const
 {
   std::string path_str;
   switch (path_type)
@@ -809,7 +810,7 @@ UseTreeList::as_string () const
 }
 
 std::string
-UseTreeRebind::as_string () const
+UseTreeRebind::as_string (IndentManager indentation) const
 {
   std::string path_str = path.as_string ();
 
@@ -833,9 +834,9 @@ UseTreeRebind::as_string () const
 }
 
 std::string
-Enum::as_string () const
+Enum::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
   str += enum_name;
 
   // generic params
@@ -894,9 +895,9 @@ Enum::as_string () const
 }
 
 std::string
-Trait::as_string () const
+Trait::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   if (has_unsafe)
     str += "unsafe ";
@@ -980,9 +981,9 @@ Trait::as_string () const
 }
 
 std::string
-Union::as_string () const
+Union::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "union " + union_name;
 
@@ -1031,9 +1032,9 @@ Union::as_string () const
 }
 
 std::string
-Function::as_string () const
+Function::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string () + "\n";
+  std::string str = VisItem::as_string (indentation) + "\n";
   std::string qstr = qualifiers.as_string ();
   if ("" != qstr)
     str += qstr + " ";
@@ -1119,7 +1120,7 @@ Function::as_string () const
 }
 
 std::string
-WhereClause::as_string () const
+WhereClause::as_string (IndentManager indentation) const
 {
   // just print where clause items, don't mention "where" or "where clause"
   std::string str;
@@ -1138,7 +1139,7 @@ WhereClause::as_string () const
 }
 
 std::string
-BlockExpr::as_string () const
+BlockExpr::as_string (IndentManager indentation) const
 {
   std::string istr = indent_spaces (enter);
   std::string str = istr + "BlockExpr:\n" + istr;
@@ -1184,9 +1185,9 @@ BlockExpr::as_string () const
 }
 
 std::string
-TraitImpl::as_string () const
+TraitImpl::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   if (has_unsafe)
     str += "unsafe ";
@@ -1239,9 +1240,9 @@ TraitImpl::as_string () const
 }
 
 std::string
-TypeAlias::as_string () const
+TypeAlias::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += " " + new_type_name;
 
@@ -1276,9 +1277,9 @@ TypeAlias::as_string () const
 }
 
 std::string
-ExternBlock::as_string () const
+ExternBlock::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
 
   str += "extern ";
   if (has_abi ())
@@ -1301,7 +1302,7 @@ ExternBlock::as_string () const
 }
 
 std::string
-MacroRule::as_string () const
+MacroRule::as_string (IndentManager indentation) const
 {
   std::string str ("Macro rule: ");
 
@@ -1315,7 +1316,7 @@ MacroRule::as_string () const
 }
 
 std::string
-MacroRulesDefinition::as_string () const
+MacroRulesDefinition::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -1357,7 +1358,7 @@ MacroRulesDefinition::as_string () const
 }
 
 std::string
-MacroInvocation::as_string () const
+MacroInvocation::as_string (IndentManager indentation) const
 {
   std::string str = "MacroInvocation: ";
 
@@ -1372,24 +1373,24 @@ MacroInvocation::as_string () const
 }
 
 std::string
-MacroInvocData::as_string () const
+MacroInvocData::as_string (IndentManager indentation) const
 {
   return path.as_string () + "!" + token_tree.as_string ();
 }
 
 std::string
-PathInExpression::as_string () const
+PathInExpression::as_string (IndentManager indentation) const
 {
   std::string str;
 
   if (has_opening_scope_resolution)
     str = "::";
 
-  return str + PathPattern::as_string ();
+  return str + PathPattern::as_string (indentation);
 }
 
 std::string
-ExprStmtWithBlock::as_string () const
+ExprStmtWithBlock::as_string (IndentManager indentation) const
 {
   std::string str = indent_spaces (enter) + "ExprStmtWithBlock: \n";
 
@@ -1409,7 +1410,7 @@ ExprStmtWithBlock::as_string () const
 }
 
 std::string
-ClosureParam::as_string () const
+ClosureParam::as_string (IndentManager indentation) const
 {
   std::string str (pattern->as_string ());
 
@@ -1420,7 +1421,7 @@ ClosureParam::as_string () const
 }
 
 std::string
-ClosureExpr::as_string () const
+ClosureExpr::as_string (IndentManager indentation) const
 {
   std::string str = "ClosureExpr:";
 
@@ -1447,9 +1448,9 @@ ClosureExpr::as_string () const
 }
 
 std::string
-ClosureExprInnerTyped::as_string () const
+ClosureExprInnerTyped::as_string (IndentManager indentation) const
 {
-  std::string str = ClosureExpr::as_string ();
+  std::string str = ClosureExpr::as_string (indentation);
 
   str += "\n Return type: " + return_type->as_string ();
 
@@ -1459,7 +1460,7 @@ ClosureExprInnerTyped::as_string () const
 }
 
 std::string
-PathPattern::as_string () const
+PathPattern::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -1473,7 +1474,7 @@ PathPattern::as_string () const
 }
 
 std::string
-QualifiedPathType::as_string () const
+QualifiedPathType::as_string (IndentManager indentation) const
 {
   std::string str ("<");
   str += type_to_invoke_on->as_string ();
@@ -1485,13 +1486,13 @@ QualifiedPathType::as_string () const
 }
 
 std::string
-QualifiedPathInExpression::as_string () const
+QualifiedPathInExpression::as_string (IndentManager indentation) const
 {
-  return path_type.as_string () + "::" + PathPattern::as_string ();
+  return path_type.as_string () + "::" + PathPattern::as_string (indentation);
 }
 
 std::string
-BorrowExpr::as_string () const
+BorrowExpr::as_string (IndentManager indentation) const
 {
   /* TODO: find way to incorporate outer attrs - may have to represent in
    * different style (i.e. something more like BorrowExpr: \n outer attrs) */
@@ -1510,7 +1511,7 @@ BorrowExpr::as_string () const
 }
 
 std::string
-ReturnExpr::as_string () const
+ReturnExpr::as_string (IndentManager indentation) const
 {
   /* TODO: find way to incorporate outer attrs - may have to represent in
    * different style (i.e. something more like BorrowExpr: \n outer attrs) */
@@ -1524,7 +1525,7 @@ ReturnExpr::as_string () const
 }
 
 std::string
-GroupedExpr::as_string () const
+GroupedExpr::as_string (IndentManager indentation) const
 {
   std::string str ("Grouped expr:");
 
@@ -1540,13 +1541,13 @@ GroupedExpr::as_string () const
 }
 
 std::string
-RangeToExpr::as_string () const
+RangeToExpr::as_string (IndentManager indentation) const
 {
   return ".." + to->as_string ();
 }
 
 std::string
-ContinueExpr::as_string () const
+ContinueExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite format to allow outer attributes
   std::string str ("continue ");
@@ -1558,7 +1559,7 @@ ContinueExpr::as_string () const
 }
 
 std::string
-NegationExpr::as_string () const
+NegationExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite formula to allow outer attributes
   std::string str;
@@ -1581,26 +1582,26 @@ NegationExpr::as_string () const
 }
 
 std::string
-RangeFromExpr::as_string () const
+RangeFromExpr::as_string (IndentManager indentation) const
 {
   return from->as_string () + "..";
 }
 
 std::string
-RangeFullExpr::as_string () const
+RangeFullExpr::as_string (IndentManager indentation) const
 {
   return "..";
 }
 
 std::string
-ArrayIndexExpr::as_string () const
+ArrayIndexExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite formula to allow outer attributes
   return array_expr->as_string () + "[" + index_expr->as_string () + "]";
 }
 
 std::string
-AssignmentExpr::as_string () const
+AssignmentExpr::as_string (IndentManager indentation) const
 {
   std::string str ("AssignmentExpr: ");
 
@@ -1621,12 +1622,12 @@ AssignmentExpr::as_string () const
 }
 
 std::string
-AsyncBlockExpr::as_string () const
+AsyncBlockExpr::as_string (IndentManager indentation) const
 {
   std::string str = "AsyncBlockExpr: ";
 
   // get outer attributes
-  // str += "\n " + Expr::as_string ();
+  // str += "\n " + Expr::as_string (indentation);
   str += append_attributes (outer_attrs, OUTER);
 
   str += "\n Has move: ";
@@ -1636,7 +1637,7 @@ AsyncBlockExpr::as_string () const
 }
 
 std::string
-ComparisonExpr::as_string () const
+ComparisonExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to better reflect non-literal expressions
   std::string str (main_or_left_expr->as_string ());
@@ -1671,7 +1672,7 @@ ComparisonExpr::as_string () const
 }
 
 std::string
-MethodCallExpr::as_string () const
+MethodCallExpr::as_string (IndentManager indentation) const
 {
   std::string str = "MethodCallExpr: ";
 
@@ -1703,28 +1704,28 @@ MethodCallExpr::as_string () const
 }
 
 std::string
-TupleIndexExpr::as_string () const
+TupleIndexExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   return tuple_expr->as_string () + "." + std::to_string (tuple_index);
 }
 
 std::string
-DereferenceExpr::as_string () const
+DereferenceExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   return "*" + main_or_left_expr->as_string ();
 }
 
 std::string
-FieldAccessExpr::as_string () const
+FieldAccessExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   return receiver->as_string () + "." + field;
 }
 
 std::string
-LazyBooleanExpr::as_string () const
+LazyBooleanExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   std::string str (main_or_left_expr->as_string ());
@@ -1747,21 +1748,21 @@ LazyBooleanExpr::as_string () const
 }
 
 std::string
-RangeFromToExpr::as_string () const
+RangeFromToExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   return from->as_string () + ".." + to->as_string ();
 }
 
 std::string
-RangeToInclExpr::as_string () const
+RangeToInclExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to better reflect non-literal exprs
   return "..=" + to->as_string ();
 }
 
 std::string
-UnsafeBlockExpr::as_string () const
+UnsafeBlockExpr::as_string (IndentManager indentation) const
 {
   std::string str = "UnsafeBlockExpr:" + indent_spaces (enter);
 
@@ -1774,9 +1775,9 @@ UnsafeBlockExpr::as_string () const
 }
 
 std::string
-ClosureExprInner::as_string () const
+ClosureExprInner::as_string (IndentManager indentation) const
 {
-  std::string str = ClosureExpr::as_string ();
+  std::string str = ClosureExpr::as_string (indentation);
 
   str += "\n Expression: " + closure_inner->as_string ();
 
@@ -1784,7 +1785,7 @@ ClosureExprInner::as_string () const
 }
 
 std::string
-IfExpr::as_string () const
+IfExpr::as_string (IndentManager indentation) const
 {
   std::string str = "IfExpr: ";
 
@@ -1798,9 +1799,9 @@ IfExpr::as_string () const
 }
 
 std::string
-IfExprConseqElse::as_string () const
+IfExprConseqElse::as_string (IndentManager indentation) const
 {
-  std::string str = IfExpr::as_string ();
+  std::string str = IfExpr::as_string (indentation);
 
   str += "\n Else block expr: " + else_block->as_string ();
 
@@ -1808,9 +1809,9 @@ IfExprConseqElse::as_string () const
 }
 
 std::string
-IfExprConseqIf::as_string () const
+IfExprConseqIf::as_string (IndentManager indentation) const
 {
-  std::string str = IfExpr::as_string ();
+  std::string str = IfExpr::as_string (indentation);
 
   str += "\n Else if expr: \n  " + conseq_if_expr->as_string ();
 
@@ -1818,9 +1819,9 @@ IfExprConseqIf::as_string () const
 }
 
 std::string
-IfExprConseqIfLet::as_string () const
+IfExprConseqIfLet::as_string (IndentManager indentation) const
 {
-  std::string str = IfExpr::as_string ();
+  std::string str = IfExpr::as_string (indentation);
 
   str += "\n Else if let expr: \n  " + if_let_expr->as_string ();
 
@@ -1828,7 +1829,7 @@ IfExprConseqIfLet::as_string () const
 }
 
 std::string
-IfLetExpr::as_string () const
+IfLetExpr::as_string (IndentManager indentation) const
 {
   std::string str = "IfLetExpr: ";
 
@@ -1853,9 +1854,9 @@ IfLetExpr::as_string () const
 }
 
 std::string
-IfLetExprConseqElse::as_string () const
+IfLetExprConseqElse::as_string (IndentManager indentation) const
 {
-  std::string str = IfLetExpr::as_string ();
+  std::string str = IfLetExpr::as_string (indentation);
 
   str += "\n Else block expr: " + else_block->as_string ();
 
@@ -1863,9 +1864,9 @@ IfLetExprConseqElse::as_string () const
 }
 
 std::string
-IfLetExprConseqIf::as_string () const
+IfLetExprConseqIf::as_string (IndentManager indentation) const
 {
-  std::string str = IfLetExpr::as_string ();
+  std::string str = IfLetExpr::as_string (indentation);
 
   str += "\n Else if expr: \n  " + if_expr->as_string ();
 
@@ -1873,9 +1874,9 @@ IfLetExprConseqIf::as_string () const
 }
 
 std::string
-IfLetExprConseqIfLet::as_string () const
+IfLetExprConseqIfLet::as_string (IndentManager indentation) const
 {
-  std::string str = IfLetExpr::as_string ();
+  std::string str = IfLetExpr::as_string (indentation);
 
   str += "\n Else if let expr: \n  " + if_let_expr->as_string ();
 
@@ -1883,21 +1884,21 @@ IfLetExprConseqIfLet::as_string () const
 }
 
 std::string
-RangeFromToInclExpr::as_string () const
+RangeFromToInclExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to allow dumps with non-literal exprs
   return from->as_string () + "..=" + to->as_string ();
 }
 
 std::string
-ErrorPropagationExpr::as_string () const
+ErrorPropagationExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to allow dumps with non-literal exprs
   return main_or_left_expr->as_string () + "?";
 }
 
 std::string
-CompoundAssignmentExpr::as_string () const
+CompoundAssignmentExpr::as_string (IndentManager indentation) const
 {
   std::string operator_str;
   operator_str.reserve (1);
@@ -1958,7 +1959,7 @@ CompoundAssignmentExpr::as_string () const
 }
 
 std::string
-ArithmeticOrLogicalExpr::as_string () const
+ArithmeticOrLogicalExpr::as_string (IndentManager indentation) const
 {
   std::string operator_str;
   operator_str.reserve (1);
@@ -2017,7 +2018,7 @@ ArithmeticOrLogicalExpr::as_string () const
 }
 
 std::string
-CallExpr::as_string () const
+CallExpr::as_string (IndentManager indentation) const
 {
   std::string str = "CallExpr: ";
 
@@ -2046,7 +2047,7 @@ CallExpr::as_string () const
 }
 
 std::string
-WhileLoopExpr::as_string () const
+WhileLoopExpr::as_string (IndentManager indentation) const
 {
   std::string str = "WhileLoopExpr: ";
 
@@ -2066,7 +2067,7 @@ WhileLoopExpr::as_string () const
 }
 
 std::string
-WhileLetLoopExpr::as_string () const
+WhileLetLoopExpr::as_string (IndentManager indentation) const
 {
   std::string str = "WhileLetLoopExpr: ";
 
@@ -2097,7 +2098,7 @@ WhileLetLoopExpr::as_string () const
 }
 
 std::string
-LoopExpr::as_string () const
+LoopExpr::as_string (IndentManager indentation) const
 {
   std::string str = "LoopExpr: (infinite loop)";
 
@@ -2115,7 +2116,7 @@ LoopExpr::as_string () const
 }
 
 std::string
-ArrayExpr::as_string () const
+ArrayExpr::as_string (IndentManager indentation) const
 {
   std::string str = "ArrayExpr:";
 
@@ -2131,14 +2132,14 @@ ArrayExpr::as_string () const
 }
 
 std::string
-AwaitExpr::as_string () const
+AwaitExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to allow non-literal exprs
   return awaited_expr->as_string () + ".await";
 }
 
 std::string
-BreakExpr::as_string () const
+BreakExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to allow outer attrs, non-literal exprs
   std::string str ("break ");
@@ -2153,13 +2154,13 @@ BreakExpr::as_string () const
 }
 
 std::string
-LoopLabel::as_string () const
+LoopLabel::as_string (IndentManager indentation) const
 {
   return label.as_string () + ": (label) ";
 }
 
 std::string
-MatchArm::as_string () const
+MatchArm::as_string (IndentManager indentation) const
 {
   // outer attributes
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -2185,7 +2186,7 @@ MatchArm::as_string () const
 }
 
 std::string
-MatchCase::as_string () const
+MatchCase::as_string (IndentManager indentation) const
 {
   std::string str ("MatchCase: (match arm) ");
 
@@ -2196,7 +2197,7 @@ MatchCase::as_string () const
 }
 
 std::string
-MatchExpr::as_string () const
+MatchExpr::as_string (IndentManager indentation) const
 {
   std::string str ("MatchExpr:");
 
@@ -2223,7 +2224,7 @@ MatchExpr::as_string () const
 }
 
 std::string
-TupleExpr::as_string () const
+TupleExpr::as_string (IndentManager indentation) const
 {
   std::string str ("TupleExpr:");
 
@@ -2247,7 +2248,7 @@ TupleExpr::as_string () const
 }
 
 std::string
-ExprStmtWithoutBlock::as_string () const
+ExprStmtWithoutBlock::as_string (IndentManager indentation) const
 {
   std::string str ("ExprStmtWithoutBlock:\n");
   indent_spaces (enter);
@@ -2263,14 +2264,14 @@ ExprStmtWithoutBlock::as_string () const
 }
 
 std::string
-FunctionParam::as_string () const
+FunctionParam::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to allow non-literal types
   return param_name->as_string () + " : " + type->as_string ();
 }
 
 std::string
-FunctionQualifiers::as_string () const
+FunctionQualifiers::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2303,7 +2304,7 @@ FunctionQualifiers::as_string () const
 }
 
 std::string
-TraitBound::as_string () const
+TraitBound::as_string (IndentManager indentation) const
 {
   std::string str ("TraitBound:");
 
@@ -2330,7 +2331,7 @@ TraitBound::as_string () const
 }
 
 std::string
-MacroMatcher::as_string () const
+MacroMatcher::as_string (IndentManager indentation) const
 {
   std::string str ("Macro matcher: ");
 
@@ -2367,7 +2368,7 @@ MacroMatcher::as_string () const
 }
 
 std::string
-LifetimeParam::as_string () const
+LifetimeParam::as_string (IndentManager indentation) const
 {
   std::string str ("LifetimeParam: ");
 
@@ -2394,13 +2395,13 @@ LifetimeParam::as_string () const
 }
 
 std::string
-MacroMatchFragment::as_string () const
+MacroMatchFragment::as_string (IndentManager indentation) const
 {
   return "$" + ident + ": " + frag_spec_to_str (frag_spec);
 }
 
 std::string
-QualifiedPathInType::as_string () const
+QualifiedPathInType::as_string (IndentManager indentation) const
 {
   /* TODO: this may need adjusting if segments (e.g. with functions) can't be
    * literalised */
@@ -2413,7 +2414,7 @@ QualifiedPathInType::as_string () const
 }
 
 std::string
-MacroMatchRepetition::as_string () const
+MacroMatchRepetition::as_string (IndentManager indentation) const
 {
   std::string str ("Macro match repetition: ");
 
@@ -2457,7 +2458,7 @@ MacroMatchRepetition::as_string () const
 }
 
 std::string
-Lifetime::as_string () const
+Lifetime::as_string (IndentManager indentation) const
 {
   if (is_error ())
     return "error lifetime";
@@ -2476,7 +2477,7 @@ Lifetime::as_string () const
 }
 
 std::string
-TypePath::as_string () const
+TypePath::as_string (IndentManager indentation) const
 {
   /* TODO: this may need to be rewritten if a segment (e.g. function) can't be
    * literalised */
@@ -2495,7 +2496,7 @@ TypePath::as_string () const
 }
 
 std::string
-TypeParam::as_string () const
+TypeParam::as_string (IndentManager indentation) const
 {
   std::string str ("TypeParam: ");
 
@@ -2590,7 +2591,7 @@ TypePath::as_simple_path () const
 }
 
 std::string
-PathExprSegment::as_string () const
+PathExprSegment::as_string (IndentManager indentation) const
 {
   // TODO: rewrite dump to work with non-literalisable types
   std::string ident_str = segment_name.as_string ();
@@ -2601,7 +2602,7 @@ PathExprSegment::as_string () const
 }
 
 std::string
-GenericArgs::as_string () const
+GenericArgs::as_string (IndentManager indentation) const
 {
   std::string args;
 
@@ -2651,14 +2652,14 @@ GenericArgs::as_string () const
 }
 
 std::string
-GenericArgsBinding::as_string () const
+GenericArgsBinding::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-literalisable types
   return identifier + " = " + type->as_string ();
 }
 
 std::string
-ForLoopExpr::as_string () const
+ForLoopExpr::as_string (IndentManager indentation) const
 {
   std::string str = "ForLoopExpr: ";
 
@@ -2680,7 +2681,7 @@ ForLoopExpr::as_string () const
 }
 
 std::string
-RangePattern::as_string () const
+RangePattern::as_string (IndentManager indentation) const
 {
   // TODO: maybe rewrite to work with non-linearisable bounds
   if (has_ellipsis_syntax)
@@ -2690,7 +2691,7 @@ RangePattern::as_string () const
 }
 
 std::string
-RangePatternBoundLiteral::as_string () const
+RangePatternBoundLiteral::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2703,7 +2704,7 @@ RangePatternBoundLiteral::as_string () const
 }
 
 std::string
-SlicePattern::as_string () const
+SlicePattern::as_string (IndentManager indentation) const
 {
   std::string str ("SlicePattern: ");
 
@@ -2714,7 +2715,7 @@ SlicePattern::as_string () const
 }
 
 std::string
-TuplePatternItemsMultiple::as_string () const
+TuplePatternItemsMultiple::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2725,7 +2726,7 @@ TuplePatternItemsMultiple::as_string () const
 }
 
 std::string
-TuplePatternItemsRanged::as_string () const
+TuplePatternItemsRanged::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2755,13 +2756,13 @@ TuplePatternItemsRanged::as_string () const
 }
 
 std::string
-TuplePattern::as_string () const
+TuplePattern::as_string (IndentManager indentation) const
 {
   return "TuplePattern: " + items->as_string ();
 }
 
 std::string
-StructPatternField::as_string () const
+StructPatternField::as_string (IndentManager indentation) const
 {
   // outer attributes
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -2770,9 +2771,9 @@ StructPatternField::as_string () const
 }
 
 std::string
-StructPatternFieldIdent::as_string () const
+StructPatternFieldIdent::as_string (IndentManager indentation) const
 {
-  std::string str = StructPatternField::as_string ();
+  std::string str = StructPatternField::as_string (indentation);
 
   str += "\n";
 
@@ -2788,10 +2789,10 @@ StructPatternFieldIdent::as_string () const
 }
 
 std::string
-StructPatternFieldTuplePat::as_string () const
+StructPatternFieldTuplePat::as_string (IndentManager indentation) const
 {
   // TODO: maybe rewrite to work with non-linearisable patterns
-  std::string str = StructPatternField::as_string ();
+  std::string str = StructPatternField::as_string (indentation);
 
   str += "\n";
 
@@ -2801,10 +2802,10 @@ StructPatternFieldTuplePat::as_string () const
 }
 
 std::string
-StructPatternFieldIdentPat::as_string () const
+StructPatternFieldIdentPat::as_string (IndentManager indentation) const
 {
   // TODO: maybe rewrite to work with non-linearisable patterns
-  std::string str = StructPatternField::as_string ();
+  std::string str = StructPatternField::as_string (indentation);
 
   str += "\n";
 
@@ -2814,7 +2815,7 @@ StructPatternFieldIdentPat::as_string () const
 }
 
 std::string
-StructPatternElements::as_string () const
+StructPatternElements::as_string (IndentManager indentation) const
 {
   std::string str ("\n  Fields: ");
 
@@ -2838,7 +2839,7 @@ StructPatternElements::as_string () const
 }
 
 std::string
-StructPattern::as_string () const
+StructPattern::as_string (IndentManager indentation) const
 {
   std::string str ("StructPattern: \n Path: ");
 
@@ -2854,7 +2855,7 @@ StructPattern::as_string () const
 }
 
 std::string
-LiteralPattern::as_string () const
+LiteralPattern::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2865,7 +2866,7 @@ LiteralPattern::as_string () const
 }
 
 std::string
-ReferencePattern::as_string () const
+ReferencePattern::as_string (IndentManager indentation) const
 {
   // TODO: maybe rewrite to work with non-linearisable patterns
   std::string str ("&");
@@ -2882,7 +2883,7 @@ ReferencePattern::as_string () const
 }
 
 std::string
-IdentifierPattern::as_string () const
+IdentifierPattern::as_string (IndentManager indentation) const
 {
   // TODO: maybe rewrite to work with non-linearisable patterns
   std::string str;
@@ -2902,7 +2903,7 @@ IdentifierPattern::as_string () const
 }
 
 std::string
-TupleStructItemsNoRange::as_string () const
+TupleStructItemsNoRange::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -2913,7 +2914,7 @@ TupleStructItemsNoRange::as_string () const
 }
 
 std::string
-TupleStructItemsRange::as_string () const
+TupleStructItemsRange::as_string (IndentManager indentation) const
 {
   std::string str ("\n  Lower patterns: ");
 
@@ -2942,7 +2943,7 @@ TupleStructItemsRange::as_string () const
 }
 
 std::string
-TupleStructPattern::as_string () const
+TupleStructPattern::as_string (IndentManager indentation) const
 {
   std::string str ("TupleStructPattern: \n Path: ");
 
@@ -2954,7 +2955,7 @@ TupleStructPattern::as_string () const
 }
 
 std::string
-LetStmt::as_string () const
+LetStmt::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types and exprs
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -2978,13 +2979,13 @@ TypePath::to_trait_bound (bool in_parens) const
 }
 
 std::string
-InferredType::as_string () const
+InferredType::as_string (IndentManager indentation) const
 {
   return "_ (inferred)";
 }
 
 std::string
-TypeCastExpr::as_string () const
+TypeCastExpr::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs and types
   return main_or_left_expr->as_string () + " as "
@@ -2992,7 +2993,7 @@ TypeCastExpr::as_string () const
 }
 
 std::string
-ImplTraitType::as_string () const
+ImplTraitType::as_string (IndentManager indentation) const
 {
   std::string str ("ImplTraitType: \n TypeParamBounds: ");
 
@@ -3010,7 +3011,7 @@ ImplTraitType::as_string () const
 }
 
 std::string
-ReferenceType::as_string () const
+ReferenceType::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
   std::string str ("&");
@@ -3027,7 +3028,7 @@ ReferenceType::as_string () const
 }
 
 std::string
-RawPointerType::as_string () const
+RawPointerType::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
   std::string str ("*");
@@ -3050,7 +3051,7 @@ RawPointerType::as_string () const
 }
 
 std::string
-TraitObjectType::as_string () const
+TraitObjectType::as_string (IndentManager indentation) const
 {
   std::string str ("TraitObjectType: \n Has dyn dispatch: ");
 
@@ -3074,7 +3075,7 @@ TraitObjectType::as_string () const
 }
 
 std::string
-BareFunctionType::as_string () const
+BareFunctionType::as_string (IndentManager indentation) const
 {
   std::string str ("BareFunctionType: \n For lifetimes: ");
 
@@ -3117,7 +3118,7 @@ BareFunctionType::as_string () const
 }
 
 std::string
-ImplTraitTypeOneBound::as_string () const
+ImplTraitTypeOneBound::as_string (IndentManager indentation) const
 {
   std::string str ("ImplTraitTypeOneBound: \n TraitBound: ");
 
@@ -3125,14 +3126,14 @@ ImplTraitTypeOneBound::as_string () const
 }
 
 std::string
-TypePathSegmentGeneric::as_string () const
+TypePathSegmentGeneric::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
-  return TypePathSegment::as_string () + "<" + generic_args.as_string () + ">";
+  return TypePathSegment::as_string (indentation) + "<" + generic_args.as_string () + ">";
 }
 
 std::string
-TraitObjectTypeOneBound::as_string () const
+TraitObjectTypeOneBound::as_string (IndentManager indentation) const
 {
   std::string str ("TraitObjectTypeOneBound: \n Has dyn dispatch: ");
 
@@ -3147,7 +3148,7 @@ TraitObjectTypeOneBound::as_string () const
 }
 
 std::string
-TypePathFunction::as_string () const
+TypePathFunction::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
   std::string str ("(");
@@ -3174,28 +3175,28 @@ TypePathFunction::as_string () const
 }
 
 std::string
-TypePathSegmentFunction::as_string () const
+TypePathSegmentFunction::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
-  return TypePathSegment::as_string () + function_path.as_string ();
+  return TypePathSegment::as_string (indentation) + function_path.as_string ();
 }
 
 std::string
-ArrayType::as_string () const
+ArrayType::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types and exprs
   return "[" + elem_type->as_string () + "; " + size->as_string () + "]";
 }
 
 std::string
-SliceType::as_string () const
+SliceType::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
   return "[" + elem_type->as_string () + "]";
 }
 
 std::string
-TupleType::as_string () const
+TupleType::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable types
   std::string str ("(");
@@ -3219,7 +3220,7 @@ TupleType::as_string () const
 }
 
 std::string
-StructExpr::as_string () const
+StructExpr::as_string (IndentManager indentation) const
 {
   std::string str = append_attributes (outer_attrs, OUTER);
   indent_spaces (enter);
@@ -3233,7 +3234,7 @@ StructExpr::as_string () const
 }
 
 std::string
-StructExprStruct::as_string () const
+StructExprStruct::as_string (IndentManager indentation) const
 {
   // TODO: doesn't this require data from StructExpr?
   std::string str ("StructExprStruct (or subclass): ");
@@ -3247,7 +3248,7 @@ StructExprStruct::as_string () const
 }
 
 std::string
-StructBase::as_string () const
+StructBase::as_string (IndentManager indentation) const
 {
   if (base_struct != nullptr)
     return base_struct->as_string ();
@@ -3256,30 +3257,30 @@ StructBase::as_string () const
 }
 
 std::string
-StructExprFieldWithVal::as_string () const
+StructExprFieldWithVal::as_string (IndentManager indentation) const
 {
   // used to get value string
   return value->as_string ();
 }
 
 std::string
-StructExprFieldIdentifierValue::as_string () const
+StructExprFieldIdentifierValue::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
-  return field_name + " : " + StructExprFieldWithVal::as_string ();
+  return field_name + " : " + StructExprFieldWithVal::as_string (indentation);
 }
 
 std::string
-StructExprFieldIndexValue::as_string () const
+StructExprFieldIndexValue::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
-  return std::to_string (index) + " : " + StructExprFieldWithVal::as_string ();
+  return std::to_string (index) + " : " + StructExprFieldWithVal::as_string (indentation);
 }
 
 std::string
-StructExprStructFields::as_string () const
+StructExprStructFields::as_string (IndentManager indentation) const
 {
-  std::string str = StructExprStruct::as_string ();
+  std::string str = StructExprStruct::as_string (indentation);
 
   str += "\n Fields: ";
   if (fields.empty ())
@@ -3302,18 +3303,18 @@ StructExprStructFields::as_string () const
 }
 
 std::string
-EnumItem::as_string () const
+EnumItem::as_string (IndentManager indentation) const
 {
-  std::string str = VisItem::as_string ();
+  std::string str = VisItem::as_string (indentation);
   str += variant_name;
 
   return str;
 }
 
 std::string
-EnumItemTuple::as_string () const
+EnumItemTuple::as_string (IndentManager indentation) const
 {
-  std::string str = EnumItem::as_string ();
+  std::string str = EnumItem::as_string (indentation);
 
   // add tuple opening parens
   str += "(";
@@ -3339,7 +3340,7 @@ EnumItemTuple::as_string () const
 }
 
 std::string
-TupleField::as_string () const
+TupleField::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
 
@@ -3355,9 +3356,9 @@ TupleField::as_string () const
 }
 
 std::string
-EnumItemStruct::as_string () const
+EnumItemStruct::as_string (IndentManager indentation) const
 {
-  std::string str = EnumItem::as_string ();
+  std::string str = EnumItem::as_string (indentation);
 
   // add struct opening parens
   str += "{";
@@ -3383,7 +3384,7 @@ EnumItemStruct::as_string () const
 }
 
 std::string
-StructField::as_string () const
+StructField::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
   // outer attributes
@@ -3398,10 +3399,10 @@ StructField::as_string () const
 }
 
 std::string
-EnumItemDiscriminant::as_string () const
+EnumItemDiscriminant::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
-  std::string str = EnumItem::as_string ();
+  std::string str = EnumItem::as_string (indentation);
 
   // add equal and expression
   str += " = " + expression->as_string ();
@@ -3410,7 +3411,7 @@ EnumItemDiscriminant::as_string () const
 }
 
 std::string
-ExternalStaticItem::as_string () const
+ExternalStaticItem::as_string (IndentManager indentation) const
 {
   // outer attributes
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -3433,7 +3434,7 @@ ExternalStaticItem::as_string () const
 }
 
 std::string
-ExternalFunctionItem::as_string () const
+ExternalFunctionItem::as_string (IndentManager indentation) const
 {
   // outer attributes
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -3511,7 +3512,7 @@ ExternalFunctionItem::as_string () const
 }
 
 std::string
-NamedFunctionParam::as_string () const
+NamedFunctionParam::as_string (IndentManager indentation) const
 {
   std::string str = append_attributes (outer_attrs, OUTER);
 
@@ -3523,7 +3524,7 @@ NamedFunctionParam::as_string () const
 }
 
 std::string
-TraitItemFunc::as_string () const
+TraitItemFunc::as_string (IndentManager indentation) const
 {
   std::string str = append_attributes (outer_attrs, OUTER);
 
@@ -3539,7 +3540,7 @@ TraitItemFunc::as_string () const
 }
 
 std::string
-TraitFunctionDecl::as_string () const
+TraitFunctionDecl::as_string (IndentManager indentation) const
 {
   std::string str = qualifiers.as_string () + "fn " + function_name;
 
@@ -3593,7 +3594,7 @@ TraitFunctionDecl::as_string () const
 }
 
 std::string
-TraitItemMethod::as_string () const
+TraitItemMethod::as_string (IndentManager indentation) const
 {
   std::string str = append_attributes (outer_attrs, OUTER);
 
@@ -3609,7 +3610,7 @@ TraitItemMethod::as_string () const
 }
 
 std::string
-TraitMethodDecl::as_string () const
+TraitMethodDecl::as_string (IndentManager indentation) const
 {
   std::string str = qualifiers.as_string () + "fn " + function_name;
 
@@ -3665,7 +3666,7 @@ TraitMethodDecl::as_string () const
 }
 
 std::string
-TraitItemConst::as_string () const
+TraitItemConst::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to work with non-linearisable exprs
   std::string str = append_attributes (outer_attrs, OUTER);
@@ -3679,7 +3680,7 @@ TraitItemConst::as_string () const
 }
 
 std::string
-TraitItemType::as_string () const
+TraitItemType::as_string (IndentManager indentation) const
 {
   std::string str = append_attributes (outer_attrs, OUTER);
 
@@ -3711,7 +3712,7 @@ TraitItemType::as_string () const
 }
 
 std::string
-SelfParam::as_string () const
+SelfParam::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to allow non-linearisable types
   if (is_error ())
@@ -3774,14 +3775,14 @@ SelfParam::as_string () const
 }
 
 std::string
-ArrayElemsCopied::as_string () const
+ArrayElemsCopied::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to allow non-linearisable exprs
   return elem_to_copy->as_string () + "; " + num_copies->as_string ();
 }
 
 std::string
-LifetimeWhereClauseItem::as_string () const
+LifetimeWhereClauseItem::as_string (IndentManager indentation) const
 {
   std::string str ("Lifetime: ");
 
@@ -3796,7 +3797,7 @@ LifetimeWhereClauseItem::as_string () const
 }
 
 std::string
-TypeBoundWhereClauseItem::as_string () const
+TypeBoundWhereClauseItem::as_string (IndentManager indentation) const
 {
   std::string str ("For lifetimes: ");
 
@@ -3827,7 +3828,7 @@ TypeBoundWhereClauseItem::as_string () const
 }
 
 std::string
-ArrayElemsValues::as_string () const
+ArrayElemsValues::as_string (IndentManager indentation) const
 {
   std::string str;
 
@@ -3848,7 +3849,7 @@ ArrayElemsValues::as_string () const
 }
 
 std::string
-MaybeNamedParam::as_string () const
+MaybeNamedParam::as_string (IndentManager indentation) const
 {
   // TODO: rewrite to allow using non-linearisable types in dump
   std::string str;
@@ -3882,7 +3883,7 @@ MetaItemInner::to_meta_name_value_str () const
 }
 
 std::string
-MetaItemSeq::as_string () const
+MetaItemSeq::as_string (IndentManager indentation) const
 {
   std::string path_str = path.as_string () + "(";
 
@@ -3900,7 +3901,7 @@ MetaItemSeq::as_string () const
 }
 
 std::string
-MetaListPaths::as_string () const
+MetaListPaths::as_string (IndentManager indentation) const
 {
   std::string str = ident + "(";
 
@@ -3918,7 +3919,7 @@ MetaListPaths::as_string () const
 }
 
 std::string
-MetaListNameValueStr::as_string () const
+MetaListNameValueStr::as_string (IndentManager indentation) const
 {
   std::string str = ident + "(";
 
@@ -3936,7 +3937,7 @@ MetaListNameValueStr::as_string () const
 }
 
 std::string
-AttrInputMetaItemContainer::as_string () const
+AttrInputMetaItemContainer::as_string (IndentManager indentation) const
 {
   std::string str = "(";
 

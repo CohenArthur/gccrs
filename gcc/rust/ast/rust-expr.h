@@ -42,7 +42,7 @@ class LiteralExpr : public ExprWithoutBlock
   Location locus;
 
 public:
-  std::string as_string () const override { return literal.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return literal.as_string (indentation); }
 
   Literal::LitType get_lit_type () const { return literal.get_lit_type (); }
 
@@ -108,9 +108,9 @@ public:
   AttrInputLiteral (LiteralExpr lit_expr) : literal_expr (std::move (lit_expr))
   {}
 
-  std::string as_string () const override
+  std::string as_string (IndentManager indentation = IndentManager()) const override
   {
-    return " = " + literal_expr.as_string ();
+    return " = " + literal_expr.as_string (indentation);
   }
 
   void accept_vis (ASTVisitor &vis) override;
@@ -146,7 +146,7 @@ class MetaItemLitExpr : public MetaItemInner
 public:
   MetaItemLitExpr (LiteralExpr lit_expr) : lit_expr (std::move (lit_expr)) {}
 
-  std::string as_string () const override { return lit_expr.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return lit_expr.as_string (indentation); }
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -171,9 +171,9 @@ public:
     : path (std::move (path)), lit (std::move (lit_expr))
   {}
 
-  std::string as_string () const override
+  std::string as_string (IndentManager indentation = IndentManager()) const override
   {
-    return path.as_string () + " = " + lit.as_string ();
+    return path.as_string () + " = " + lit.as_string (indentation);
   }
 
   void accept_vis (ASTVisitor &vis) override;
@@ -269,7 +269,7 @@ class BorrowExpr : public OperatorExpr
   bool double_borrow;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   BorrowExpr (std::unique_ptr<Expr> borrow_lvalue, bool is_mut_borrow,
 	      bool is_double_borrow, std::vector<Attribute> outer_attribs,
@@ -305,7 +305,7 @@ protected:
 class DereferenceExpr : public OperatorExpr
 {
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor calls OperatorExpr's protected constructor
   DereferenceExpr (std::unique_ptr<Expr> deref_lvalue,
@@ -335,7 +335,7 @@ protected:
 class ErrorPropagationExpr : public OperatorExpr
 {
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor calls OperatorExpr's protected constructor
   ErrorPropagationExpr (std::unique_ptr<Expr> potential_error_value,
@@ -375,7 +375,7 @@ private:
   ExprType expr_type;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -418,7 +418,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -494,7 +494,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -601,7 +601,7 @@ public:
   LazyBooleanExpr (LazyBooleanExpr &&other) = default;
   LazyBooleanExpr &operator= (LazyBooleanExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -639,7 +639,7 @@ class TypeCastExpr : public OperatorExpr
 
   // Note: only certain type casts allowed, outlined in reference
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor requires calling protected constructor of OperatorExpr
   TypeCastExpr (std::unique_ptr<Expr> expr_to_cast,
@@ -700,7 +700,7 @@ class AssignmentExpr : public OperatorExpr
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Call OperatorExpr constructor to initialise left_expr
   AssignmentExpr (std::unique_ptr<Expr> value_to_assign_to,
@@ -772,7 +772,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -842,7 +842,7 @@ class GroupedExpr : public ExprWithoutBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   const std::vector<Attribute> &get_inner_attrs () const { return inner_attrs; }
   std::vector<Attribute> &get_inner_attrs () { return inner_attrs; }
@@ -934,7 +934,7 @@ public:
     return std::unique_ptr<ArrayElems> (clone_array_elems_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -982,7 +982,7 @@ public:
   ArrayElemsValues (ArrayElemsValues &&other) = default;
   ArrayElemsValues &operator= (ArrayElemsValues &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1036,7 +1036,7 @@ public:
   ArrayElemsCopied (ArrayElemsCopied &&other) = default;
   ArrayElemsCopied &operator= (ArrayElemsCopied &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1073,7 +1073,7 @@ class ArrayExpr : public ExprWithoutBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   const std::vector<Attribute> &get_inner_attrs () const { return inner_attrs; }
   std::vector<Attribute> &get_inner_attrs () { return inner_attrs; }
@@ -1163,7 +1163,7 @@ class ArrayIndexExpr : public ExprWithoutBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ArrayIndexExpr (std::unique_ptr<Expr> array_expr,
 		  std::unique_ptr<Expr> array_index_expr,
@@ -1267,7 +1267,7 @@ class TupleExpr : public ExprWithoutBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   const std::vector<Attribute> &get_inner_attrs () const { return inner_attrs; }
   std::vector<Attribute> &get_inner_attrs () { return inner_attrs; }
@@ -1365,7 +1365,7 @@ class TupleIndexExpr : public ExprWithoutBlock
   // i.e. pair.0
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   TupleIndex get_tuple_index () const { return tuple_index; }
 
@@ -1456,7 +1456,7 @@ public:
   const PathInExpression &get_struct_name () const { return struct_name; }
   PathInExpression &get_struct_name () { return struct_name; }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Invalid if path is empty, so base stripping on that.
   void mark_for_strip () override
@@ -1482,7 +1482,7 @@ class StructExprStruct : public StructExpr
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   const std::vector<Attribute> &get_inner_attrs () const { return inner_attrs; }
   std::vector<Attribute> &get_inner_attrs () { return inner_attrs; }
@@ -1555,7 +1555,7 @@ public:
   // Returns whether StructBase is in error state
   bool is_invalid () const { return base_struct == nullptr; }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: is this better? Or is a "vis_block" better?
   std::unique_ptr<Expr> &get_base_struct ()
@@ -1578,7 +1578,7 @@ public:
     return std::unique_ptr<StructExprField> (clone_struct_expr_field_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1608,7 +1608,7 @@ public:
       locus (locus)
   {}
 
-  std::string as_string () const override { return field_name; }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return field_name; }
 
   Location get_locus () const override final { return locus; }
 
@@ -1654,7 +1654,7 @@ protected:
   StructExprFieldWithVal &operator= (StructExprFieldWithVal &&other) = default;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // TODO: is this better? Or is a "vis_block" better?
   std::unique_ptr<Expr> &get_value ()
@@ -1678,7 +1678,7 @@ public:
       field_name (std::move (field_identifier)), locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1708,7 +1708,7 @@ public:
       locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1735,7 +1735,7 @@ class StructExprStructFields : public StructExprStruct
   StructBase struct_base;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   bool has_struct_base () const { return !struct_base.is_invalid (); }
 
@@ -1809,7 +1809,7 @@ class StructExprStructBase : public StructExprStruct
   StructBase struct_base;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   StructExprStructBase (PathInExpression struct_path, StructBase base_struct,
 			std::vector<Attribute> inner_attribs,
@@ -1847,7 +1847,7 @@ class CallExpr : public ExprWithoutBlock
 public:
   Function *fndeclRef;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   CallExpr (std::unique_ptr<Expr> function_expr,
 	    std::vector<std::unique_ptr<Expr> > function_params,
@@ -1947,7 +1947,7 @@ class MethodCallExpr : public ExprWithoutBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   MethodCallExpr (std::unique_ptr<Expr> call_receiver,
 		  PathExprSegment method_path,
@@ -2050,7 +2050,7 @@ class FieldAccessExpr : public ExprWithoutBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   FieldAccessExpr (std::unique_ptr<Expr> field_access_receiver,
 		   Identifier field_name, std::vector<Attribute> outer_attribs,
@@ -2194,7 +2194,7 @@ public:
     return ClosureParam (nullptr, Location ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   const std::vector<Attribute> &get_outer_attrs () const { return outer_attrs; }
   std::vector<Attribute> &get_outer_attrs () { return outer_attrs; }
@@ -2230,7 +2230,7 @@ protected:
   {}
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -2253,7 +2253,7 @@ class ClosureExprInner : public ClosureExpr
   std::unique_ptr<Expr> closure_inner;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor for a ClosureExprInner
   ClosureExprInner (std::unique_ptr<Expr> closure_inner_expr,
@@ -2332,7 +2332,7 @@ class BlockExpr : public ExprWithBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether the block contains statements.
   bool has_statements () const { return !statements.empty (); }
@@ -2465,7 +2465,7 @@ class ClosureExprInnerTyped : public ClosureExpr
     expr; // only used because may be polymorphic in future
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor potentially with a move
   ClosureExprInnerTyped (std::unique_ptr<Type> closure_return_type,
@@ -2557,7 +2557,7 @@ class ContinueExpr : public ExprWithoutBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns true if the continue expr has a label.
   bool has_label () const { return !label.is_error (); }
@@ -2609,7 +2609,7 @@ class BreakExpr : public ExprWithoutBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether the break expression has a label or not.
   bool has_label () const { return !label.is_error (); }
@@ -2719,7 +2719,7 @@ class RangeFromToExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   RangeFromToExpr (std::unique_ptr<Expr> range_from,
 		   std::unique_ptr<Expr> range_to, Location locus)
@@ -2802,7 +2802,7 @@ class RangeFromExpr : public RangeExpr
   std::unique_ptr<Expr> from;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   RangeFromExpr (std::unique_ptr<Expr> range_from, Location locus)
     : RangeExpr (locus), from (std::move (range_from))
@@ -2863,7 +2863,7 @@ class RangeToExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // outer attributes not allowed
   RangeToExpr (std::unique_ptr<Expr> range_to, Location locus)
@@ -2926,7 +2926,7 @@ class RangeFullExpr : public RangeExpr
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   RangeFullExpr (Location locus) : RangeExpr (locus) {}
   // outer attributes not allowed
@@ -2954,7 +2954,7 @@ class RangeFromToInclExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   RangeFromToInclExpr (std::unique_ptr<Expr> range_from,
 		       std::unique_ptr<Expr> range_to, Location locus)
@@ -3038,7 +3038,7 @@ class RangeToInclExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   RangeToInclExpr (std::unique_ptr<Expr> range_to, Location locus)
     : RangeExpr (locus), to (std::move (range_to))
@@ -3104,7 +3104,7 @@ class ReturnExpr : public ExprWithoutBlock
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   /* Returns whether the object has an expression returned (i.e. not void return
    * type). */
@@ -3192,7 +3192,7 @@ class UnsafeBlockExpr : public ExprWithBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   UnsafeBlockExpr (std::unique_ptr<BlockExpr> block_expr,
 		   std::vector<Attribute> outer_attribs, Location locus)
@@ -3272,7 +3272,7 @@ class LoopLabel /*: public Node*/
   NodeId node_id;
 
 public:
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   LoopLabel (Lifetime loop_label, Location locus = Location ())
     : label (std::move (loop_label)), locus (locus),
@@ -3377,7 +3377,7 @@ public:
 class LoopExpr : public BaseLoopExpr
 {
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor for LoopExpr
   LoopExpr (std::unique_ptr<BlockExpr> loop_block, Location locus,
@@ -3404,7 +3404,7 @@ class WhileLoopExpr : public BaseLoopExpr
   std::unique_ptr<Expr> condition;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor for while loop with loop label
   WhileLoopExpr (std::unique_ptr<Expr> loop_condition,
@@ -3464,7 +3464,7 @@ class WhileLetLoopExpr : public BaseLoopExpr
   std::unique_ptr<Expr> scrutinee;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor with a loop label
   WhileLetLoopExpr (std::vector<std::unique_ptr<Pattern> > match_arm_patterns,
@@ -3546,7 +3546,7 @@ class ForLoopExpr : public BaseLoopExpr
   std::unique_ptr<Expr> iterator_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor with loop label
   ForLoopExpr (std::unique_ptr<Pattern> loop_pattern,
@@ -3620,7 +3620,7 @@ class IfExpr : public ExprWithBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfExpr (std::unique_ptr<Expr> condition, std::unique_ptr<BlockExpr> if_block,
 	  std::vector<Attribute> outer_attrs, Location locus)
@@ -3734,7 +3734,7 @@ class IfExprConseqElse : public IfExpr
   std::unique_ptr<BlockExpr> else_block;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfExprConseqElse (std::unique_ptr<Expr> condition,
 		    std::unique_ptr<BlockExpr> if_block,
@@ -3792,7 +3792,7 @@ class IfExprConseqIf : public IfExpr
   std::unique_ptr<IfExpr> conseq_if_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfExprConseqIf (std::unique_ptr<Expr> condition,
 		  std::unique_ptr<BlockExpr> if_block,
@@ -3857,7 +3857,7 @@ class IfLetExpr : public ExprWithBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfLetExpr (std::vector<std::unique_ptr<Pattern> > match_arm_patterns,
 	     std::unique_ptr<Expr> value, std::unique_ptr<BlockExpr> if_block,
@@ -3986,7 +3986,7 @@ class IfExprConseqIfLet : public IfExpr
   std::unique_ptr<IfLetExpr> if_let_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfExprConseqIfLet (std::unique_ptr<Expr> condition,
 		     std::unique_ptr<BlockExpr> if_block,
@@ -4043,7 +4043,7 @@ class IfLetExprConseqElse : public IfLetExpr
   std::unique_ptr<BlockExpr> else_block;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfLetExprConseqElse (
     std::vector<std::unique_ptr<Pattern> > match_arm_patterns,
@@ -4103,7 +4103,7 @@ class IfLetExprConseqIf : public IfLetExpr
   std::unique_ptr<IfExpr> if_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfLetExprConseqIf (std::vector<std::unique_ptr<Pattern> > match_arm_patterns,
 		     std::unique_ptr<Expr> value,
@@ -4162,7 +4162,7 @@ class IfLetExprConseqIfLet : public IfLetExpr
   std::unique_ptr<IfLetExpr> if_let_expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   IfLetExprConseqIfLet (
     std::vector<std::unique_ptr<Pattern> > match_arm_patterns,
@@ -4288,7 +4288,7 @@ public:
     return MatchArm (std::vector<std::unique_ptr<Pattern> > (), locus);
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: is this better? Or is a "vis_block" better?
   std::unique_ptr<Expr> &get_guard_expr ()
@@ -4349,7 +4349,7 @@ public:
 
   ~MatchCase () = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: is this better? Or is a "vis_block" better?
   std::unique_ptr<Expr> &get_expr ()
@@ -4378,7 +4378,7 @@ class MatchExpr : public ExprWithBlock
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether the match expression has any match arms.
   bool has_match_arms () const { return !match_arms.empty (); }
@@ -4510,7 +4510,7 @@ public:
   AwaitExpr (AwaitExpr &&other) = default;
   AwaitExpr &operator= (AwaitExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -4591,7 +4591,7 @@ public:
   AsyncBlockExpr (AsyncBlockExpr &&other) = default;
   AsyncBlockExpr &operator= (AsyncBlockExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 

@@ -104,7 +104,7 @@ public:
     return MacroMatchFragment (std::string (""), INVALID, locus);
   }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
   Location get_match_locus () const override { return locus; };
 
   void accept_vis (ASTVisitor &vis) override;
@@ -195,7 +195,7 @@ public:
   MacroMatchRepetition (MacroMatchRepetition &&other) = default;
   MacroMatchRepetition &operator= (MacroMatchRepetition &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
   Location get_match_locus () const override { return locus; };
 
   void accept_vis (ASTVisitor &vis) override;
@@ -272,7 +272,7 @@ public:
   bool is_error () const { return is_invalid; }
   Location get_match_locus () const override { return locus; }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -310,7 +310,7 @@ public:
     : token_tree (std::move (token_tree)), locus (locus)
   {}
 
-  std::string as_string () const { return token_tree.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const { return token_tree.as_string (indentation); }
 
   Location get_locus () const { return locus; }
 
@@ -345,7 +345,7 @@ public:
 
   Location get_locus () const { return locus; }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   MacroMatcher &get_matcher () { return matcher; }
   MacroTranscriber &get_transcriber () { return transcriber; }
@@ -388,7 +388,7 @@ class MacroRulesDefinition : public MacroItem
    * is "extremely self-referential and non-intuitive". */
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   MacroRulesDefinition (Identifier rule_name, DelimType delim_type,
 			std::vector<MacroRule> rules,
@@ -473,7 +473,7 @@ class MacroInvocation : public TypeNoBounds,
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   MacroInvocation (MacroInvocData invoc_data,
 		   std::vector<Attribute> outer_attrs, Location locus,
@@ -586,7 +586,7 @@ class MetaItemPath : public MetaItem
 public:
   MetaItemPath (SimplePath path) : path (std::move (path)) {}
 
-  std::string as_string () const override { return path.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return path.as_string (indentation); }
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -646,7 +646,7 @@ public:
   MetaItemSeq (MetaItemSeq &&other) = default;
   MetaItemSeq &operator= (MetaItemSeq &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -670,7 +670,7 @@ class MetaWord : public MetaItem
 public:
   MetaWord (Identifier ident) : ident (std::move (ident)) {}
 
-  std::string as_string () const override { return ident; }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return ident; }
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -698,7 +698,7 @@ public:
     : ident (std::move (ident)), str (std::move (str))
   {}
 
-  std::string as_string () const override
+  std::string as_string (IndentManager indentation = IndentManager()) const override
   {
     return ident + " = \"" + str + "\"";
   }
@@ -735,7 +735,7 @@ public:
     : ident (std::move (ident)), paths (std::move (paths))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -768,7 +768,7 @@ public:
     : ident (std::move (ident)), strs (std::move (strs))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 

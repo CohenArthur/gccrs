@@ -66,7 +66,7 @@ public:
       type_path (std::move (type_path)), locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -140,7 +140,7 @@ public:
   ImplTraitType (ImplTraitType &&other) = default;
   ImplTraitType &operator= (ImplTraitType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -206,7 +206,7 @@ public:
   TraitObjectType (TraitObjectType &&other) = default;
   TraitObjectType &operator= (TraitObjectType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -264,7 +264,7 @@ public:
   ParenthesisedType (ParenthesisedType &&other) = default;
   ParenthesisedType &operator= (ParenthesisedType &&other) = default;
 
-  std::string as_string () const override
+  std::string as_string (IndentManager indentation = IndentManager()) const override
   {
     return "(" + type_in_parens->as_string () + ")";
   }
@@ -309,7 +309,7 @@ public:
     : trait_bound (std::move (trait_bound)), locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -346,7 +346,7 @@ public:
       locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Creates a trait bound (clone of this one's trait bound) - HACK
   TraitBound *to_trait_bound (bool) const override
@@ -411,7 +411,7 @@ public:
   TupleType (TupleType &&other) = default;
   TupleType &operator= (TupleType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -451,7 +451,7 @@ protected:
 public:
   NeverType (Location locus) : locus (locus) {}
 
-  std::string as_string () const override { return "! (never type)"; }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return "! (never type)"; }
 
   Location get_locus () const override final { return locus; }
 
@@ -503,7 +503,7 @@ public:
   RawPointerType (RawPointerType &&other) = default;
   RawPointerType &operator= (RawPointerType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -570,7 +570,7 @@ public:
   ReferenceType (ReferenceType &&other) = default;
   ReferenceType &operator= (ReferenceType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -631,7 +631,7 @@ public:
   ArrayType (ArrayType &&other) = default;
   ArrayType &operator= (ArrayType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -691,7 +691,7 @@ public:
   SliceType (SliceType &&other) = default;
   SliceType &operator= (SliceType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -731,7 +731,7 @@ protected:
 public:
   InferredType (Location locus) : locus (locus) {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 
@@ -803,7 +803,7 @@ public:
   MaybeNamedParam (MaybeNamedParam &&other) = default;
   MaybeNamedParam &operator= (MaybeNamedParam &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // Returns whether the param is in an error state.
   bool is_error () const { return param_type == nullptr; }
@@ -908,7 +908,7 @@ public:
   BareFunctionType (BareFunctionType &&other) = default;
   BareFunctionType &operator= (BareFunctionType &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const override final { return locus; }
 

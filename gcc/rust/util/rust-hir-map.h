@@ -26,6 +26,7 @@
 #include "rust-ast-full-decls.h"
 #include "rust-hir-full-decls.h"
 #include "rust-lang-item.h"
+#include "rust-indentation.h"
 
 namespace Rust {
 namespace Analysis {
@@ -49,7 +50,7 @@ public:
 
   static DefId get_defid (CrateNum crate_num, LocalDefId local_defid);
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   bool is_equal (const NodeMapping &other) const
   {

@@ -39,7 +39,7 @@ class LiteralPattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor for a literal pattern
   LiteralPattern (Literal lit, Location locus, bool has_minus = false)
@@ -84,7 +84,7 @@ class IdentifierPattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether the IdentifierPattern has a pattern to bind.
   bool has_pattern_to_bind () const { return to_bind != nullptr; }
@@ -174,7 +174,7 @@ class WildcardPattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override { return std::string (1, '_'); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return std::string (1, '_'); }
 
   WildcardPattern (Location locus)
     : locus (locus), node_id (Analysis::Mappings::get ()->get_next_node_id ())
@@ -210,7 +210,7 @@ public:
       clone_range_pattern_bound_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -238,7 +238,7 @@ public:
     : literal (literal), has_minus (has_minus), locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -264,7 +264,7 @@ class RangePatternBoundPath : public RangePatternBound
 public:
   RangePatternBoundPath (PathInExpression path) : path (std::move (path)) {}
 
-  std::string as_string () const override { return path.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return path.as_string (indentation); }
 
   Location get_locus () const { return path.get_locus (); }
 
@@ -296,7 +296,7 @@ public:
     : path (std::move (path))
   {}
 
-  std::string as_string () const override { return path.as_string (); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return path.as_string (indentation); }
 
   Location get_locus () const { return path.get_locus (); }
 
@@ -329,7 +329,7 @@ class RangePattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor
   RangePattern (std::unique_ptr<RangePatternBound> lower,
@@ -404,7 +404,7 @@ class ReferencePattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ReferencePattern (std::unique_ptr<Pattern> pattern, bool is_mut_reference,
 		    bool ref_has_two_amps, Location locus)
@@ -508,7 +508,7 @@ public:
       clone_struct_pattern_field_impl ());
   }
 
-  virtual std::string as_string () const;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -583,7 +583,7 @@ public:
   StructPatternFieldTuplePat &operator= (StructPatternFieldTuplePat &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -661,7 +661,7 @@ public:
   StructPatternFieldIdentPat &operator= (StructPatternFieldIdentPat &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -707,7 +707,7 @@ public:
       has_ref (is_ref), has_mut (is_mut), ident (std::move (ident))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -809,7 +809,7 @@ public:
       std::vector<std::unique_ptr<StructPatternField> > ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: seems kinda dodgy. Think of better way.
   std::vector<std::unique_ptr<StructPatternField> > &
@@ -852,7 +852,7 @@ class StructPattern : public Pattern
   Location locus;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructs a struct pattern from specified StructPatternElements
   StructPattern (PathInExpression struct_path, Location locus,
@@ -916,7 +916,7 @@ public:
     return std::unique_ptr<TupleStructItems> (clone_tuple_struct_items_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -960,7 +960,7 @@ public:
   TupleStructItemsNoRange &operator= (TupleStructItemsNoRange &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1025,7 +1025,7 @@ public:
   TupleStructItemsRange (TupleStructItemsRange &&other) = default;
   TupleStructItemsRange &operator= (TupleStructItemsRange &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1071,7 +1071,7 @@ class TupleStructPattern : public Pattern
    * data */
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns whether the pattern has tuple struct items.
   bool has_items () const { return items != nullptr; }
@@ -1152,7 +1152,7 @@ public:
       clone_tuple_pattern_items_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1229,7 +1229,7 @@ public:
   TuplePatternItemsMultiple &operator= (TuplePatternItemsMultiple &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1294,7 +1294,7 @@ public:
   TuplePatternItemsRanged &operator= (TuplePatternItemsRanged &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1336,7 +1336,7 @@ class TuplePattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Returns true if the tuple pattern has items
   bool has_tuple_pattern_items () const { return items != nullptr; }
@@ -1402,7 +1402,7 @@ class GroupedPattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override
+  std::string as_string (IndentManager indentation = IndentManager()) const override
   {
     return "(" + pattern_in_parens->as_string () + ")";
   }
@@ -1464,7 +1464,7 @@ class SlicePattern : public Pattern
   NodeId node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   SlicePattern (std::vector<std::unique_ptr<Pattern> > items, Location locus)
     : items (std::move (items)), locus (locus),

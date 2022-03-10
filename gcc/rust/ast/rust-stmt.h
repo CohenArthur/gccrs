@@ -34,7 +34,7 @@ class EmptyStmt : public Stmt
   bool marked_for_strip = false;
 
 public:
-  std::string as_string () const override { return std::string (1, ';'); }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return std::string (1, ';'); }
 
   EmptyStmt (Location locus) : locus (locus) {}
 
@@ -83,7 +83,7 @@ public:
   // Returns whether let statement has an initialisation expression.
   bool has_init_expr () const { return init_expr != nullptr; }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   LetStmt (std::unique_ptr<Pattern> variables_pattern,
 	   std::unique_ptr<Expr> init_expr, std::unique_ptr<Type> type,
@@ -208,7 +208,7 @@ class ExprStmtWithoutBlock : public ExprStmt
   // std::unique_ptr<Expr> expr;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   ExprStmtWithoutBlock (std::unique_ptr<ExprWithoutBlock> expr, Location locus)
     : ExprStmt (locus), expr (std::move (expr->to_stmt ()))
@@ -277,7 +277,7 @@ class ExprStmtWithBlock : public ExprStmt
   bool semicolon_followed;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   std::vector<LetStmt *> locals;
 

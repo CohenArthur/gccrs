@@ -56,7 +56,7 @@ public:
   // Returns whether PathIdentSegment is in an error state.
   bool is_error () const { return segment_name.empty (); }
 
-  std::string as_string () const { return segment_name; }
+  std::string as_string (IndentManager indentation = IndentManager()) const { return segment_name; }
 };
 
 // A binding of an identifier to a type used in generic arguments in paths
@@ -118,7 +118,7 @@ public:
   GenericArgsBinding (GenericArgsBinding &&other) = default;
   GenericArgsBinding &operator= (GenericArgsBinding &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: is this better? Or is a "vis_pattern" better?
   std::unique_ptr<Type> &get_type ()
@@ -195,7 +195,7 @@ public:
 			std::vector<GenericArgsBinding> ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: is this better? Or is a "vis_pattern" better?
   std::vector<std::unique_ptr<Type> > &get_type_args () { return type_args; }
@@ -255,7 +255,7 @@ public:
     return PathExprSegment (PathIdentSegment::create_error (), Location ());
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -300,7 +300,7 @@ public:
    * initial as segment). */
   bool is_single_segment () const { return segments.size () == 1; }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // TODO: this seems kinda dodgy
   std::vector<PathExprSegment> &get_segments () { return segments; }
@@ -317,7 +317,7 @@ class PathInExpression : public PathPattern, public PathExpr
   NodeId _node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   // Constructor
   PathInExpression (std::vector<PathExprSegment> path_segments,
@@ -439,7 +439,7 @@ public:
       node_id (Analysis::Mappings::get ()->get_next_node_id ())
   {}
 
-  virtual std::string as_string () const { return ident_segment.as_string (); }
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const { return ident_segment.as_string (indentation); }
 
   /* Returns whether the type path segment is in an error state. May be virtual
    * in future. */
@@ -497,7 +497,7 @@ public:
 				 std::move (binding_args)))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -600,7 +600,7 @@ public:
   TypePathFunction (TypePathFunction &&other) = default;
   TypePathFunction &operator= (TypePathFunction &&other) = default;
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // TODO: this mutable getter seems really dodgy. Think up better way.
   const std::vector<std::unique_ptr<Type> > &get_params () const
@@ -641,7 +641,7 @@ public:
       function_path (std::move (function_path))
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   bool is_ident_only () const override { return false; }
 
@@ -730,7 +730,7 @@ public:
   TypePath (TypePath &&other) = default;
   TypePath &operator= (TypePath &&other) = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   /* Converts TypePath to SimplePath if possible (i.e. no generic or function
    * arguments). Otherwise returns an empty SimplePath. */
@@ -819,7 +819,7 @@ public:
     return QualifiedPathType (nullptr);
   }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -850,7 +850,7 @@ class QualifiedPathInExpression : public PathPattern, public PathExpr
   NodeId _node_id;
 
 public:
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   QualifiedPathInExpression (QualifiedPathType qual_path_type,
 			     std::vector<PathExprSegment> path_segments,
@@ -995,7 +995,7 @@ public:
       std::vector<std::unique_ptr<TypePathSegment> > (), Location ());
   }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 

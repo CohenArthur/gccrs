@@ -24,6 +24,7 @@
 #include "rust-hir-map.h"
 #include "rust-token.h"
 #include "rust-location.h"
+#include "rust-indentation.h"
 
 namespace Rust {
 // TODO: remove typedefs and make actual types for these
@@ -59,7 +60,7 @@ public:
     return std::unique_ptr<TokenTree> (clone_token_tree_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -86,7 +87,7 @@ public:
 
   virtual ~MacroMatch () {}
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
   virtual Location get_match_locus () const = 0;
 
   // Unique pointer custom clone function
@@ -195,7 +196,7 @@ public:
       }
   }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
   Location get_match_locus () const override { return tok_ref->get_locus (); };
 
   void accept_vis (ASTVisitor &vis) override;
@@ -260,7 +261,7 @@ private:
   PrimitiveCoreType type_hint;
 
 public:
-  std::string as_string () const { return value_as_string; }
+  std::string as_string (IndentManager indentation = IndentManager()) const { return value_as_string; }
 
   LitType get_lit_type () const { return type; }
 
@@ -292,7 +293,7 @@ class PathSegment
 public:
   virtual ~PathSegment () {}
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   // TODO: add visitor here?
 };
@@ -320,7 +321,7 @@ public:
     return SimplePathSegment (std::string (""));
   }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   Location get_locus () const { return locus; }
 
@@ -352,7 +353,7 @@ public:
   // Returns whether the SimplePath is empty, i.e. has path segments.
   bool is_empty () const { return segments.empty (); }
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   Location get_locus () const { return locus; }
 
@@ -495,7 +496,7 @@ public:
    *   windows_subsystem
    *   feature     */
 
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   // no visitor pattern as not currently polymorphic
 
@@ -543,7 +544,7 @@ public:
     return std::unique_ptr<AttrInput> (clone_attr_input_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -583,7 +584,7 @@ public:
 
   virtual ~MetaItemInner ();
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -639,7 +640,7 @@ public:
   AttrInputMetaItemContainer &operator= (AttrInputMetaItemContainer &&other)
     = default;
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -746,7 +747,7 @@ public:
 
   static DelimTokenTree create_empty () { return DelimTokenTree (PARENS); }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -824,7 +825,7 @@ public:
 
   virtual ~Stmt () {}
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -897,7 +898,7 @@ public:
    * overrided in subclasses of ExprWithoutBlock */
   virtual ExprWithoutBlock *as_expr_without_block () const { return nullptr; }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual ~Expr () {}
 
@@ -980,7 +981,7 @@ public:
       locus (locus)
   {}
 
-  std::string as_string () const override { return ident; }
+  std::string as_string (IndentManager indentation = IndentManager()) const override { return ident; }
 
   Location get_locus () const override final { return locus; }
 
@@ -1033,7 +1034,7 @@ public:
 
   virtual ~Pattern () {}
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
   // as only one kind of pattern can be stripped, have default of nothing
@@ -1064,7 +1065,7 @@ public:
   // virtual destructor
   virtual ~Type () {}
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   /* HACK: convert to trait bound. Virtual method overriden by classes that
    * enable this. */
@@ -1129,7 +1130,7 @@ public:
     return std::unique_ptr<TypeParamBound> (clone_type_param_bound_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1186,7 +1187,7 @@ public:
     return lifetime_type == NAMED && lifetime_name.empty ();
   }
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1218,7 +1219,7 @@ public:
     return std::unique_ptr<GenericParam> (clone_generic_param_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1271,7 +1272,7 @@ public:
       outer_attr (std::move (outer_attr)), locus (locus)
   {}
 
-  std::string as_string () const override;
+  std::string as_string (IndentManager indentation = IndentManager()) const override;
 
   void accept_vis (ASTVisitor &vis) override;
 
@@ -1311,7 +1312,7 @@ public:
     return std::unique_ptr<TraitItem> (clone_trait_item_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1338,7 +1339,7 @@ public:
     return std::unique_ptr<InherentImplItem> (clone_inherent_impl_item_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1363,7 +1364,7 @@ public:
     return std::unique_ptr<TraitImplItem> (clone_trait_impl_item_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1385,7 +1386,7 @@ public:
     return std::unique_ptr<ExternalItem> (clone_external_item_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string as_string (IndentManager indentation = IndentManager()) const = 0;
 
   virtual void accept_vis (ASTVisitor &vis) = 0;
 
@@ -1414,7 +1415,7 @@ private:
   bool parsed_to_meta_item = false;
 
 public:
-  std::string as_string () const;
+  std::string as_string (IndentManager indentation = IndentManager()) const;
 
   MacroInvocData (SimplePath path, DelimTokenTree token_tree)
     : path (std::move (path)), token_tree (std::move (token_tree))

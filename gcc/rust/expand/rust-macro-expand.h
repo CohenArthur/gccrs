@@ -27,6 +27,7 @@
 #include "rust-hir-map.h"
 #include "rust-name-resolver.h"
 #include "rust-macro-invoc-lexer.h"
+#include "rust-indentation.h"
 
 // Provides objects and method prototypes for macro expansion
 
@@ -72,7 +73,7 @@ struct MatchedFragment
     return MatchedFragment (identifier, 0, 0, 0);
   }
 
-  std::string as_string () const
+  std::string as_string (IndentManager indentation = IndentManager()) const
   {
     return fragment_ident + "=" + std::to_string (token_offset_begin) + ":"
 	   + std::to_string (token_offset_end) + " (matched "
