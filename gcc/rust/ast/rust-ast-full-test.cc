@@ -27,6 +27,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "rust-lex.h"
 #include "rust-parse.h"
 #include "operator.h"
+#include <sstream>
 
 /* Compilation unit used for various AST-related functions that would make
  * the headers too long if they were defined inline and don't receive any
@@ -175,21 +176,20 @@ std::string
 Crate::as_string () const
 {
   rust_debug ("beginning crate recursive as-string");
+  auto indentation = IndentManager().increment();
 
-  std::string str ("Crate: ");
-  auto indentation = IndentManager();
+  std::stringstream str;
+  str << "Crate:\n";
 
   // inner attributes
-  str += append_attributes (inner_attrs, INNER);
+  str << append_attributes (inner_attrs, INNER) << "\n";
+  str << indentation;
 
   // items
-  str += "\n items: ";
+  str << "items: ";
   if (items.empty ())
-    {
-      str += "none";
-    }
+      str << "none";
   else
-    {
       for (const auto &item : items)
 	{
 	  // DEBUG: null pointer check
@@ -200,11 +200,12 @@ Crate::as_string () const
 	      return "NULL_POINTER_MARK";
 	    }
 
-	  str += "\n  " + item->as_string (indentation.increment());
+	  str << "\n" << indentation.increment() << item->as_string (indentation.increment());
 	}
-    }
 
-  return str + "\n";
+  str << "\n";
+
+  return str.str();
 }
 
 std::string
