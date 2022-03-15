@@ -1,3 +1,4 @@
+```
 failures:
 
 ---- [ui (polonius)] ui/closures/closure-expected-type/expect-region-supply-region-2.rs stdout ----
@@ -1752,3 +1753,4 @@ failures:
 test result: FAILED. 12588 passed; 24 failed; 120 ignored; 0 measured; 0 filtered out; finished in 2156.02s
 
 Some tests failed in compiletest suite=ui compare_mode=Polonius mode=ui host=x86_64-unknown-linux-gnu target=x86_64-unknown-linux-gnu
+```

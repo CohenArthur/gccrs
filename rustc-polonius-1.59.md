@@ -1,3 +1,4 @@
+```
 failures:
 
 ---- [ui (polonius)] ui/closures/closure-expected-type/expect-region-supply-region-2.rs stdout ----
@@ -1731,3 +1732,4 @@ expected success, got: exit status: 1
 
 
 Build completed unsuccessfully in 0:39:06
+```
