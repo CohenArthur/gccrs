@@ -162,7 +162,7 @@ rust_OBJS = $(RUST_ALL_OBJS) rust/rustspec.o
 # The compiler itself is called rust1 (formerly grs1)
 rust1$(exeext): $(RUST_ALL_OBJS) attribs.o $(BACKEND) $(LIBDEPS)
 	+$(LLINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
-	      $(RUST_ALL_OBJS) attribs.o $(BACKEND) $(LIBS) $(BACKENDLIBS)
+	      $(RUST_ALL_OBJS) attribs.o $(BACKEND) libffi_polonius.a $(LIBS) $(BACKENDLIBS)
 
 # Build hooks.
 
@@ -286,7 +286,7 @@ rust.install-man:
 # Used for handling bootstrap
 
 rust.stage1: stage1-start
-	-mv rust/*$(objext) stage1/rust
+	-mv rust/*$(objext) stage2/rust
 rust.stage2: stage2-start
 	-mv rust/*$(objext) stage2/rust
 rust.stage3: stage3-start
