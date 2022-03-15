@@ -33,7 +33,17 @@ public:
    * @param var Variable to define
    * @param init Initialization point
    */
-  void define_var (HIR::Expr &assignment, HIR::Expr &init);
+  void define_var (HIR::Stmt &assignment, HIR::Expr *init);
+
+  /**
+   * Define a use-site for an existing variable
+   */
+  void var_used_at (HIR::Expr &expr);
+
+  /**
+   * Compute polonius results using the handle
+   */
+  void compute ();
 
 private:
   void *raw_handle;

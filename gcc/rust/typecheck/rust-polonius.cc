@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-polonius.h"
+#include "rust-name-resolver.h"
 
 // Raw declarations from the rust compatibility layer
 extern "C" void *
@@ -25,6 +26,10 @@ extern "C" void
 polonius_deinit (void *handle);
 extern "C" void
 polonius_define_var (void *handle, size_t var_id, size_t expr_id);
+extern "C" void
+polonius_var_used_at (void *handle, size_t var_id, size_t expr_id);
+extern "C" void
+polonius_compute (void *handle);
 
 namespace Rust {
 namespace HIR {
@@ -33,10 +38,28 @@ Polonius::Polonius () { raw_handle = polonius_init (); }
 Polonius::~Polonius () { polonius_deinit (raw_handle); }
 
 void
-Polonius::define_var (HIR::Expr &assignment, HIR::Expr &expr)
+Polonius::define_var (HIR::Stmt &assignment, HIR::Expr *expr)
 {
   polonius_define_var (raw_handle, assignment.get_mappings ().get_hirid (),
-		       expr.get_mappings ().get_hirid ());
+		       expr->get_mappings ().get_hirid ());
+}
+
+void
+Polonius::var_used_at (HIR::Expr &expr)
+{
+  auto resolver = Resolver::Resolver::get ();
+  auto ref_node_id = UNKNOWN_NODEID;
+  resolver->lookup_resolved_name (expr.get_mappings ().get_nodeid (),
+				  &ref_node_id);
+
+  polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
+			ref_node_id);
+}
+
+void
+Polonius::compute ()
+{
+  polonius_compute (raw_handle);
 }
 } // namespace HIR
 } // namespace Rust
