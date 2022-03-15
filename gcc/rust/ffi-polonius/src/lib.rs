@@ -40,11 +40,11 @@ impl FactTypes for GccrsPolonius {
 #[repr(C)]
 pub struct FfiGccrsPolonius(pub(crate) AllFacts<GccrsPolonius>);
 
-#[no_mangle]
 /// # Safety
 /// You *need* to call this function before any other polonius related
 /// functions. It will initialize the inner content of the `handle` pointer
 /// and return.
+#[no_mangle]
 pub unsafe extern "C" fn polonius_init() -> *mut FfiGccrsPolonius {
     let facts = AllFacts::default();
     eprintln!("[polonius] init");
@@ -59,10 +59,10 @@ pub unsafe extern "C" fn polonius_deinit(handle: *mut FfiGccrsPolonius) {
     Box::from_raw(handle);
 }
 
-#[no_mangle]
 /// # Safety
 /// Do not call this function without having initialized the handle first using
 /// [`polonius_init`]
+#[no_mangle]
 pub unsafe extern "C" fn polonius_var_used_at(
     handle: *mut FfiGccrsPolonius,
     var_id: usize,
@@ -73,16 +73,18 @@ pub unsafe extern "C" fn polonius_var_used_at(
     handle.0.var_used_at.push((var_id.into(), point_id.into()))
 }
 
-#[no_mangle]
 /// # Safety
 /// Do not call this function without having initialized the handle first using
 /// [`polonius_init`]
+#[no_mangle]
 pub unsafe extern "C" fn polonius_define_var(
     handle: *mut FfiGccrsPolonius,
     var_id: usize,
     point_id: usize,
 ) {
     let handle = handle.as_mut().unwrap();
+
+    eprintln!("[polonius] defining variable ({} -> {})", var_id, point_id);
 
     handle
         .0
