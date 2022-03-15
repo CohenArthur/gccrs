@@ -18,6 +18,7 @@
 
 #include "rust-hir-expr.h"
 #include "rust-hir-item.h"
+#include "rust-name-resolver.h"
 
 namespace Rust {
 namespace HIR {
@@ -47,6 +48,7 @@ public:
 
 private:
   void *raw_handle;
+  Rust::Resolver::Resolver *resolver;
 };
 } // namespace HIR
 } // namespace Rust
