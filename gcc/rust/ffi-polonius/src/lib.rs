@@ -1,7 +1,7 @@
 //! There are two main components to the polonius-engine library: Facts and
 //! Output.
 
-use polonius_engine::{AllFacts, Atom, FactTypes};
+use polonius_engine::{AllFacts, Atom, FactTypes, Output};
 
 use std::convert::From;
 
@@ -70,6 +70,8 @@ pub unsafe extern "C" fn polonius_var_used_at(
 ) {
     let handle = handle.as_mut().unwrap();
 
+    eprintln!("[polonius] variable {} used at {}", var_id, point_id);
+
     handle.0.var_used_at.push((var_id.into(), point_id.into()))
 }
 
@@ -90,4 +92,13 @@ pub unsafe extern "C" fn polonius_define_var(
         .0
         .var_defined_at
         .push((var_id.into(), point_id.into()))
+}
+
+/// # Safety
+/// Not-safe
+#[no_mangle]
+pub unsafe extern "C" fn polonius_compute(handle: *mut FfiGccrsPolonius) {
+    let handle = handle.as_mut().unwrap();
+
+    Output::compute(&handle.0, polonius_engine::Algorithm::Naive, true);
 }
