@@ -1,4 +1,4 @@
-```
+```diff
 failures:
 
 ---- [ui (polonius)] ui/closures/closure-expected-type/expect-region-supply-region-2.rs stdout ----
