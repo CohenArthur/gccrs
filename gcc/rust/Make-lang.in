@@ -288,7 +288,7 @@ rust.install-man:
 # Used for handling bootstrap
 
 rust.stage1: stage1-start
-	-mv rust/*$(objext) stage2/rust
+	-mv rust/*$(objext) stage1/rust
 rust.stage2: stage2-start
 	-mv rust/*$(objext) stage2/rust
 rust.stage3: stage3-start
