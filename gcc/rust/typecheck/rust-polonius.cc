@@ -33,7 +33,11 @@ polonius_compute (void *handle);
 
 namespace Rust {
 namespace HIR {
-Polonius::Polonius () { raw_handle = polonius_init (); resolver = Rust::Resolver::Resolver::get(); }
+Polonius::Polonius ()
+{
+  raw_handle = polonius_init ();
+  resolver = Rust::Resolver::Resolver::get ();
+}
 
 Polonius::~Polonius () { polonius_deinit (raw_handle); }
 
@@ -43,11 +47,14 @@ Polonius::define_var (HIR::Stmt &assignment, HIR::Expr *expr)
   auto var_node_id = UNKNOWN_NODEID;
   auto expr_node_id = UNKNOWN_NODEID;
 
-  resolver->lookup_resolved_name(assignment.get_mappings().get_nodeid(), &var_node_id);
-  resolver->lookup_resolved_name(expr->get_mappings().get_nodeid(), &var_node_id);
+  resolver->lookup_resolved_name (assignment.get_mappings ().get_nodeid (),
+				  &var_node_id);
+  resolver->lookup_resolved_name (expr->get_mappings ().get_nodeid (),
+				  &var_node_id);
 
   // polonius_define_var (raw_handle, var_node_id, expr_node_id);
-  polonius_define_var (raw_handle, assignment.get_mappings().get_nodeid(), expr->get_mappings().get_nodeid());
+  polonius_define_var (raw_handle, assignment.get_mappings ().get_nodeid (),
+		       expr->get_mappings ().get_nodeid ());
 }
 
 void
@@ -57,7 +64,14 @@ Polonius::var_used_at (HIR::Expr &expr)
   resolver->lookup_resolved_name (expr.get_mappings ().get_nodeid (),
 				  &ref_node_id);
 
-  rust_debug("[ARTHUR] %d:%d", expr.get_mappings().get_nodeid(), ref_node_id);
+  auto resolved_node = UNKNOWN_NODEID;
+
+  resolver->get_name_scope ().lookup (
+    Resolver::CanonicalPath::new_seg (expr.get_mappings ().get_nodeid (),
+				      expr.as_string ()),
+    &resolved_node);
+
+  rust_debug ("[ARTHUR] Used at %d", resolved_node);
 
   polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
 			ref_node_id);
