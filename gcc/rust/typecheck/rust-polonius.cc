@@ -27,7 +27,7 @@ polonius_deinit (void *handle);
 extern "C" void
 polonius_define_var (void *handle, size_t var_id, size_t expr_id);
 extern "C" void
-polonius_var_used_at (void *handle, size_t var_id, size_t expr_id);
+polonius_var_used_at (void *handle, size_t var_id, size_t point_id);
 extern "C" void
 polonius_compute (void *handle);
 
@@ -60,21 +60,48 @@ Polonius::define_var (HIR::Stmt &assignment, HIR::Expr *expr)
 void
 Polonius::var_used_at (HIR::Expr &expr)
 {
+  //  Resolver::CanonicalPath path;
+  //  resolver->lookup_canonical_path(expr.get_mappings().get_nodeid(), &path);
+  //
+  //  auto ref_node_id = UNKNOWN_NODEID;
+  //  resolver->lookup_resolved_name (expr.get_mappings ().get_nodeid (),
+  //				  &ref_node_id);
+  //
+  //  auto resolved_node = UNKNOWN_NODEID;
+  //
+  //  resolver->get_name_scope ().lookup (
+  //    Resolver::CanonicalPath::new_seg (expr.get_mappings ().get_nodeid (),
+  //				      expr.as_string ()),
+  //    &resolved_node);
+  //
+  //  rust_debug ("[ARTHUR] Used at %d", resolved_node);
+  //
+  //  polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
+  //			ref_node_id);
+
+  auto ast_node_id = expr.get_mappings ().get_nodeid ();
+
+  // then lookup the reference_node_id
   auto ref_node_id = UNKNOWN_NODEID;
-  resolver->lookup_resolved_name (expr.get_mappings ().get_nodeid (),
-				  &ref_node_id);
+  if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
+    {
+      // these ref_node_ids will resolve to a pattern declaration but we are
+      // interested in the definition that this refers to get the parent id
+      Resolver::Definition def;
+      if (!resolver->lookup_definition (ref_node_id, &def))
+	{
+	  // FIXME
+	  // this is an internal error
+	  rust_error_at (expr.get_locus (),
+			 "unknown reference for resolved name");
+	  return;
+	}
+      ref_node_id = def.parent;
+    }
 
-  auto resolved_node = UNKNOWN_NODEID;
+  rust_debug ("[ARTHUR] var %d used at %d", ref_node_id, ast_node_id);
 
-  resolver->get_name_scope ().lookup (
-    Resolver::CanonicalPath::new_seg (expr.get_mappings ().get_nodeid (),
-				      expr.as_string ()),
-    &resolved_node);
-
-  rust_debug ("[ARTHUR] Used at %d", resolved_node);
-
-  polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
-			ref_node_id);
+  polonius_var_used_at (raw_handle, ref_node_id, ast_node_id);
 }
 
 void
