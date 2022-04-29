@@ -586,6 +586,12 @@ public:
 
   VisType get_vis_type () const { return vis_type; }
 
+  const HIR::SimplePath &get_path () const
+  {
+    rust_assert (!is_error ());
+    return path;
+  }
+
   std::string as_string () const;
 };
 
