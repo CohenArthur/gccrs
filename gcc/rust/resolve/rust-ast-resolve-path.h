@@ -43,11 +43,6 @@ private:
   void resolve_segments (CanonicalPath prefix, size_t offs,
 			 std::vector<AST::PathExprSegment> &segs,
 			 NodeId expr_node_id, Location expr_locus);
-
-  void
-  resolve_simple_path_segments (CanonicalPath prefix, size_t offs,
-				const std::vector<AST::SimplePathSegment> &segs,
-				NodeId expr_node_id, Location expr_locus);
 };
 
 class ResolveSimplePathSegmentToCanonicalPath
