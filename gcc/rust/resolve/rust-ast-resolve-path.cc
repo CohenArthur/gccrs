@@ -24,24 +24,42 @@ namespace Rust {
 namespace Resolver {
 
 void
-ResolvePath::go (AST::PathInExpression *expr, NodeId parent)
+ResolvePath::go (AST::PathInExpression *expr, NodeId parent, NodeId self_id)
 {
-  ResolvePath resolver (parent);
+  ResolvePath resolver (parent, self_id);
   resolver.resolve_path (expr);
 }
 
 void
-ResolvePath::go (AST::QualifiedPathInExpression *expr, NodeId parent)
+ResolvePath::go (AST::QualifiedPathInExpression *expr, NodeId parent,
+		 NodeId self_id)
 {
-  ResolvePath resolver (parent);
+  ResolvePath resolver (parent, self_id);
   resolver.resolve_path (expr);
 }
 
 void
-ResolvePath::go (AST::SimplePath *expr, NodeId parent)
+ResolvePath::go (AST::SimplePath *expr, NodeId parent, NodeId self_id)
 {
-  ResolvePath resolver (parent);
+  ResolvePath resolver (parent, self_id);
   resolver.resolve_path (expr);
+}
+
+void
+ResolvePath::resolve_relative_root (const CanonicalPath &root, NodeId id,
+				    Location locus)
+{
+  NodeId resolved = UNKNOWN_NODEID;
+
+  auto name = root.get ();
+  if (name == "self")
+    resolved = self_id;
+
+  if (resolved != UNKNOWN_NODEID)
+    {
+      resolver->get_name_scope ().insert (root, resolved, locus);
+      resolver->insert_resolved_name (id, resolved);
+    }
 }
 
 void
@@ -306,6 +324,10 @@ ResolvePath::resolve_path (AST::SimplePath *simple_path)
   // resolve root segment first then apply segments in turn
   auto expr_node_id = simple_path->get_node_id ();
   auto is_type = false;
+
+  auto root = simple_path->get_segments ()[0];
+  auto root_seg = ResolveSimplePathSegmentToCanonicalPath::resolve (root);
+  resolve_relative_root (root_seg, root.get_node_id (), root.get_locus ());
 
   auto path = CanonicalPath::create_empty ();
   for (const auto &seg : simple_path->get_segments ())

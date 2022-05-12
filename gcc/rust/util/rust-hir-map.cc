@@ -848,5 +848,35 @@ Mappings::lookup_visibility (DefId id, Privacy::ModuleVisibility *def)
   return true;
 }
 
+void
+Mappings::insert_module_super (NodeId mod, NodeId super_id)
+{
+  // A module can only have one ancestor
+  rust_assert (module_super_map.find (mod) == module_super_map.end ());
+
+  module_super_map.insert ({mod, super_id});
+}
+bool
+Mappings::lookup_module_super (NodeId mod, NodeId &super_id)
+{
+  auto it = module_super_map.find (mod);
+  if (it == module_super_map.end ())
+    return false;
+
+  super_id = it->second;
+
+  return true;
+}
+
+void
+Mappings::insert_module_child (NodeId mod, NodeId child_id)
+{
+  auto it = module_child_map.find (mod);
+  if (it == module_child_map.end ())
+    module_child_map.insert ({mod, {child_id}});
+  else
+    it->second.emplace_back (child_id);
+}
+
 } // namespace Analysis
 } // namespace Rust

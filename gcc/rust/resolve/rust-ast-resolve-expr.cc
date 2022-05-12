@@ -54,13 +54,13 @@ ResolveExpr::visit (AST::TupleExpr &expr)
 void
 ResolveExpr::visit (AST::PathInExpression &expr)
 {
-  ResolvePath::go (&expr, parent);
+  ResolvePath::go (&expr, parent, expr.get_node_id ());
 }
 
 void
 ResolveExpr::visit (AST::QualifiedPathInExpression &expr)
 {
-  ResolvePath::go (&expr, parent);
+  ResolvePath::go (&expr, parent, expr.get_node_id ());
 }
 
 void

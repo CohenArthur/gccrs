@@ -25,12 +25,12 @@ namespace Rust {
 namespace Resolver {
 
 bool
-ResolverBase::resolve_visibility (const AST::Visibility &vis)
+ResolverBase::resolve_visibility (const AST::Visibility &vis, NodeId item_id)
 {
   if (vis.has_path ())
     {
       auto path = vis.get_path ();
-      ResolvePath::go (&path, parent);
+      ResolvePath::go (&path, parent, item_id);
 
       // Do we need to lookup something here?
       // Is it just about resolving the names correctly so we can look them up

@@ -321,6 +321,10 @@ public:
   void insert_visibility (DefId id, Privacy::ModuleVisibility visibility);
   bool lookup_visibility (DefId id, Privacy::ModuleVisibility *def);
 
+  void insert_module_super (NodeId mod, NodeId super_id);
+  bool lookup_module_super (NodeId mod, NodeId &super_id);
+  void insert_module_child (NodeId mod, NodeId child_id);
+
 private:
   Mappings ();
 
@@ -386,6 +390,22 @@ private:
 
   // Low level visibility map for each DefId
   std::map<DefId, Privacy::ModuleVisibility> visibility_map;
+
+  /**
+   * Module tree, built as we go through the item resolving pass in
+   * `rust-ast-resolve-item`.
+   * This allows lookup of all possible module through relative relations:
+   * `super`, `self`, `crate`, `super::super`, `super::foo`...
+   */
+
+  /* Map of `super` modules. Map any module to its containing module, eventually
+   * reaching the crate module */
+  // FIXME: How do we deal with going too far up the `super` stack?
+  std::map<NodeId, NodeId> module_super_map;
+
+  /* Map of modules to their children */
+  // FIXME: Do we really need this one?
+  std::map<NodeId, std::vector<NodeId>> module_child_map;
 };
 
 } // namespace Analysis

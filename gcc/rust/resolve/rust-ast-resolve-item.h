@@ -61,7 +61,7 @@ public:
   using Rust::Resolver::ResolverBase::visit;
 
   static void go (AST::Item *item, const CanonicalPath &prefix,
-		  const CanonicalPath &canonical_prefix);
+		  const CanonicalPath &canonical_prefix, NodeId self_id);
 
   void visit (AST::TypeAlias &alias) override;
   void visit (AST::Module &module) override;
@@ -93,13 +93,16 @@ protected:
   void resolve_extern_item (AST::ExternalItem *item);
 
   ResolveItem (const CanonicalPath &prefix,
-	       const CanonicalPath &canonical_prefix)
+	       const CanonicalPath &canonical_prefix, NodeId self_id)
     : ResolverBase (UNKNOWN_NODEID), prefix (prefix),
-      canonical_prefix (canonical_prefix)
+      canonical_prefix (canonical_prefix), self_id (self_id)
   {}
 
   const CanonicalPath &prefix;
   const CanonicalPath &canonical_prefix;
+
+  // NodeId of the `self` module
+  NodeId self_id;
 };
 
 class ResolveImplItems : public ResolveItem
@@ -108,16 +111,16 @@ class ResolveImplItems : public ResolveItem
 
 public:
   static void go (AST::InherentImplItem *item, const CanonicalPath &prefix,
-		  const CanonicalPath &canonical_prefix);
+		  const CanonicalPath &canonical_prefix, NodeId self_id);
   static void go (AST::TraitImplItem *item, const CanonicalPath &prefix,
-		  const CanonicalPath &canonical_prefix);
+		  const CanonicalPath &canonical_prefix, NodeId self_id);
 
   void visit (AST::TypeAlias &alias) override;
 
 private:
   ResolveImplItems (const CanonicalPath &prefix,
-		    const CanonicalPath &canonical_prefix)
-    : ResolveItem (prefix, canonical_prefix)
+		    const CanonicalPath &canonical_prefix, NodeId self_id)
+    : ResolveItem (prefix, canonical_prefix, self_id)
   {}
 };
 
@@ -133,6 +136,8 @@ public:
 
 private:
   ResolveExternItem () : ResolverBase (UNKNOWN_NODEID) {}
+
+  NodeId self_id;
 };
 
 } // namespace Resolver

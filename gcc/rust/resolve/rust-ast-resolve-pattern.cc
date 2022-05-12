@@ -26,13 +26,13 @@ namespace Resolver {
 void
 PatternDeclaration::visit (AST::PathInExpression &pattern)
 {
-  ResolvePath::go (&pattern, parent);
+  ResolvePath::go (&pattern, parent, pattern.get_node_id ());
 }
 
 void
 PatternDeclaration::visit (AST::TupleStructPattern &pattern)
 {
-  ResolvePath::go (&pattern.get_path (), parent);
+  ResolvePath::go (&pattern.get_path (), parent, pattern.get_node_id ());
 
   std::unique_ptr<AST::TupleStructItems> &items = pattern.get_items ();
   switch (items->get_item_type ())
@@ -60,7 +60,7 @@ PatternDeclaration::visit (AST::TupleStructPattern &pattern)
 void
 PatternDeclaration::visit (AST::StructPattern &pattern)
 {
-  ResolvePath::go (&pattern.get_path (), parent);
+  ResolvePath::go (&pattern.get_path (), parent, pattern.get_node_id ());
 
   auto &struct_pattern_elems = pattern.get_struct_pattern_elems ();
   for (auto &field : struct_pattern_elems.get_struct_pattern_fields ())

@@ -198,9 +198,9 @@ ResolveTraitItems::visit (AST::TraitItemConst &constant)
 
 void
 ResolveItem::go (AST::Item *item, const CanonicalPath &prefix,
-		 const CanonicalPath &canonical_prefix)
+		 const CanonicalPath &canonical_prefix, NodeId self_id)
 {
-  ResolveItem resolver (prefix, canonical_prefix);
+  ResolveItem resolver (prefix, canonical_prefix, self_id);
   item->accept_vis (resolver);
 }
 
@@ -240,12 +240,12 @@ ResolveItem::visit (AST::Module &module)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   module.get_node_id (), cpath);
 
-  resolve_visibility (module.get_visibility ());
+  resolve_visibility (module.get_visibility (), self_id);
 
-  NodeId scope_node_id = module.get_node_id ();
-  resolver->get_name_scope ().push (scope_node_id);
-  resolver->get_type_scope ().push (scope_node_id);
-  resolver->get_label_scope ().push (scope_node_id);
+  NodeId module_id = module.get_node_id ();
+  resolver->get_name_scope ().push (module_id);
+  resolver->get_type_scope ().push (module_id);
+  resolver->get_label_scope ().push (module_id);
   resolver->push_new_name_rib (resolver->get_name_scope ().peek ());
   resolver->push_new_type_rib (resolver->get_type_scope ().peek ());
   resolver->push_new_label_rib (resolver->get_type_scope ().peek ());
@@ -253,8 +253,17 @@ ResolveItem::visit (AST::Module &module)
   for (auto &item : module.get_items ())
     ResolveTopLevel::go (item.get (), CanonicalPath::create_empty (), cpath);
 
+  auto old_id = self_id;
+
+  mappings->insert_module_child (old_id, self_id);
+  mappings->insert_module_super (self_id, old_id);
+
+  self_id = module_id;
+
   for (auto &item : module.get_items ())
-    ResolveItem::go (item.get (), path, cpath);
+    ResolveItem::go (item.get (), path, cpath, module_id);
+
+  self_id = old_id;
 
   resolver->get_name_scope ().pop ();
   resolver->get_type_scope ().pop ();
@@ -271,7 +280,7 @@ ResolveItem::visit (AST::TupleStruct &struct_decl)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   struct_decl.get_node_id (), cpath);
 
-  resolve_visibility (struct_decl.get_visibility ());
+  resolve_visibility (struct_decl.get_visibility (), self_id);
 
   NodeId scope_node_id = struct_decl.get_node_id ();
   resolver->get_type_scope ().push (scope_node_id);
@@ -292,7 +301,7 @@ ResolveItem::visit (AST::TupleStruct &struct_decl)
       if (field.get_field_type ()->is_marked_for_strip ())
 	continue;
 
-      resolve_visibility (field.get_visibility ());
+      resolve_visibility (field.get_visibility (), self_id);
 
       ResolveType::go (field.get_field_type ().get (),
 		       struct_decl.get_node_id ());
@@ -311,7 +320,7 @@ ResolveItem::visit (AST::Enum &enum_decl)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   enum_decl.get_node_id (), cpath);
 
-  resolve_visibility (enum_decl.get_visibility ());
+  resolve_visibility (enum_decl.get_visibility (), self_id);
 
   NodeId scope_node_id = enum_decl.get_node_id ();
   resolver->get_type_scope ().push (scope_node_id);
@@ -329,7 +338,9 @@ ResolveItem::visit (AST::Enum &enum_decl)
 
   /* The actual fields are inside the variants.  */
   for (auto &variant : enum_decl.get_variants ())
-    ResolveItem::go (variant.get (), path, cpath);
+    // FIXME: Is `self_id` really necessary here? Test out if `self` makes sense
+    // inside an Enum's items
+    ResolveItem::go (variant.get (), path, cpath, scope_node_id);
 
   resolver->get_type_scope ().pop ();
 }
@@ -409,7 +420,7 @@ ResolveItem::visit (AST::StructStruct &struct_decl)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   struct_decl.get_node_id (), cpath);
 
-  resolve_visibility (struct_decl.get_visibility ());
+  resolve_visibility (struct_decl.get_visibility (), self_id);
 
   NodeId scope_node_id = struct_decl.get_node_id ();
   resolver->get_type_scope ().push (scope_node_id);
@@ -430,7 +441,7 @@ ResolveItem::visit (AST::StructStruct &struct_decl)
       if (field.get_field_type ()->is_marked_for_strip ())
 	continue;
 
-      resolve_visibility (field.get_visibility ());
+      resolve_visibility (field.get_visibility (), self_id);
 
       ResolveType::go (field.get_field_type ().get (),
 		       struct_decl.get_node_id ());
@@ -449,7 +460,7 @@ ResolveItem::visit (AST::Union &union_decl)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   union_decl.get_node_id (), cpath);
 
-  resolve_visibility (union_decl.get_visibility ());
+  resolve_visibility (union_decl.get_visibility (), self_id);
 
   NodeId scope_node_id = union_decl.get_node_id ();
   resolver->get_type_scope ().push (scope_node_id);
@@ -504,7 +515,7 @@ ResolveItem::visit (AST::ConstantItem &constant)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   constant.get_node_id (), cpath);
 
-  resolve_visibility (constant.get_visibility ());
+  resolve_visibility (constant.get_visibility (), self_id);
 
   ResolveType::go (constant.get_type ().get (), constant.get_node_id ());
   ResolveExpr::go (constant.get_expr ().get (), constant.get_node_id (), path,
@@ -526,7 +537,7 @@ ResolveItem::visit (AST::Function &function)
   mappings->insert_canonical_path (mappings->get_current_crate (),
 				   function.get_node_id (), cpath);
 
-  resolve_visibility (function.get_visibility ());
+  resolve_visibility (function.get_visibility (), self_id);
 
   NodeId scope_node_id = function.get_node_id ();
   resolver->get_name_scope ().push (scope_node_id);
@@ -582,7 +593,7 @@ ResolveItem::visit (AST::InherentImpl &impl_block)
   resolver->push_new_name_rib (resolver->get_name_scope ().peek ());
   resolver->push_new_type_rib (resolver->get_type_scope ().peek ());
 
-  resolve_visibility (impl_block.get_visibility ());
+  resolve_visibility (impl_block.get_visibility (), self_id);
 
   if (impl_block.has_generics ())
     {
@@ -666,7 +677,7 @@ ResolveItem::visit (AST::Method &method)
 
   NodeId scope_node_id = method.get_node_id ();
 
-  resolve_visibility (method.get_visibility ());
+  resolve_visibility (method.get_visibility (), self_id);
 
   resolver->get_name_scope ().push (scope_node_id);
   resolver->get_type_scope ().push (scope_node_id);
@@ -740,7 +751,7 @@ ResolveItem::visit (AST::TraitImpl &impl_block)
 {
   NodeId scope_node_id = impl_block.get_node_id ();
 
-  resolve_visibility (impl_block.get_visibility ());
+  resolve_visibility (impl_block.get_visibility (), self_id);
 
   resolver->get_name_scope ().push (scope_node_id);
   resolver->get_type_scope ().push (scope_node_id);
@@ -844,7 +855,7 @@ ResolveItem::visit (AST::Trait &trait)
 {
   NodeId scope_node_id = trait.get_node_id ();
 
-  resolve_visibility (trait.get_visibility ());
+  resolve_visibility (trait.get_visibility (), self_id);
 
   resolver->get_name_scope ().push (scope_node_id);
   resolver->get_type_scope ().push (scope_node_id);
@@ -896,7 +907,7 @@ ResolveItem::visit (AST::Trait &trait)
 void
 ResolveItem::visit (AST::ExternBlock &extern_block)
 {
-  resolve_visibility (extern_block.get_visibility ());
+  resolve_visibility (extern_block.get_visibility (), self_id);
 
   for (auto &item : extern_block.get_extern_items ())
     {
@@ -1028,28 +1039,28 @@ ResolveItem::visit (AST::UseDeclaration &use_item)
   auto to_resolve = flatten_use_dec_to_paths (use_item);
 
   for (auto &path : to_resolve)
-    ResolvePath::go (&path, parent);
+    ResolvePath::go (&path, parent, self_id);
 }
 
 void
 ResolveImplItems::go (AST::InherentImplItem *item, const CanonicalPath &prefix,
-		      const CanonicalPath &canonical_prefix)
+		      const CanonicalPath &canonical_prefix, NodeId self_id)
 {
   if (item->is_marked_for_strip ())
     return;
 
-  ResolveImplItems resolver (prefix, canonical_prefix);
+  ResolveImplItems resolver (prefix, canonical_prefix, self_id);
   item->accept_vis (resolver);
 }
 
 void
 ResolveImplItems::go (AST::TraitImplItem *item, const CanonicalPath &prefix,
-		      const CanonicalPath &canonical_prefix)
+		      const CanonicalPath &canonical_prefix, NodeId self_id)
 {
   if (item->is_marked_for_strip ())
     return;
 
-  ResolveImplItems resolver (prefix, canonical_prefix);
+  ResolveImplItems resolver (prefix, canonical_prefix, self_id);
   item->accept_vis (resolver);
 }
 
@@ -1058,7 +1069,7 @@ ResolveImplItems::visit (AST::TypeAlias &alias)
 {
   ResolveItem::visit (alias);
 
-  resolve_visibility (alias.get_visibility ());
+  resolve_visibility (alias.get_visibility (), self_id);
 
   // FIXME this stops the erronious unused decls which will be fixed later on
   resolver->get_type_scope ().append_reference_for_def (alias.get_node_id (),
@@ -1077,7 +1088,7 @@ ResolveExternItem::visit (AST::ExternalFunctionItem &function)
 {
   NodeId scope_node_id = function.get_node_id ();
 
-  resolve_visibility (function.get_visibility ());
+  resolve_visibility (function.get_visibility (), self_id);
 
   resolver->get_name_scope ().push (scope_node_id);
   resolver->get_type_scope ().push (scope_node_id);
@@ -1113,7 +1124,7 @@ ResolveExternItem::visit (AST::ExternalFunctionItem &function)
 void
 ResolveExternItem::visit (AST::ExternalStaticItem &item)
 {
-  resolve_visibility (item.get_visibility ());
+  resolve_visibility (item.get_visibility (), self_id);
 
   ResolveType::go (item.get_type ().get (), item.get_node_id ());
 }

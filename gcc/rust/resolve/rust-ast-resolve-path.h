@@ -29,12 +29,26 @@ class ResolvePath : public ResolverBase
   using Rust::Resolver::ResolverBase::visit;
 
 public:
-  static void go (AST::PathInExpression *expr, NodeId parent);
-  static void go (AST::QualifiedPathInExpression *expr, NodeId parent);
-  static void go (AST::SimplePath *expr, NodeId parent);
+  static void go (AST::PathInExpression *expr, NodeId parent, NodeId self_id);
+  static void go (AST::QualifiedPathInExpression *expr, NodeId parent,
+		  NodeId self_id);
+  static void go (AST::SimplePath *expr, NodeId parent, NodeId self_id);
 
 private:
-  ResolvePath (NodeId parent) : ResolverBase (parent) {}
+  ResolvePath (NodeId parent, NodeId self_id)
+    : ResolverBase (parent), self_id (self_id)
+  {}
+
+  /**
+   * Resolve the relative root(s) of a given path. This function takes care
+   * of resolving the `self`, `crate` or `super` paths to proper NodeIds and
+   * inserting them properly in the current scope.
+   */
+  // FIXME: Figure out the API so that we can resolve *multiple* roots: This is
+  // important for `super::super::super...`
+  // FIXME: Add more documentation
+  void resolve_relative_root (const CanonicalPath &root, NodeId id,
+			      Location locus);
 
   void resolve_path (AST::PathInExpression *expr);
   void resolve_path (AST::QualifiedPathInExpression *expr);
@@ -43,6 +57,8 @@ private:
   void resolve_segments (CanonicalPath prefix, size_t offs,
 			 std::vector<AST::PathExprSegment> &segs,
 			 NodeId expr_node_id, Location expr_locus);
+
+  NodeId self_id;
 };
 
 class ResolveSimplePathSegmentToCanonicalPath

@@ -209,7 +209,7 @@ protected:
   /**
    * Resolve a visibility's path through the name resolver
    */
-  bool resolve_visibility (const AST::Visibility &vis);
+  bool resolve_visibility (const AST::Visibility &vis, NodeId item_id);
 
   Resolver *resolver;
   Analysis::Mappings *mappings;

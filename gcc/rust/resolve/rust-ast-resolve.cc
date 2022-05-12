@@ -92,9 +92,13 @@ NameResolution::go (AST::Crate &crate)
   if (saw_errors ())
     return;
 
+  // FIXME: What module mappings can we add here?
+  // FIXME: How do we do `crate`?
+
   // next we can drill down into the items and their scopes
   for (auto it = crate.items.begin (); it != crate.items.end (); it++)
-    ResolveItem::go (it->get (), CanonicalPath::create_empty (), crate_prefix);
+    ResolveItem::go (it->get (), CanonicalPath::create_empty (), crate_prefix,
+		     scope_node_id);
 }
 
 // rust-ast-resolve-struct-expr-field.h
@@ -129,7 +133,7 @@ ResolveItem::resolve_impl_item (AST::TraitImplItem *item,
 				const CanonicalPath &prefix,
 				const CanonicalPath &canonical_prefix)
 {
-  ResolveImplItems::go (item, prefix, canonical_prefix);
+  ResolveImplItems::go (item, prefix, canonical_prefix, self_id);
 }
 
 void
@@ -137,7 +141,7 @@ ResolveItem::resolve_impl_item (AST::InherentImplItem *item,
 				const CanonicalPath &prefix,
 				const CanonicalPath &canonical_prefix)
 {
-  ResolveImplItems::go (item, prefix, canonical_prefix);
+  ResolveImplItems::go (item, prefix, canonical_prefix, self_id);
 }
 
 void
