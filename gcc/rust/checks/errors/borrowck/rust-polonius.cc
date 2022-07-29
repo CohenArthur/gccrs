@@ -31,6 +31,38 @@ polonius_var_used_at (void *handle, size_t var_id, size_t point_id);
 extern "C" void
 polonius_compute (void *handle);
 
+/**
+ * XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+ * XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+ * XXX  _____________________________________  XXX
+ * XXX |                                     | XXX
+ * XXX |                                     | XXX
+ * XXX |          /!\ IMPORTANT /!\          | XXX
+ * XXX |                                     | XXX
+ * XXX |_____________________________________| XXX
+ * XXX                                         XXX
+ * XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+ * XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+ *
+ * Some functionality in polonius requires multiple calls to polonius functions.
+ * The goal is for this abstraction to take care of doing the multiple calls.
+ *
+ * For example, if you wish to create a reference (i.e `let b = &a`) you
+ * actually need to add two facts (IIUC):
+ *
+ *     1. loan_issued_at(origin, loan, point)
+ *     2. var_used_at(origin, point)
+ *
+ * The goal of this abstraction is for our BorrowChecker class to NOT perform
+ * these two calls. Instead, this abstraction should expose a method like
+ * `create_reference(origin, loan, point)` which then takes care of calling
+ * the two appropriate FFI polonius functions we'll have created for
+ * `loan_issued_at` and `var_used_at`.
+ *
+ * This way, this abstraction makes sense and isn't just a wrapper on the extern
+ * C functions
+ */
+
 namespace Rust {
 
 Polonius::Polonius () { raw_handle = polonius_init (); }

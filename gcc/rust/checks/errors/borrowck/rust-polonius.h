@@ -16,6 +16,9 @@
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#ifndef RUST_POLONIUS_H
+#define RUST_POLONIUS_H
+
 #include "rust-hir-expr.h"
 #include "rust-hir-item.h"
 #include "rust-name-resolver.h"
@@ -51,3 +54,5 @@ private:
 };
 
 } // namespace Rust
+
+#endif /* !RUST_POLONIUS_H */
