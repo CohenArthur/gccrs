@@ -86,12 +86,22 @@ pub unsafe extern "C" fn polonius_define_var(
 ) {
     let handle = handle.as_mut().unwrap();
 
-    eprintln!("[polonius] defining variable ({} -> {})", var_id, point_id);
+    eprintln!(
+        "[polonius] defining variable ([point] {}: [var] {})",
+        point_id, var_id
+    );
 
     handle
         .0
         .var_defined_at
         .push((var_id.into(), point_id.into()))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn polonius_borrow_var(handle: *mut FfiGccrsPolonius) {
+    let handle = handle.as_mut().unwrap();
+
+    eprintln!("[polonius] borrowing variable");
 }
 
 /// # Safety

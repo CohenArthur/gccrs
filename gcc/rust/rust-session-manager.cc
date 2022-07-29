@@ -38,6 +38,7 @@
 #include "rust-imports.h"
 #include "rust-extern-crate.h"
 #include "rust-attributes.h"
+#include "rust-borrow-checker.h"
 
 #include "diagnostic.h"
 #include "input.h"
@@ -587,6 +588,8 @@ Session::compile_crate (const char *filename)
     return;
 
   HIR::ConstChecker ().go (hir);
+
+  Resolver::BorrowChecker ().go (hir);
 
   if (saw_errors ())
     return;

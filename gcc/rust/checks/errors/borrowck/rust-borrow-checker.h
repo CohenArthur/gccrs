@@ -22,6 +22,8 @@
 #include "rust-hir-visitor.h"
 #include "rust-hir.h"
 #include "rust-polonius.h"
+#include "rust-name-resolver.h"
+#include "rust-hir-map.h"
 
 namespace Rust {
 namespace Resolver {
@@ -36,8 +38,53 @@ public:
   void go (HIR::Crate &crate);
 
 private:
+  /**
+   * The current "point" where we are borrow-checking. This can be considered
+   * the "statement" or "parent" at which an instruction to polonius might
+   * occur.
+   *
+   * For example, when resolving usages of a variable in blocks like so:
+   *
+   * ```
+   * let x = 15;
+   *
+   * {
+   *     foo();
+   *     bar();
+   *
+   *     let y = x + 15;
+   *
+   *     15
+   * }
+   * ```
+   *
+   * We want the current point to point to the last statement of the block,
+   * before the final expression.
+   *
+   * Use `set_current_point` to set it in a generic and easy way
+   */
+  HirId current_point;
+
+  /**
+   * Set the current point for any node which contains mappings. This simply
+   * avoids typing the long `.get_mappings().get_hirid()` all the time
+   */
+  template <typename T> void set_current_point (const T &node)
+  {
+    current_point = node.get_mappings ().get_hirid ();
+  }
+
+  /**
+   * Same as `set_current_point`, but specified/overloaded for smart pointers
+   */
+  template <typename T> void set_current_point (const std::unique_ptr<T> &node)
+  {
+    current_point = node->get_mappings ().get_hirid ();
+  }
+
   Polonius polonius;
   Rust::Resolver::Resolver &resolver;
+  Analysis::Mappings &mappings;
 
   virtual void visit (HIR::IdentifierExpr &ident_expr) override;
   virtual void visit (HIR::Lifetime &lifetime) override;
@@ -172,6 +219,35 @@ private:
   virtual void visit (HIR::InferredType &type) override;
   virtual void visit (HIR::BareFunctionType &type) override;
 };
+
+/**
+ *
+
+void
+BorrowChecker::visit (HIR::AssignmentExpr &expr)
+{
+  // FIXME: Check if the variable already exists? Or if we're assigning it?
+}
+
+void
+BorrowChecker::visit (HIR::LetStmt &let)
+{
+  if (let.has_init_expr ())
+    polonius.define_var (let.get_mappings ().get_hirid (),
+			 let.has_init_expr ());
+
+  // FIXME: How do we handle variables declared but defined later on?
+  //
+  // ```
+  // let x;
+  //
+  // if foo()
+  //     x = 15;
+  // else
+  //     x = 14;
+  // ```
+}
+ */
 
 } // namespace Resolver
 } // namespace Rust

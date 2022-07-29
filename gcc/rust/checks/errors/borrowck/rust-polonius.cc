@@ -32,59 +32,22 @@ extern "C" void
 polonius_compute (void *handle);
 
 namespace Rust {
+
 Polonius::Polonius () { raw_handle = polonius_init (); }
 
 Polonius::~Polonius () { polonius_deinit (raw_handle); }
 
 void
-Polonius::define_var (HirId assignment_point, HirId init_expression)
+Polonius::define_var (HirId var_id, HirId point_id)
 {
-  // auto var_node_id = UNKNOWN_NODEID;
-  // // auto expr_node_id = UNKNOWN_NODEID;
-
-  // resolver->lookup_resolved_name (assignment.get_mappings ().get_nodeid (),
-  //     			  &var_node_id);
-  // resolver->lookup_resolved_name (expr->get_mappings ().get_nodeid (),
-  //     			  &var_node_id);
-
-  // // polonius_define_var (raw_handle, var_node_id, expr_node_id);
-  // polonius_define_var (raw_handle, assignment.get_mappings ().get_nodeid (),
-  //		       expr->get_mappings ().get_nodeid ());
+  // FIXME: Is that correct?
+  polonius_define_var (raw_handle, var_id, point_id);
 }
 
 void
 Polonius::var_used_at (HirId var_id, HirId use_point)
 {
-  //  Resolver::CanonicalPath path;
-  //  resolver->lookup_canonical_path(expr.get_mappings().get_nodeid(), &path);
-  //
-  //  auto ref_node_id = UNKNOWN_NODEID;
-  //  resolver->lookup_resolved_name (expr.get_mappings ().get_nodeid (),
-  //				  &ref_node_id);
-  //
-  //  auto resolved_node = UNKNOWN_NODEID;
-  //
-  //  resolver->get_name_scope ().lookup (
-  //    Resolver::CanonicalPath::new_seg (expr.get_mappings ().get_nodeid (),
-  //				      expr.as_string ()),
-  //    &resolved_node);
-  //
-  //  rust_debug ("[ARTHUR] Used at %d", resolved_node);
-  //
-  //  polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
-  //			ref_node_id);
-
-  // auto ast_node_id = expr.get_mappings ().get_nodeid ();
-
-  // // then lookup the reference_node_id
-  // auto ref_node_id = UNKNOWN_NODEID;
-  // // if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
-  // //   {
-  // //   }
-
-  // rust_debug ("[ARTHUR] var %d used at %d", ref_node_id, ast_node_id);
-
-  // polonius_var_used_at (raw_handle, ref_node_id, ast_node_id);
+  polonius_var_used_at (raw_handle, var_id, use_point);
 }
 
 void

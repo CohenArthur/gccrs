@@ -31,9 +31,9 @@ public:
    * Define a new variable to the polonius engine
    *
    * @param var Variable to define
-   * @param init Initialization point
+   * @param point Initialization point
    */
-  void define_var (HirId assignment_point, HirId init_expression);
+  void define_var (HirId var_id, HirId point_id);
 
   /**
    * Define a use-site for an existing variable
