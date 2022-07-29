@@ -39,6 +39,7 @@ public:
   /**
    * Define a use-site for an existing variable
    */
+  // FIXME: ARTHUR: Missing a parameter?
   void var_used_at (HIR::Expr &expr);
 
   /**

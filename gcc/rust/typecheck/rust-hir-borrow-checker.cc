@@ -22,58 +22,537 @@
 namespace Rust {
 namespace Resolver {
 void
-BorrowChecker::resolve (HIR::Crate &crate)
+BorrowChecker::go (HIR::Crate &crate)
 {
   for (auto &item : crate.items)
-    {
-      rust_debug ("[ARTHUR] %s", item->as_string ().c_str ());
-      item->accept_vis (*this);
-    }
+    item->accept_vis (*this);
 
   polonius.compute ();
 }
 
 void
-BorrowChecker::visit (HIR::AssignmentExpr &assignment)
+visit (HIR::Lifetime &)
 {}
 
 void
-BorrowChecker::visit (HIR::LetStmt &let)
-{
-  polonius.define_var (let, let.get_init_expr ());
-}
+visit (HIR::LifetimeParam &)
+{}
 
 void
-BorrowChecker::visit (HIR::IdentifierExpr &expr)
-{
-  polonius.var_used_at (expr);
-}
+visit (HIR::PathInExpression &)
+{}
 
 void
-BorrowChecker::visit (HIR::BlockExpr &block)
-{
-  for (auto &stmt : block.get_statements ())
-    stmt->accept_vis (*this);
-
-  block.get_final_expr ()->accept_vis (*this);
-}
+visit (HIR::TypePathSegment &)
+{}
 
 void
-BorrowChecker::visit (HIR::Function &function)
-{
-  function.get_definition ()->accept_vis (*this);
-}
+visit (HIR::TypePathSegmentGeneric &)
+{}
 
 void
-BorrowChecker::visit (HIR::ExprStmtWithoutBlock &expr)
-{
-  expr.get_expr ()->accept_vis (*this);
-}
+visit (HIR::TypePathSegmentFunction &)
+{}
 
 void
-BorrowChecker::visit (HIR::ExprStmtWithBlock &expr)
-{
-  expr.get_expr ()->accept_vis (*this);
-}
+visit (HIR::TypePath &)
+{}
+
+void
+visit (HIR::QualifiedPathInExpression &)
+{}
+
+void
+visit (HIR::QualifiedPathInType &)
+{}
+
+void
+visit (HIR::LiteralExpr &)
+{}
+
+void
+visit (HIR::BorrowExpr &)
+{}
+
+void
+visit (HIR::DereferenceExpr &)
+{}
+
+void
+visit (HIR::ErrorPropagationExpr &)
+{}
+
+void
+visit (HIR::NegationExpr &)
+{}
+
+void
+visit (HIR::ArithmeticOrLogicalExpr &)
+{}
+
+void
+visit (HIR::ComparisonExpr &)
+{}
+
+void
+visit (HIR::LazyBooleanExpr &)
+{}
+
+void
+visit (HIR::TypeCastExpr &)
+{}
+
+void
+visit (HIR::CompoundAssignmentExpr &)
+{}
+
+void
+visit (HIR::GroupedExpr &)
+{}
+
+void
+visit (HIR::ArrayElemsValues &)
+{}
+
+void
+visit (HIR::ArrayElemsCopied &)
+{}
+
+void
+visit (HIR::ArrayExpr &)
+{}
+
+void
+visit (HIR::ArrayIndexExpr &)
+{}
+
+void
+visit (HIR::TupleExpr &)
+{}
+
+void
+visit (HIR::TupleIndexExpr &)
+{}
+
+void
+visit (HIR::StructExprStruct &)
+{}
+
+void
+visit (HIR::StructExprFieldIdentifier &)
+{}
+
+void
+visit (HIR::StructExprFieldIdentifierValue &)
+{}
+
+void
+visit (HIR::StructExprFieldIndexValue &)
+{}
+
+void
+visit (HIR::StructExprStructFields &)
+{}
+
+void
+visit (HIR::StructExprStructBase &)
+{}
+
+void
+visit (HIR::CallExpr &)
+{}
+
+void
+visit (HIR::MethodCallExpr &)
+{}
+
+void
+visit (HIR::FieldAccessExpr &)
+{}
+
+void
+visit (HIR::ClosureExprInner &)
+{}
+
+void
+visit (HIR::ClosureExprInnerTyped &)
+{}
+
+void
+visit (HIR::ContinueExpr &)
+{}
+
+void
+visit (HIR::BreakExpr &)
+{}
+
+void
+visit (HIR::RangeFromToExpr &)
+{}
+
+void
+visit (HIR::RangeFromExpr &)
+{}
+
+void
+visit (HIR::RangeToExpr &)
+{}
+
+void
+visit (HIR::RangeFullExpr &)
+{}
+
+void
+visit (HIR::RangeFromToInclExpr &)
+{}
+
+void
+visit (HIR::RangeToInclExpr &)
+{}
+
+void
+visit (HIR::ReturnExpr &)
+{}
+
+void
+visit (HIR::UnsafeBlockExpr &)
+{}
+
+void
+visit (HIR::LoopExpr &)
+{}
+
+void
+visit (HIR::WhileLoopExpr &)
+{}
+
+void
+visit (HIR::WhileLetLoopExpr &)
+{}
+
+void
+visit (HIR::ForLoopExpr &)
+{}
+
+void
+visit (HIR::IfExpr &)
+{}
+
+void
+visit (HIR::IfExprConseqElse &)
+{}
+
+void
+visit (HIR::IfExprConseqIf &)
+{}
+
+void
+visit (HIR::IfExprConseqIfLet &)
+{}
+
+void
+visit (HIR::IfLetExpr &)
+{}
+
+void
+visit (HIR::IfLetExprConseqElse &)
+{}
+
+void
+visit (HIR::IfLetExprConseqIf &)
+{}
+
+void
+visit (HIR::IfLetExprConseqIfLet &)
+{}
+
+void
+visit (HIR::MatchExpr &)
+{}
+
+void
+visit (HIR::AwaitExpr &)
+{}
+
+void
+visit (HIR::AsyncBlockExpr &)
+{}
+
+void
+visit (HIR::TypeParam &)
+{}
+
+void
+visit (HIR::LifetimeWhereClauseItem &)
+{}
+
+void
+visit (HIR::TypeBoundWhereClauseItem &)
+{}
+
+void
+visit (HIR::Module &)
+{}
+
+void
+visit (HIR::ExternCrate &)
+{}
+
+void
+visit (HIR::UseTreeGlob &)
+{}
+
+void
+visit (HIR::UseTreeList &)
+{}
+
+void
+visit (HIR::UseTreeRebind &)
+{}
+
+void
+visit (HIR::UseDeclaration &)
+{}
+
+void
+visit (HIR::TypeAlias &)
+{}
+
+void
+visit (HIR::StructStruct &)
+{}
+
+void
+visit (HIR::TupleStruct &)
+{}
+
+void
+visit (HIR::EnumItem &)
+{}
+
+void
+visit (HIR::EnumItemTuple &)
+{}
+
+void
+visit (HIR::EnumItemStruct &)
+{}
+
+void
+visit (HIR::EnumItemDiscriminant &)
+{}
+
+void
+visit (HIR::Enum &)
+{}
+
+void
+visit (HIR::Union &)
+{}
+
+void
+visit (HIR::ConstantItem &)
+{}
+
+void
+visit (HIR::StaticItem &)
+{}
+
+void
+visit (HIR::TraitItemFunc &)
+{}
+
+void
+visit (HIR::TraitItemConst &)
+{}
+
+void
+visit (HIR::TraitItemType &)
+{}
+
+void
+visit (HIR::Trait &)
+{}
+
+void
+visit (HIR::ImplBlock &)
+{}
+
+void
+visit (HIR::ExternalStaticItem &)
+{}
+
+void
+visit (HIR::ExternalFunctionItem &)
+{}
+
+void
+visit (HIR::ExternBlock &)
+{}
+
+void
+visit (HIR::LiteralPattern &)
+{}
+
+void
+visit (HIR::IdentifierPattern &)
+{}
+
+void
+visit (HIR::WildcardPattern &)
+{}
+
+void
+visit (HIR::RangePatternBoundLiteral &)
+{}
+
+void
+visit (HIR::RangePatternBoundPath &)
+{}
+
+void
+visit (HIR::RangePatternBoundQualPath &)
+{}
+
+void
+visit (HIR::RangePattern &)
+{}
+
+void
+visit (HIR::ReferencePattern &)
+{}
+
+void
+visit (HIR::StructPatternFieldTuplePat &)
+{}
+
+void
+visit (HIR::StructPatternFieldIdentPat &)
+{}
+
+void
+visit (HIR::StructPatternFieldIdent &)
+{}
+
+void
+visit (HIR::StructPattern &)
+{}
+
+void
+visit (HIR::TupleStructItemsNoRange &)
+{}
+
+void
+visit (HIR::TupleStructItemsRange &)
+{}
+
+void
+visit (HIR::TupleStructPattern &)
+{}
+
+void
+visit (HIR::TuplePatternItemsMultiple &)
+{}
+
+void
+visit (HIR::TuplePatternItemsRanged &)
+{}
+
+void
+visit (HIR::TuplePattern &)
+{}
+
+void
+visit (HIR::GroupedPattern &)
+{}
+
+void
+visit (HIR::SlicePattern &)
+{}
+
+void
+visit (HIR::EmptyStmt &)
+{}
+
+void
+visit (HIR::TraitBound &)
+{}
+
+void
+visit (HIR::ImplTraitType &)
+{}
+
+void
+visit (HIR::TraitObjectType &)
+{}
+
+void
+visit (HIR::ParenthesisedType &)
+{}
+
+void
+visit (HIR::ImplTraitTypeOneBound &)
+{}
+
+void
+visit (HIR::TupleType &)
+{}
+
+void
+visit (HIR::NeverType &)
+{}
+
+void
+visit (HIR::RawPointerType &)
+{}
+
+void
+visit (HIR::ReferenceType &)
+{}
+
+void
+visit (HIR::ArrayType &)
+{}
+
+void
+visit (HIR::SliceType &)
+{}
+
+void
+visit (HIR::InferredType &)
+{}
+
+void
+visit (HIR::BareFunctionType &)
+{}
+
+void
+visit (HIR::AssignmentExpr &expr)
+{}
+
+void
+visit (HIR::LetStmt &let)
+{}
+
+void
+visit (HIR::BlockExpr &block)
+{}
+
+void
+visit (HIR::Function &function)
+{}
+
+void
+visit (HIR::IdentifierExpr &expr)
+{}
+
+void
+visit (HIR::ExprStmtWithoutBlock &expr)
+{}
+
+void
+visit (HIR::ExprStmtWithBlock &expr)
+{}
+
 } // namespace Resolver
 } // namespace Rust

@@ -45,7 +45,7 @@ void
 Polonius::define_var (HIR::Stmt &assignment, HIR::Expr *expr)
 {
   auto var_node_id = UNKNOWN_NODEID;
-  auto expr_node_id = UNKNOWN_NODEID;
+  // auto expr_node_id = UNKNOWN_NODEID;
 
   resolver->lookup_resolved_name (assignment.get_mappings ().get_nodeid (),
 				  &var_node_id);
@@ -83,21 +83,9 @@ Polonius::var_used_at (HIR::Expr &expr)
 
   // then lookup the reference_node_id
   auto ref_node_id = UNKNOWN_NODEID;
-  if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
-    {
-      // these ref_node_ids will resolve to a pattern declaration but we are
-      // interested in the definition that this refers to get the parent id
-      Resolver::Definition def;
-      if (!resolver->lookup_definition (ref_node_id, &def))
-	{
-	  // FIXME
-	  // this is an internal error
-	  rust_error_at (expr.get_locus (),
-			 "unknown reference for resolved name");
-	  return;
-	}
-      ref_node_id = def.parent;
-    }
+  // if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
+  //   {
+  //   }
 
   rust_debug ("[ARTHUR] var %d used at %d", ref_node_id, ast_node_id);
 
