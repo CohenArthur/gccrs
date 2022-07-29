@@ -32,33 +32,28 @@ extern "C" void
 polonius_compute (void *handle);
 
 namespace Rust {
-namespace HIR {
-Polonius::Polonius ()
-{
-  raw_handle = polonius_init ();
-  resolver = Rust::Resolver::Resolver::get ();
-}
+Polonius::Polonius () { raw_handle = polonius_init (); }
 
 Polonius::~Polonius () { polonius_deinit (raw_handle); }
 
 void
-Polonius::define_var (HIR::Stmt &assignment, HIR::Expr *expr)
+Polonius::define_var (HirId assignment_point, HirId init_expression)
 {
-  auto var_node_id = UNKNOWN_NODEID;
-  // auto expr_node_id = UNKNOWN_NODEID;
+  // auto var_node_id = UNKNOWN_NODEID;
+  // // auto expr_node_id = UNKNOWN_NODEID;
 
-  resolver->lookup_resolved_name (assignment.get_mappings ().get_nodeid (),
-				  &var_node_id);
-  resolver->lookup_resolved_name (expr->get_mappings ().get_nodeid (),
-				  &var_node_id);
+  // resolver->lookup_resolved_name (assignment.get_mappings ().get_nodeid (),
+  //     			  &var_node_id);
+  // resolver->lookup_resolved_name (expr->get_mappings ().get_nodeid (),
+  //     			  &var_node_id);
 
-  // polonius_define_var (raw_handle, var_node_id, expr_node_id);
-  polonius_define_var (raw_handle, assignment.get_mappings ().get_nodeid (),
-		       expr->get_mappings ().get_nodeid ());
+  // // polonius_define_var (raw_handle, var_node_id, expr_node_id);
+  // polonius_define_var (raw_handle, assignment.get_mappings ().get_nodeid (),
+  //		       expr->get_mappings ().get_nodeid ());
 }
 
 void
-Polonius::var_used_at (HIR::Expr &expr)
+Polonius::var_used_at (HirId var_id, HirId use_point)
 {
   //  Resolver::CanonicalPath path;
   //  resolver->lookup_canonical_path(expr.get_mappings().get_nodeid(), &path);
@@ -79,17 +74,17 @@ Polonius::var_used_at (HIR::Expr &expr)
   //  polonius_var_used_at (raw_handle, expr.get_mappings ().get_hirid (),
   //			ref_node_id);
 
-  auto ast_node_id = expr.get_mappings ().get_nodeid ();
+  // auto ast_node_id = expr.get_mappings ().get_nodeid ();
 
-  // then lookup the reference_node_id
-  auto ref_node_id = UNKNOWN_NODEID;
-  // if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
-  //   {
-  //   }
+  // // then lookup the reference_node_id
+  // auto ref_node_id = UNKNOWN_NODEID;
+  // // if (resolver->lookup_resolved_name (ast_node_id, &ref_node_id))
+  // //   {
+  // //   }
 
-  rust_debug ("[ARTHUR] var %d used at %d", ref_node_id, ast_node_id);
+  // rust_debug ("[ARTHUR] var %d used at %d", ref_node_id, ast_node_id);
 
-  polonius_var_used_at (raw_handle, ref_node_id, ast_node_id);
+  // polonius_var_used_at (raw_handle, ref_node_id, ast_node_id);
 }
 
 void
@@ -97,5 +92,5 @@ Polonius::compute ()
 {
   polonius_compute (raw_handle);
 }
-} // namespace HIR
+
 } // namespace Rust

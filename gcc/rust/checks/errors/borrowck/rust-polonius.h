@@ -21,7 +21,6 @@
 #include "rust-name-resolver.h"
 
 namespace Rust {
-namespace HIR {
 class Polonius
 {
 public:
@@ -34,13 +33,13 @@ public:
    * @param var Variable to define
    * @param init Initialization point
    */
-  void define_var (HIR::Stmt &assignment, HIR::Expr *init);
+  void define_var (HirId assignment_point, HirId init_expression);
 
   /**
    * Define a use-site for an existing variable
    */
   // FIXME: ARTHUR: Missing a parameter?
-  void var_used_at (HIR::Expr &expr);
+  void var_used_at (HirId var_id, HirId use_point);
 
   /**
    * Compute polonius results using the handle
@@ -49,7 +48,6 @@ public:
 
 private:
   void *raw_handle;
-  Rust::Resolver::Resolver *resolver;
 };
-} // namespace HIR
+
 } // namespace Rust
