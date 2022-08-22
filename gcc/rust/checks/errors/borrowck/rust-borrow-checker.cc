@@ -37,21 +37,6 @@ BorrowChecker::go (HIR::Crate &crate)
 }
 
 void
-BorrowChecker::visit (HIR::IdentifierExpr &ident_expr)
-{
-  NodeId ast_node_id = ident_expr.get_mappings ().get_nodeid ();
-  NodeId ref_node_id;
-  HirId definition_id;
-
-  if (!resolver.lookup_resolved_name (ast_node_id, &ref_node_id))
-    return;
-
-  rust_assert (mappings.lookup_node_to_hir (ref_node_id, &definition_id));
-
-  polonius.var_used_at (definition_id, current_point);
-}
-
-void
 BorrowChecker::visit (HIR::Lifetime &lifetime)
 {}
 

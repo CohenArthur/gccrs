@@ -86,7 +86,6 @@ private:
   Rust::Resolver::Resolver &resolver;
   Analysis::Mappings &mappings;
 
-  virtual void visit (HIR::IdentifierExpr &ident_expr) override;
   virtual void visit (HIR::Lifetime &lifetime) override;
   virtual void visit (HIR::LifetimeParam &lifetime_param) override;
   virtual void visit (HIR::PathInExpression &path) override;
