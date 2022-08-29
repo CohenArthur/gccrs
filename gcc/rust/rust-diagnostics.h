@@ -22,11 +22,12 @@
 #define RUST_DIAGNOSTICS_H
 
 #include "rust-linemap.h"
+#include "rust-error-codes.h"
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define RUST_ATTRIBUTE_GCC_DIAG(m, n)                                          \
   __attribute__ ((__format__ (__gcc_tdiag__, m, n)))                           \
-    __attribute__ ((__nonnull__ (m)))
+  __attribute__ ((__nonnull__ (m)))
 #else
 #define RUST_ATTRIBUTE_GCC_DIAG(m, n)
 #endif
@@ -51,17 +52,6 @@
 // clang-format off
 // simple location
 
-struct ErrorCode
-{
-  explicit ErrorCode (const char *str) : m_str (str)
-  {
-    gcc_assert (str);
-    gcc_assert (str[0] == 'E');
-  }
-
-  const char *m_str;
-};
-
 extern void
 rust_internal_error_at (const Location, const char *fmt, ...)
   RUST_ATTRIBUTE_GCC_DIAG (2, 3)
@@ -85,7 +75,7 @@ extern void
 rust_error_at (const RichLocation &, const char *fmt, ...)
   RUST_ATTRIBUTE_GCC_DIAG (2, 3);
 extern void
-rust_error_at (const RichLocation &, const ErrorCode, const char *fmt, ...)
+rust_error_at (const RichLocation &, const Rust::ErrorCode, const char *fmt, ...)
   RUST_ATTRIBUTE_GCC_DIAG (3, 4);
 // clang-format on
 
@@ -112,7 +102,7 @@ rust_be_error_at (const Location, const std::string &errmsg);
 extern void
 rust_be_error_at (const RichLocation &, const std::string &errmsg);
 extern void
-rust_be_error_at (const RichLocation &, const ErrorCode,
+rust_be_error_at (const RichLocation &, const Rust::ErrorCode,
 		  const std::string &errmsg);
 extern void
 rust_be_warning_at (const Location, int opt, const std::string &warningmsg);

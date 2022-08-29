@@ -74,25 +74,25 @@ rust_be_error_at (const RichLocation &location, const std::string &errmsg)
 class rust_error_code_rule : public diagnostic_metadata::rule
 {
 public:
-  rust_error_code_rule (const ErrorCode code) : m_code (code) {}
+  rust_error_code_rule (const Rust::ErrorCode code) : m_code (code) {}
 
   char *make_description () const final override
   {
-    return xstrdup (m_code.m_str);
+    return xstrdup (m_code.get_str ().c_str ());
   }
 
   char *make_url () const final override
   {
-    return concat ("https://doc.rust-lang.org/error-index.html#", m_code.m_str,
-		   NULL);
+    return concat ("https://doc.rust-lang.org/error-index.html#",
+		   m_code.get_str ().c_str (), NULL);
   }
 
 private:
-  const ErrorCode m_code;
+  const Rust::ErrorCode m_code;
 };
 
 void
-rust_be_error_at (const RichLocation &location, const ErrorCode code,
+rust_be_error_at (const RichLocation &location, const Rust::ErrorCode code,
 		  const std::string &errmsg)
 {
   /* TODO: 'error_at' would like a non-'const' 'rich_location *'.  */

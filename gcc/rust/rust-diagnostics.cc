@@ -167,7 +167,7 @@ rust_error_at (const Location location, const char *fmt, ...)
 }
 
 void
-rust_error_at (const RichLocation &location, const ErrorCode code,
+rust_error_at (const RichLocation &location, const Rust::ErrorCode code,
 	       const char *fmt, ...)
 {
   va_list ap;
