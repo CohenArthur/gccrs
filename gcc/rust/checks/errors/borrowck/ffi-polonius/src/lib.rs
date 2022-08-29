@@ -97,6 +97,9 @@ pub unsafe extern "C" fn polonius_define_var(
         .push((var_id.into(), point_id.into()))
 }
 
+/// # Safety
+/// Do not call this function without having initialized the handle first using
+/// [`polonius_init`]
 #[no_mangle]
 pub unsafe extern "C" fn polonius_borrow_var(handle: *mut FfiGccrsPolonius) {
     let handle = handle.as_mut().unwrap();
