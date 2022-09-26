@@ -1,6 +1,7 @@
 //! There are two main components to the polonius-engine library: Facts and
 //! Output.
 
+use log::{debug, info};
 use polonius_engine::{AllFacts, Atom, FactTypes, Output};
 
 use std::convert::From;
@@ -8,6 +9,7 @@ use std::convert::From;
 #[derive(Debug, Clone, Copy, Default)]
 struct GccrsPolonius;
 
+/// This represents an `HirId` as emitted by `gccrs`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct GccrsAtom(usize);
 
@@ -30,6 +32,7 @@ impl From<GccrsAtom> for usize {
 }
 
 impl FactTypes for GccrsPolonius {
+    // FIXME: Do we want anything else than the `HirId` here?
     type Origin = GccrsAtom;
     type Loan = GccrsAtom;
     type Point = GccrsAtom;
@@ -46,8 +49,12 @@ pub struct FfiGccrsPolonius(pub(crate) AllFacts<GccrsPolonius>);
 /// and return.
 #[no_mangle]
 pub unsafe extern "C" fn polonius_init() -> *mut FfiGccrsPolonius {
+    env_logger::init();
+
+    info!("initializing handle");
+
     let facts = AllFacts::default();
-    eprintln!("[polonius] init");
+
     Box::into_raw(Box::new(FfiGccrsPolonius(facts)))
 }
 
@@ -57,8 +64,9 @@ pub unsafe extern "C" fn polonius_init() -> *mut FfiGccrsPolonius {
 /// performed.
 #[no_mangle]
 pub unsafe extern "C" fn polonius_deinit(handle: *mut FfiGccrsPolonius) {
-    eprintln!("[polonius] deinit");
-    Box::from_raw(handle);
+    info!("deinitializing handle");
+
+    drop(Box::from_raw(handle));
 }
 
 /// # Safety
@@ -72,7 +80,7 @@ pub unsafe extern "C" fn polonius_var_used_at(
 ) {
     let handle = handle.as_mut().unwrap();
 
-    eprintln!("[polonius] variable {} used at {}", var_id, point_id);
+    debug!("variable {} used at {}", var_id, point_id);
 
     handle.0.var_used_at.push((var_id.into(), point_id.into()))
 }
@@ -88,10 +96,7 @@ pub unsafe extern "C" fn polonius_define_var(
 ) {
     let handle = handle.as_mut().unwrap();
 
-    eprintln!(
-        "[polonius] defining variable ([point] {}: [var] {})",
-        point_id, var_id
-    );
+    debug!("defining variable ([point] {}: [var] {})", point_id, var_id);
 
     handle
         .0
@@ -106,7 +111,7 @@ pub unsafe extern "C" fn polonius_define_var(
 pub unsafe extern "C" fn polonius_borrow_var(handle: *mut FfiGccrsPolonius) {
     let _handle = handle.as_mut().unwrap();
 
-    eprintln!("[polonius] borrowing variable");
+    debug!("borrowing variable");
 }
 
 /// # Safety
@@ -115,6 +120,8 @@ pub unsafe extern "C" fn polonius_borrow_var(handle: *mut FfiGccrsPolonius) {
 #[no_mangle]
 pub unsafe extern "C" fn polonius_compute(handle: *mut FfiGccrsPolonius) {
     let handle = handle.as_mut().unwrap();
+
+    info!("computing facts");
 
     Output::compute(&handle.0, polonius_engine::Algorithm::Naive, true);
 }
