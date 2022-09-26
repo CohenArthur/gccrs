@@ -53,6 +53,9 @@ polonius_compute (void *handle);
  *     1. loan_issued_at(origin, loan, point)
  *     2. var_used_at(origin, point)
  *
+ * Remember to also check within rustc's codebase for operations related to the
+ * `all_facts` field in the borrow checking context.
+ *
  * The goal of this abstraction is for our BorrowChecker class to NOT perform
  * these two calls. Instead, this abstraction should expose a method like
  * `create_reference(origin, loan, point)` which then takes care of calling
@@ -60,7 +63,7 @@ polonius_compute (void *handle);
  * `loan_issued_at` and `var_used_at`.
  *
  * This way, this abstraction makes sense and isn't just a wrapper on the extern
- * C functions
+ * C functions.
  */
 
 namespace Rust {
