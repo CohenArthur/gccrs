@@ -52,7 +52,9 @@ pub unsafe extern "C" fn polonius_init() -> *mut FfiGccrsPolonius {
 }
 
 /// # Safety
-/// This is not safe
+/// Call this function only on handled returned by a call to [`polonius_init`]. This
+/// deinitializes the handle and needs to be called once all polonius operations have been
+/// performed.
 #[no_mangle]
 pub unsafe extern "C" fn polonius_deinit(handle: *mut FfiGccrsPolonius) {
     eprintln!("[polonius] deinit");
@@ -102,13 +104,14 @@ pub unsafe extern "C" fn polonius_define_var(
 /// [`polonius_init`]
 #[no_mangle]
 pub unsafe extern "C" fn polonius_borrow_var(handle: *mut FfiGccrsPolonius) {
-    let handle = handle.as_mut().unwrap();
+    let _handle = handle.as_mut().unwrap();
 
     eprintln!("[polonius] borrowing variable");
 }
 
 /// # Safety
-/// Not-safe
+/// Do not call this function without having initialized the handle first using
+/// [`polonius_init`]
 #[no_mangle]
 pub unsafe extern "C" fn polonius_compute(handle: *mut FfiGccrsPolonius) {
     let handle = handle.as_mut().unwrap();
