@@ -119,6 +119,8 @@ GRS_OBJS = \
     rust/rust-hir-type-check-stmt.o \
     rust/rust-hir-type-check-enumitem.o \
     rust/rust-hir-type-check-implitem.o \
+    rust/rust-polonius.o \
+    rust/rust-borrow-checker.o \
     rust/rust-hir-dot-operator.o \
     rust/rust-hir-path-probe.o \
     rust/rust-coercion.o \
@@ -162,7 +164,7 @@ rust_OBJS = $(RUST_ALL_OBJS) rust/rustspec.o
 # The compiler itself is called rust1 (formerly grs1)
 rust1$(exeext): $(RUST_ALL_OBJS) attribs.o $(BACKEND) $(LIBDEPS)
 	+$(LLINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
-	      $(RUST_ALL_OBJS) attribs.o $(BACKEND) $(LIBS) $(BACKENDLIBS)
+	      $(RUST_ALL_OBJS) attribs.o $(BACKEND) libffi_polonius.a $(LIBS) $(BACKENDLIBS)
 
 # Build hooks.
 
@@ -317,6 +319,7 @@ RUST_INCLUDES = -I $(srcdir)/rust \
 	-I $(srcdir)/rust/checks/lints \
 	-I $(srcdir)/rust/checks/errors \
 	-I $(srcdir)/rust/checks/errors/privacy \
+	-I $(srcdir)/rust/checks/errors/borrowck \
 	-I $(srcdir)/rust/util \
         -I $(srcdir)/rust/metadata
 
@@ -389,8 +392,18 @@ rust/%.o: rust/checks/errors/%.cc
 	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
 	$(POSTCOMPILE)
 
+# build rust/checks/errors/borrowck files in rust folder
+rust/%.o: rust/checks/errors/borrowck/%.cc
+	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
+	$(POSTCOMPILE)
+
 # build privacy pass files in rust folder
 rust/%.o: rust/checks/errors/privacy/%.cc
+	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
+	$(POSTCOMPILE)
+
+# build borrow checking pass files in rust folder
+rust/%.o: rust/checks/errors/borrowck/polonius/%.cc
 	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
 	$(POSTCOMPILE)
 
