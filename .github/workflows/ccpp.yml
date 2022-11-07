@@ -263,6 +263,9 @@ jobs:
       run: |
            cd gccrs-build; \
            make -j $(sysctl -n hw.ncpu) 2>&1 | tee log
+      
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
 
     - name: Run Tests
       run: |
