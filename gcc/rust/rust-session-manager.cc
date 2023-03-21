@@ -40,7 +40,7 @@
 #include "rust-extern-crate.h"
 #include "rust-attributes.h"
 #include "rust-early-name-resolver.h"
-#include "rust-attribute-visitor.h"
+#include "rust-cfg-strip.h"
 #include "rust-expand-visitor.h"
 
 #include "diagnostic.h"
@@ -842,7 +842,7 @@ Session::expansion (AST::Crate &crate)
 
   while (!fixed_point_reached && iterations < cfg.recursion_limit)
     {
-      AttrVisitor ().go (crate);
+      CfgStrip ().go (crate);
       Resolver::EarlyNameResolver ().go (crate);
       ExpandVisitor (expander).go (crate);
 
