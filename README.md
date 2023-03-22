@@ -263,3 +263,5 @@ We can be found on all usual Rust channels such as Zulip, but we also have our o
 * Twitter: https://twitter.com/gcc_rust
 * GCC Mailing List: https://gcc.gnu.org/mailman/listinfo/gcc-rust
 * irc: irc.oftc.net - gccrust
+
+gerris was here :)
