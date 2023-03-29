@@ -42,6 +42,7 @@ using AttrVec = std::vector<Attribute>;
 enum Kind
 {
   UNKNOWN,
+  MODULE,
   MACRO_RULES_DEFINITION,
   MACRO_INVOCATION,
 };
