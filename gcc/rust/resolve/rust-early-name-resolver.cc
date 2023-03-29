@@ -667,24 +667,43 @@ fn main() {
   // functions are still scoped only within that function. But we have to be
   // careful because nested modules with #[macro_use] actually works!
 
-  std::vector<std::reference_wrapper<AST::MacroRulesDefinition>> escaped_macros;
-
-  scoped (module.get_node_id (), [&module, this, &escaped_macros] () {
+  scoped (module.get_node_id (), [&module, this] () {
     for (auto &item : module.get_items ())
-      {
-	item->accept_vis (*this);
-
-	if (is_macro_use_module (module)
-	    && item->get_ast_kind () == AST::Kind::MACRO_RULES_DEFINITION)
-	  {
-	    auto def = static_cast<AST::MacroRulesDefinition *> (item.get ());
-	    escaped_macros.emplace_back (*def);
-	  }
-      }
+      item->accept_vis (*this);
   });
 
+  std::vector<AST::MacroRulesDefinition *> escaped_macros;
+  if (is_macro_use_module (module))
+    for (auto &item : module.get_items ())
+      if (item->get_ast_kind () == AST::Kind::MACRO_RULES_DEFINITION)
+	{
+	  auto def = static_cast<AST::MacroRulesDefinition *> (item.get ());
+	  escaped_macros.emplace_back (def);
+	}
+
+  // how do we do things here for nested modules?
+  // we're in a situation where
+  // mod foo #[macro_use]
+  // mod bar #[macro_use]
+  // macro a
+  // macro b
+
+  // a and b need to be exported one scope up from bar so in the foo items, and
+  // then one scope up from foo in the crate items do we just emplace back these
+  // items in the crate? in the current_module? how do we deal with that?
+
+  AST::Item *parent_item = nullptr;
+  bool ok = mappings.lookup_ast_item (current_scope, &parent_item);
+
+  rust_assert (ok);
+  rust_assert (parent_item->get_ast_kind () == AST::Kind::MODULE);
+
+  auto parent_module = static_cast<AST::Module *> (parent_item);
+  auto &parent_items = parent_module->get_items ();
+
   for (auto &macro : escaped_macros)
-    macro.get ().accept_vis (*this);
+    parent_items.emplace_back (macro->clone_item ());
+  // macro.get ().accept_vis (*this);
 }
 
 void
