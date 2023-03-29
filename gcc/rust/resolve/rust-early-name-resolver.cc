@@ -23,6 +23,38 @@
 namespace Rust {
 namespace Resolver {
 
+static Rib *
+get_root_macro_scope (Resolver &resolver)
+{
+  auto stack = resolver.get_macro_scope ().get_context ();
+  rust_assert (!stack.empty ());
+
+  return resolver.get_macro_scope ().get_context ().front ();
+}
+
+// Check if a `macro_rules` definition has the `#[macro_export]` attribute
+// If it does, the  macro should be exported to the crate root
+static bool
+is_macro_export (const AST::MacroRulesDefinition &def)
+{
+  for (const auto &attr : def.get_outer_attrs ())
+    if (attr.get_path ().as_string () == "macro_export")
+      return true;
+
+  return false;
+}
+
+// Check if a module contains the `#[macro_use]` attribute
+static bool
+is_macro_use_module (const AST::Module &mod)
+{
+  for (const auto &attr : mod.get_outer_attrs ())
+    if (attr.get_path ().as_string () == "macro_use")
+      return true;
+
+  return false;
+}
+
 EarlyNameResolver::EarlyNameResolver ()
   : current_scope (UNKNOWN_NODEID), resolver (*Resolver::get ()),
     mappings (*Analysis::Mappings::get ())
@@ -587,15 +619,97 @@ EarlyNameResolver::visit (AST::Module &module)
   if (module.get_kind () == AST::Module::UNLOADED)
     module.load_items ();
 
-  scoped (module.get_node_id (), [&module, this] () {
+  // if attribute macro_use
+  // macros need to be defined after the module's scope ends
+  // not only in the scope where they are defined
+  // can we craft a cursed testcase? where a macro defined
+  // inside a function is exported by the module containing
+  // the function?
+
+  /**
+
+#[macro_use]
+mod foo {
+    #[macro_use]
+    mod zim {
+	#[macro_use]
+	mod zoom {
+	    #[macro_use]
+	    mod zum {
+		macro_rules! qux {
+		    () => {};
+		}
+	    }
+	}
+    }
+}
+
+fn main() {
+    qux!(); // OK
+}
+
+#[macro_use]
+mod foo {
+    fn bar() {
+	macro_rules! baz {
+	    () => {{}};
+	}
+    }
+}
+
+fn main() {
+    baz!(); // KO
+}
+
+  */
+
+  // so we need to only go "one scope down" for fetching macros. Macros within
+  // functions are still scoped only within that function. But we have to be
+  // careful because nested modules with #[macro_use] actually works!
+
+  std::vector<std::reference_wrapper<AST::MacroRulesDefinition>> escaped_macros;
+
+  scoped (module.get_node_id (), [&module, this, &escaped_macros] () {
     for (auto &item : module.get_items ())
-      item->accept_vis (*this);
+      {
+	item->accept_vis (*this);
+
+	if (is_macro_use_module (module)
+	    && item->get_ast_kind () == AST::Kind::MACRO_RULES_DEFINITION)
+	  {
+	    auto def = static_cast<AST::MacroRulesDefinition *> (item.get ());
+	    escaped_macros.emplace_back (*def);
+	  }
+      }
   });
+
+  for (auto &macro : escaped_macros)
+    macro.get ().accept_vis (*this);
 }
 
 void
-EarlyNameResolver::visit (AST::ExternCrate &)
-{}
+EarlyNameResolver::visit (AST::ExternCrate &ext_crate)
+{
+  // Macros to be imported with #[macro_use] must be exported with
+  // #[macro_export], which is described below.
+
+  // so this has to do with metadata and exporting macros in the object file. On
+  // #[macro_export], we must generate the macro definition in the metadata
+  // exporter.
+
+  for (const auto &attr : ext_crate.get_outer_attrs ())
+    if (attr.get_path ().as_string () == "macro_use")
+      ;
+
+  // TODO: We need to fetch the exported macros from the crate
+  // and add them to the macro prelude?
+  // FIXME: How to have a macro prelude and a textual prelude?
+  // macro_prelude.export()
+  // should we keep it in the EarlyNameResolver? No, better to
+  // keep it in the resolver
+
+  // mappings.get_ast_crate_by_node_id();
+}
 
 void
 EarlyNameResolver::visit (AST::UseTreeGlob &)
@@ -831,6 +945,18 @@ EarlyNameResolver::visit (AST::MacroRulesDefinition &rules_def)
   resolver.get_macro_scope ().insert (path, rules_def.get_node_id (),
 				      rules_def.get_locus ());
 
+  if (is_macro_export (rules_def))
+    {
+      auto root_macro_scope = get_root_macro_scope (resolver);
+      root_macro_scope->insert_name (path, rules_def.get_node_id (),
+				     rules_def.get_locus (), true,
+				     Rust::Resolver::Rib::ItemType::MacroDecl,
+				     [] (const CanonicalPath &, NodeId,
+					 Location) {
+				       // TODO: What to do here? Nothing, right?
+				     });
+    }
+
   /* Since the EarlyNameResolver runs multiple time (fixed point algorithm)
    * we could be inserting the same macro def over and over again until we
    * implement some optimizations */
@@ -854,23 +980,34 @@ EarlyNameResolver::visit (AST::MacroInvocation &invoc)
     for (auto &pending_invoc : invoc.get_pending_eager_invocations ())
       pending_invoc->accept_vis (*this);
 
-  // ??
-  // switch on type of macro:
-  //  - '!' syntax macro (inner switch)
-  //      - procedural macro - "A token-based function-like macro"
-  //      - 'macro_rules' (by example/pattern-match) macro? or not? "an
-  // AST-based function-like macro"
-  //      - else is unreachable
-  //  - attribute syntax macro (inner switch)
-  //  - procedural macro attribute syntax - "A token-based attribute
-  // macro"
-  //      - legacy macro attribute syntax? - "an AST-based attribute macro"
-  //      - non-macro attribute: mark known
-  //      - else is unreachable
-  //  - derive macro (inner switch)
-  //      - derive or legacy derive - "token-based" vs "AST-based"
-  //      - else is unreachable
-  //  - derive container macro - unreachable
+  // From the Rust reference:
+  //
+  // When a macro is invoked by an unqualified identifier (not part of a
+  // multi-part path), it is first looked up in textual scoping. If this does
+  // not yield any results, then it is looked up in path-based scoping. If the
+  // macro's name is qualified with a path, then it is only looked up in
+  // path-based scoping.
+  //
+  // so we need to check if the invoc.get_path() has multiple segments or not
+  // also, is that actually being parsed properly?
+
+  // weird test case:
+  //
+  //   //// src/lib.rs
+  // mod has_macro {
+  //     // m!{} // Error: m is not in scope.
+
+  //     macro_rules! m {
+  //         () => {};
+  //     }
+  //     m!{} // OK: appears after declaration of m.
+
+  //     mod uses_macro;
+  // }
+  // // m!{} // Error: m is not in scope.
+  //
+  // //// src/has_macro/uses_macro.rs
+  // m!{} // OK: appears after declaration of m in src/lib.rs
 
   // lookup the rules for this macro
   NodeId resolved_node = UNKNOWN_NODEID;
