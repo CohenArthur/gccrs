@@ -54,6 +54,14 @@ private:
   }
 
   /**
+   * FIXME: Missing documentation
+   */
+  // FIXME: Is that correct? Will we clone the
+  // MacroRulesDefinition?
+  std::vector<std::unique_ptr<AST::Item>>
+  accumulate_escaped_macros (AST::Module &module);
+
+  /**
    * The "scope" we are currently in.
    *
    * This involves lexical scopes:

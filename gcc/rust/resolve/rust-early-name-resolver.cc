@@ -55,6 +55,35 @@ is_macro_use_module (const AST::Module &mod)
   return false;
 }
 
+std::vector<std::unique_ptr<AST::Item>>
+EarlyNameResolver::accumulate_escaped_macros (AST::Module &module)
+{
+  if (!is_macro_use_module (module))
+    return {};
+
+  std::vector<std::unique_ptr<AST::Item>> escaped_macros;
+
+  // FIXME: Use ENR::scoped here
+  for (auto &item : module.get_items ())
+    {
+      if (item->get_ast_kind () == AST::MODULE)
+	{
+	  auto &module = *static_cast<AST::Module *> (item.get ());
+	  auto exported_macros = accumulate_escaped_macros (module);
+
+	  escaped_macros.emplace_back (exported_macros);
+	  continue;
+	}
+
+      item->accept_vis (*this);
+
+      if (item->get_ast_kind () == AST::MACRO_RULES_DEFINITION)
+	escaped_macros.emplace_back (item->clone_item ());
+    }
+
+  return escaped_macros;
+}
+
 EarlyNameResolver::EarlyNameResolver ()
   : current_scope (UNKNOWN_NODEID), resolver (*Resolver::get ()),
     mappings (*Analysis::Mappings::get ())
@@ -691,6 +720,23 @@ fn main() {
   // a and b need to be exported one scope up from bar so in the foo items, and
   // then one scope up from foo in the crate items do we just emplace back these
   // items in the crate? in the current_module? how do we deal with that?
+
+  // can we visit each item of a {module,crate}, and check if it is a module?
+  // if it is, look at it, take its exported macros, bring them over in your
+  // items so `crate.items` or `module.get_items() [mutable]`
+  // we can just add them at the end of the items, right? like collect them and
+  // copy them over? and then do we need to visit them? what if they do macro
+  // invocations?
+  // how does rustc deal with that?
+  // it's a non problem because the macro does not live in the same scope, so it
+  // just gets dropped when the module ends
+  // is that handled properly?
+
+  // remember, however, that the ERN also runs in a fixed-point fashion! How
+  // should we deal with that? Do we just keep adding more and more macros to
+  // each module?
+  // do we add macros, and then take them? So `exported_macros.emplace_back()`
+  // and `take(exported_macros)`?
 
   AST::Item *parent_item = nullptr;
   bool ok = mappings.lookup_ast_item (current_scope, &parent_item);
