@@ -64,22 +64,26 @@ EarlyNameResolver::accumulate_escaped_macros (AST::Module &module)
   std::vector<std::unique_ptr<AST::Item>> escaped_macros;
 
   // FIXME: Use ENR::scoped here
-  for (auto &item : module.get_items ())
-    {
-      if (item->get_ast_kind () == AST::MODULE)
-	{
-	  auto &module = *static_cast<AST::Module *> (item.get ());
-	  auto exported_macros = accumulate_escaped_macros (module);
+  scoped (module.get_node_id (), [&module, &escaped_macros, this] {
+    for (auto &item : module.get_items ())
+      {
+	if (item->get_ast_kind () == AST::MODULE)
+	  {
+	    auto &module = *static_cast<AST::Module *> (item.get ());
+	    auto new_macros = accumulate_escaped_macros (module);
 
-	  escaped_macros.emplace_back (exported_macros);
-	  continue;
-	}
+	    std::move (new_macros.begin (), new_macros.end (),
+		       std::back_inserter (escaped_macros));
 
-      item->accept_vis (*this);
+	    continue;
+	  }
 
-      if (item->get_ast_kind () == AST::MACRO_RULES_DEFINITION)
-	escaped_macros.emplace_back (item->clone_item ());
-    }
+	item->accept_vis (*this);
+
+	if (item->get_ast_kind () == AST::MACRO_RULES_DEFINITION)
+	  escaped_macros.emplace_back (item->clone_item ());
+      }
+  });
 
   return escaped_macros;
 }
@@ -92,11 +96,34 @@ EarlyNameResolver::EarlyNameResolver ()
 void
 EarlyNameResolver::go (AST::Crate &crate)
 {
+  std::vector<std::unique_ptr<AST::Item>> new_items;
+  auto items = crate.take_items ();
+
+  scoped (crate.get_node_id (), [&items, &new_items, this] {
+    for (auto &&item : items)
+      {
+	if (item->get_ast_kind () == AST::Kind::MODULE)
+	  {
+	    auto macros = accumulate_escaped_macros (
+	      *static_cast<AST::Module *> (item.get ()));
+	    new_items.emplace_back (std::move (item));
+	    std::move (macros.begin (), macros.end (),
+		       std::back_inserter (new_items));
+	  }
+	else
+	  {
+	    new_items.emplace_back (std::move (item));
+	  }
+      }
+  });
+
+  crate.set_items (std::move (new_items));
+
   scoped (crate.get_node_id (), [&crate, this] () {
     for (auto &item : crate.items)
       item->accept_vis (*this);
   });
-}
+} // namespace Resolver
 
 void
 EarlyNameResolver::resolve_generic_args (AST::GenericArgs &generic_args)
@@ -696,19 +723,42 @@ fn main() {
   // functions are still scoped only within that function. But we have to be
   // careful because nested modules with #[macro_use] actually works!
 
+  std::vector<std::unique_ptr<AST::Item>> new_items;
+  auto items = module.take_items ();
+
+  scoped (module.get_node_id (), [&items, &new_items, this] {
+    for (auto &&item : items)
+      {
+	if (item->get_ast_kind () == AST::Kind::MODULE)
+	  {
+	    auto macros = accumulate_escaped_macros (
+	      *static_cast<AST::Module *> (item.get ()));
+	    new_items.emplace_back (std::move (item));
+	    std::move (macros.begin (), macros.end (),
+		       std::back_inserter (new_items));
+	  }
+	else
+	  {
+	    new_items.emplace_back (std::move (item));
+	  }
+      }
+  });
+
+  module.set_items (std::move (new_items));
+
   scoped (module.get_node_id (), [&module, this] () {
     for (auto &item : module.get_items ())
       item->accept_vis (*this);
   });
 
-  std::vector<AST::MacroRulesDefinition *> escaped_macros;
-  if (is_macro_use_module (module))
-    for (auto &item : module.get_items ())
-      if (item->get_ast_kind () == AST::Kind::MACRO_RULES_DEFINITION)
-	{
-	  auto def = static_cast<AST::MacroRulesDefinition *> (item.get ());
-	  escaped_macros.emplace_back (def);
-	}
+  //  std::vector<AST::MacroRulesDefinition *> escaped_macros;
+  //  if (is_macro_use_module (module))
+  //    for (auto &item : module.get_items ())
+  //      if (item->get_ast_kind () == AST::Kind::MACRO_RULES_DEFINITION)
+  // {
+  //   auto def = static_cast<AST::MacroRulesDefinition *> (item.get ());
+  //   escaped_macros.emplace_back (def);
+  // }
 
   // how do we do things here for nested modules?
   // we're in a situation where
@@ -717,20 +767,19 @@ fn main() {
   // macro a
   // macro b
 
-  // a and b need to be exported one scope up from bar so in the foo items, and
-  // then one scope up from foo in the crate items do we just emplace back these
-  // items in the crate? in the current_module? how do we deal with that?
+  // a and b need to be exported one scope up from bar so in the foo items,
+  // and then one scope up from foo in the crate items do we just emplace back
+  // these items in the crate? in the current_module? how do we deal with
+  // that?
 
   // can we visit each item of a {module,crate}, and check if it is a module?
   // if it is, look at it, take its exported macros, bring them over in your
   // items so `crate.items` or `module.get_items() [mutable]`
-  // we can just add them at the end of the items, right? like collect them and
-  // copy them over? and then do we need to visit them? what if they do macro
-  // invocations?
-  // how does rustc deal with that?
-  // it's a non problem because the macro does not live in the same scope, so it
-  // just gets dropped when the module ends
-  // is that handled properly?
+  // we can just add them at the end of the items, right? like collect them
+  // and copy them over? and then do we need to visit them? what if they do
+  // macro invocations? how does rustc deal with that? it's a non problem
+  // because the macro does not live in the same scope, so it just gets
+  // dropped when the module ends is that handled properly?
 
   // remember, however, that the ERN also runs in a fixed-point fashion! How
   // should we deal with that? Do we just keep adding more and more macros to
@@ -738,17 +787,17 @@ fn main() {
   // do we add macros, and then take them? So `exported_macros.emplace_back()`
   // and `take(exported_macros)`?
 
-  AST::Item *parent_item = nullptr;
-  bool ok = mappings.lookup_ast_item (current_scope, &parent_item);
+  // AST::Item *parent_item = nullptr;
+  // bool ok = mappings.lookup_ast_item (current_scope, &parent_item);
 
-  rust_assert (ok);
-  rust_assert (parent_item->get_ast_kind () == AST::Kind::MODULE);
+  // rust_assert (ok);
+  // rust_assert (parent_item->get_ast_kind () == AST::Kind::MODULE);
 
-  auto parent_module = static_cast<AST::Module *> (parent_item);
-  auto &parent_items = parent_module->get_items ();
+  // auto parent_module = static_cast<AST::Module *> (parent_item);
+  // auto &parent_items = parent_module->get_items ();
 
-  for (auto &macro : escaped_macros)
-    parent_items.emplace_back (macro->clone_item ());
+  // for (auto &macro : escaped_macros)
+  //   parent_items.emplace_back (macro->clone_item ());
   // macro.get ().accept_vis (*this);
 }
 
@@ -758,7 +807,8 @@ EarlyNameResolver::visit (AST::ExternCrate &ext_crate)
   // Macros to be imported with #[macro_use] must be exported with
   // #[macro_export], which is described below.
 
-  // so this has to do with metadata and exporting macros in the object file. On
+  // so this has to do with metadata and exporting macros in the object file.
+  // On
   // #[macro_export], we must generate the macro definition in the metadata
   // exporter.
 
@@ -1018,7 +1068,8 @@ EarlyNameResolver::visit (AST::MacroRulesDefinition &rules_def)
 				     Rust::Resolver::Rib::ItemType::MacroDecl,
 				     [] (const CanonicalPath &, NodeId,
 					 Location) {
-				       // TODO: What to do here? Nothing, right?
+				       // TODO: What to do here? Nothing,
+				       // right?
 				     });
     }
 
