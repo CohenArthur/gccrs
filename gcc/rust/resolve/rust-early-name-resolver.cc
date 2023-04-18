@@ -61,9 +61,12 @@ EarlyNameResolver::accumulate_escaped_macros (AST::Module &module)
   if (!is_macro_use_module (module))
     return {};
 
+  // Parse the module's items if they haven't been expanded
+  if (module.get_kind () == AST::Module::UNLOADED)
+    module.load_items ();
+
   std::vector<std::unique_ptr<AST::Item>> escaped_macros;
 
-  // FIXME: Use ENR::scoped here
   scoped (module.get_node_id (), [&module, &escaped_macros, this] {
     for (auto &item : module.get_items ())
       {
@@ -104,8 +107,8 @@ EarlyNameResolver::go (AST::Crate &crate)
       {
 	if (item->get_ast_kind () == AST::Kind::MODULE)
 	  {
-	    auto macros = accumulate_escaped_macros (
-	      *static_cast<AST::Module *> (item.get ()));
+	    auto &module = *static_cast<AST::Module *> (item.get ());
+	    auto macros = accumulate_escaped_macros (module);
 	    new_items.emplace_back (std::move (item));
 	    std::move (macros.begin (), macros.end (),
 		       std::back_inserter (new_items));
@@ -669,12 +672,6 @@ EarlyNameResolver::visit (AST::Method &method)
 void
 EarlyNameResolver::visit (AST::Module &module)
 {
-  // Parse the module's items if they haven't been expanded and the file
-  // should be parsed (i.e isn't hidden behind an untrue or impossible cfg
-  // directive)
-  if (module.get_kind () == AST::Module::UNLOADED)
-    module.load_items ();
-
   // if attribute macro_use
   // macros need to be defined after the module's scope ends
   // not only in the scope where they are defined
