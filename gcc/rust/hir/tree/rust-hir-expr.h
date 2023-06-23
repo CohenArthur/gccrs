@@ -3968,7 +3968,7 @@ struct InlineAsmRegOrRegClass
 // Inline Assembly Node
 class InlineAsm : public ExprWithoutBlock
 {
-  NodeId id;
+  // NodeId id;
 
 public:
   std::vector<AST::InlineAsmTemplatePiece> template_;
