@@ -19,11 +19,11 @@
 #ifndef RUST_NAME_RESOLVER_2_0_H
 #define RUST_NAME_RESOLVER_2_0_H
 
-#include "rust-early-name-resolver-2.0.h"
-#include "rust-late-name-resolver-2.0.h"
+#include "optional.h"
+#include "rust-forever-stack.h"
 
 namespace Rust {
-namespace Resolver {
+namespace Resolver2_0 {
 
 // TODO: Add missing mappings and data structures
 
@@ -126,7 +126,31 @@ shadowing.
 change?
 */
 
-} // namespace Resolver
+// Now our resolver, which keeps track of all the `ForeverStack`s we could want
+class Resolver
+{
+public:
+  void insert (Identifier name, NodeId id, Namespace ns);
+
+  // TODO: Documentation
+  // FIXME: Does scoped imply all namespaces? Yes? Or not really?
+  // Can we have `scoped` push to all, and then `scoped(Ns)` push to just one?
+  // FIXME: Do we need a `NodeId` parameter? Rib instead?
+  void scoped (Rib rib, NodeId scope_id, std::function<void (void)> lambda,
+	       tl::optional<Identifier> path = {});
+  void scoped (Rib rib, Namespace ns, NodeId scope_id,
+	       std::function<void (void)> lambda,
+	       tl::optional<Identifier> path = {});
+
+  // void push_rib (Rib rib, Namespace ns);
+  // void pop_rib (Namespace ns);
+
+  ForeverStack<Namespace::Values> values;
+  ForeverStack<Namespace::Types> types;
+  ForeverStack<Namespace::Macros> macros;
+};
+
+} // namespace Resolver2_0
 } // namespace Rust
 
 #endif // ! RUST_NAME_RESOLVER_2_0_H

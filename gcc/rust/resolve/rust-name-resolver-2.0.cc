@@ -17,3 +17,83 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-name-resolver-2.0.h"
+
+namespace Rust {
+namespace Resolver2_0 {
+
+void
+Resolver::insert (Identifier name, NodeId id, Namespace ns)
+{
+  switch (ns)
+    {
+    case Namespace::Values:
+      values.insert (name, id);
+      break;
+    case Namespace::Types:
+      types.insert (name, id);
+      break;
+    case Namespace::Labels:
+    case Namespace::Macros:
+      gcc_unreachable ();
+    }
+}
+
+void
+Resolver::scoped (Rib rib, NodeId id, std::function<void (void)> lambda,
+		  tl::optional<Identifier> path)
+{
+  values.push (rib, id, path);
+  types.push (rib, id, path);
+  macros.push (rib, id, path);
+  // labels.push (rib, id);
+
+  lambda ();
+
+  values.pop ();
+  types.pop ();
+  macros.pop ();
+  // labels.pop (rib);
+}
+
+void
+Resolver::scoped (Rib rib, Namespace ns, NodeId scope_id,
+		  std::function<void (void)> lambda,
+		  tl::optional<Identifier> path)
+{
+  switch (ns)
+    {
+    case Namespace::Values:
+      values.push (rib, scope_id, path);
+      break;
+    case Namespace::Types:
+      types.push (rib, scope_id, path);
+      break;
+    case Namespace::Labels:
+    case Namespace::Macros:
+      gcc_unreachable ();
+    }
+
+  // for (auto &ns : namespaces)
+  //   push_rib (ns);
+
+  lambda ();
+
+  // for (auto &ns : namespaces)
+  //   pop_rib (ns);
+
+  switch (ns)
+    {
+    case Namespace::Values:
+      values.pop ();
+      break;
+    case Namespace::Types:
+      types.pop ();
+      break;
+    case Namespace::Labels:
+    case Namespace::Macros:
+      gcc_unreachable ();
+    }
+}
+
+} // namespace Resolver2_0
+} // namespace Rust
