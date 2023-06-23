@@ -40,6 +40,9 @@
 #include "rust-extern-crate.h"
 #include "rust-attributes.h"
 #include "rust-early-name-resolver.h"
+#include "rust-name-resolver-2.0.h"
+#include "rust-early-name-resolver-2.0.h"
+#include "rust-late-name-resolver-2.0.h"
 #include "rust-cfg-strip.h"
 #include "rust-expand-visitor.h"
 
@@ -595,7 +598,12 @@ Session::compile_crate (const char *filename)
     return;
 
   // resolution pipeline stage
-  Resolver::NameResolution::Resolve (parsed_crate);
+  if (flag_name_resolution_2_0)
+    // FIXME: Top level?
+    Resolver2_0::Late ().go (parsed_crate);
+  else
+    Resolver::NameResolution::Resolve (parsed_crate);
+
   if (options.dump_option_enabled (CompileOptions::RESOLUTION_DUMP))
     {
       // TODO: what do I dump here? resolved names? AST with resolved names?
@@ -866,7 +874,15 @@ Session::expansion (AST::Crate &crate)
   while (!fixed_point_reached && iterations < cfg.recursion_limit)
     {
       CfgStrip ().go (crate);
-      Resolver::EarlyNameResolver ().go (crate);
+
+      auto resolver = Resolver2_0::Resolver ();
+
+      if (flag_name_resolution_2_0)
+	// FIXME: Top level?
+	Resolver2_0::Early (resolver).go (crate);
+      else
+	Resolver::EarlyNameResolver ().go (crate);
+
       ExpandVisitor (expander).go (crate);
 
       fixed_point_reached = !expander.has_changed ();
