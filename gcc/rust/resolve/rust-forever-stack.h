@@ -89,6 +89,13 @@ private:
   public:
     Link (NodeId id, tl::optional<Identifier> path) : id (id), path (path) {}
 
+    bool compare (const Link &other) const
+    {
+      // FIXME: Do we need to do something with the path?
+      // Can they be equal?
+      return id < other.id;
+    }
+
     NodeId id;
     tl::optional<Identifier> path;
   };
@@ -96,11 +103,9 @@ private:
   class LinkCmp
   {
   public:
-    bool operator() (const Link &lhs, const Link &rhs)
+    bool operator() (const Link &lhs, const Link &rhs) const
     {
-      return lhs.id < rhs.id;
-      // FIXME: Do we need to do something with the path?
-      // Can they be equal?
+      return lhs.compare (rhs);
     }
   };
 

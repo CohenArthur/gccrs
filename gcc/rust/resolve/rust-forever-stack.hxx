@@ -163,7 +163,7 @@ ForeverStack<N>::reverse_iter () /* FIXME: Should take a lambda, right? */
     tmp = tmp.parent.value ();
 }
 
-inline template <Namespace N>
+template <Namespace N>
 tl::optional<NodeId>
 ForeverStack<N>::get (const Identifier &name)
 {}
