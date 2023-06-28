@@ -28,13 +28,9 @@ Early::Early (Resolver &resolver) : resolver (resolver) {}
 void
 Early::go (AST::Crate &crate)
 {
-  resolver.values.debug_str ();
-
   // First we go through TopLevel resolution to get all our declared items
   auto toplevel = TopLevel (resolver);
   toplevel.go (crate);
-
-  resolver.values.debug_str ();
 
   // Then we proceed to the proper "early" name resolution: Import and macro
   // name resolution
