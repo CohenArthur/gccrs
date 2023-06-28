@@ -217,7 +217,16 @@ TopLevel::visit (AST::ClosureExprInner &expr)
 
 void
 TopLevel::visit (AST::BlockExpr &expr)
-{}
+{
+  resolver.scoped (Rib (Rib::Kind::Normal), Namespace::Values,
+		   expr.get_node_id (), [this, &expr] () {
+		     for (auto &stmt : expr.get_statements ())
+		       stmt->accept_vis (*this);
+
+		     if (expr.has_tail_expr ())
+		       expr.get_tail_expr ()->accept_vis (*this);
+		   });
+}
 
 void
 TopLevel::visit (AST::ClosureExprInnerTyped &expr)
@@ -360,6 +369,8 @@ TopLevel::visit (AST::Function &function)
 {
   resolver.insert (function.get_function_name (), function.get_node_id (),
 		   Namespace::Values);
+
+  function.get_definition ()->accept_vis (*this);
 }
 
 void
