@@ -122,6 +122,8 @@ public:
   tl::optional<NodeId> get (const std::string &name);
 
   /* View all the values stored in the rib */
+  // FIXME: This doesn't return false if the value already exists? Or is it that
+  // our rib has changed?
   const std::unordered_map<std::string, NodeId> &get_values () const;
 
 private:

@@ -38,8 +38,15 @@ Rib::Rib (Kind kind, std::unordered_map<std::string, NodeId> values)
 tl::expected<NodeId, DuplicateNameError>
 Rib::insert (std::string name, NodeId id)
 {
-  auto res = values.insert ({name, id});
+  auto res = values.emplace (name, id);
   auto inserted_id = res.first->second;
+
+  for (const auto &kv : values)
+    rust_debug ("k: %s, v: %d", kv.first.c_str (), kv.second);
+
+  auto ok = res.second;
+  rust_debug ("Rib(%p), inserting `%s` (%d) -> Ok? %s", (void *) &values,
+	      name.c_str (), id, ok ? "yes" : "no");
 
   // if we couldn't insert, the element already exists - exit with an error
   if (!res.second)
@@ -55,7 +62,7 @@ Rib::get (const std::string &name)
   auto it = values.find (name);
 
   if (it == values.end ())
-    return {};
+    return tl::nullopt;
 
   return it->second;
 }
