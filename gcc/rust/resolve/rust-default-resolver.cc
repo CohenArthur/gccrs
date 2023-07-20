@@ -17,129 +17,281 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-default-resolver.h"
+#include "rust-ast-full.h"
 
 namespace Rust {
 namespace Resolver2_0 {
 
 void
-DefaultResolver::visit (AST::BlockExpr &)
-{}
+DefaultResolver::visit (AST::BlockExpr &expr)
+{
+  // extracting the lambda from the `scoped` call otherwise the code looks like
+  // a hot turd thanks to our .clang-format
+
+  auto inner_fn = [this, &expr] () {
+    for (auto &stmt : expr.get_statements ())
+      stmt->accept_vis (*this);
+
+    if (expr.has_tail_expr ())
+      expr.get_tail_expr ()->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Normal, expr.get_node_id (), inner_fn);
+}
 
 void
-DefaultResolver::visit (AST::Module &)
-{}
+DefaultResolver::visit (AST::Module &module)
+{
+  auto item_fn = [this, &module] () {
+    for (auto &item : module.get_items ())
+      item->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Module, module.get_node_id (), item_fn,
+		   module.get_name ());
+}
 
 void
-DefaultResolver::visit (AST::Function &)
-{}
+DefaultResolver::visit (AST::Function &function)
+{
+  auto def_fn = [this, &function] () {
+    for (auto &param : function.get_function_params ())
+      {
+	param.get_pattern ()->accept_vis (*this);
+	param.get_type ()->accept_vis (*this);
+      }
+
+    function.get_definition ()->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Function, function.get_node_id (), def_fn);
+}
 
 void
-DefaultResolver::visit (AST::Method &)
-{}
+DefaultResolver::visit (AST::Method &method)
+{
+  auto def_fn = [this, &method] () {
+    for (auto &param : method.get_function_params ())
+      {
+	param.get_pattern ()->accept_vis (*this);
+	param.get_type ()->accept_vis (*this);
+      }
+
+    method.get_definition ()->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Function, method.get_node_id (), def_fn);
+}
 
 void
-DefaultResolver::visit (AST::ForLoopExpr &)
-{}
+DefaultResolver::visit (AST::ForLoopExpr &expr)
+{
+  resolver.scoped (Rib::Kind::Normal, expr.get_node_id (), [this, &expr] () {
+    expr.get_pattern ()->accept_vis (*this);
+    expr.get_iterator_expr ()->accept_vis (*this);
+    expr.get_loop_block ()->accept_vis (*this);
+  });
+}
 
 void
-DefaultResolver::visit (AST::Trait &)
-{}
+DefaultResolver::visit (AST::Trait &trait)
+{
+  auto inner_fn = [this, &trait] () {
+    for (auto &item : trait.get_trait_items ())
+      item->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::TraitOrImpl, trait.get_node_id (), inner_fn,
+		   trait.get_identifier () /* FIXME: Is that valid?*/);
+}
 
 void
-DefaultResolver::visit (AST::InherentImpl &)
-{}
+DefaultResolver::visit (AST::InherentImpl &impl)
+{
+  auto inner_fn = [this, &impl] () {
+    for (auto &item : impl.get_impl_items ())
+      item->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::TraitOrImpl, impl.get_node_id (), inner_fn);
+}
 
 void
-DefaultResolver::visit (AST::TraitImpl &)
-{}
+DefaultResolver::visit (AST::TraitImpl &impl)
+{
+  auto inner_fn = [this, &impl] () {
+    for (auto &item : impl.get_impl_items ())
+      item->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::TraitOrImpl, impl.get_node_id (), inner_fn);
+}
 
 void
-DefaultResolver::visit (AST::ExternBlock &)
-{}
+DefaultResolver::visit (AST::ExternBlock &block)
+{
+  auto inner_fn = [this, &block] () {
+    for (auto &item : block.get_extern_items ())
+      item->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Normal /* FIXME: Correct? */,
+		   block.get_node_id (), inner_fn);
+}
 
 void
-DefaultResolver::visit (AST::StructStruct &)
-{}
+DefaultResolver::visit (AST::StructStruct &type)
+{
+  // do we need to scope anything here? no, right?
+
+  // we also can't visit `StructField`s by default, so there's nothing to do -
+  // correct? or should we do something like
+
+  for (auto &field : type.get_fields ())
+    field.get_field_type ()->accept_vis (*this);
+
+  // FIXME: ???
+}
 
 void
-DefaultResolver::visit (AST::TupleStruct &)
-{}
+DefaultResolver::visit (AST::TupleStruct &type)
+{
+  for (auto &field : type.get_fields ())
+    field.get_field_type ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::Enum &)
-{}
+DefaultResolver::visit (AST::Union &type)
+{
+  for (auto &field : type.get_variants ())
+    field.get_field_type ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::Union &)
-{}
+DefaultResolver::visit (AST::Enum &type)
+{
+  // FIXME: Do we need to scope anything by default?
+
+  auto variant_fn = [this, &type] () {
+    for (auto &variant : type.get_variants ())
+      variant->accept_vis (*this);
+  };
+
+  resolver.scoped (Rib::Kind::Item /* FIXME: Correct? */, type.get_node_id (),
+		   variant_fn, type.get_identifier ());
+}
 
 void
-DefaultResolver::visit (AST::BorrowExpr &)
-{}
+DefaultResolver::visit (AST::BorrowExpr &expr)
+{
+  expr.get_borrowed_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::DereferenceExpr &)
-{}
+DefaultResolver::visit (AST::DereferenceExpr &expr)
+{
+  expr.get_dereferenced_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ErrorPropagationExpr &)
-{}
+DefaultResolver::visit (AST::ErrorPropagationExpr &expr)
+{
+  expr.get_propagating_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::NegationExpr &)
-{}
+DefaultResolver::visit (AST::NegationExpr &expr)
+{
+  expr.get_negated_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ArithmeticOrLogicalExpr &)
-{}
+DefaultResolver::visit (AST::ArithmeticOrLogicalExpr &expr)
+{
+  expr.get_left_expr ()->accept_vis (*this);
+  expr.get_right_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ComparisonExpr &)
-{}
+DefaultResolver::visit (AST::ComparisonExpr &expr)
+{
+  expr.get_left_expr ()->accept_vis (*this);
+  expr.get_right_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::LazyBooleanExpr &)
-{}
+DefaultResolver::visit (AST::LazyBooleanExpr &expr)
+{
+  expr.get_left_expr ()->accept_vis (*this);
+  expr.get_right_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::TypeCastExpr &)
-{}
+DefaultResolver::visit (AST::TypeCastExpr &expr)
+{
+  expr.get_type_to_cast_to ()->accept_vis (*this);
+  expr.get_casted_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::AssignmentExpr &)
-{}
+DefaultResolver::visit (AST::AssignmentExpr &expr)
+{
+  expr.get_left_expr ()->accept_vis (*this);
+  expr.get_right_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::CompoundAssignmentExpr &)
-{}
+DefaultResolver::visit (AST::CompoundAssignmentExpr &expr)
+{
+  expr.get_left_expr ()->accept_vis (*this);
+  expr.get_right_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::GroupedExpr &)
-{}
+DefaultResolver::visit (AST::GroupedExpr &expr)
+{
+  expr.get_expr_in_parens ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ArrayElemsValues &)
-{}
+DefaultResolver::visit (AST::ArrayElemsValues &array)
+{
+  for (auto &value : array.get_values ())
+    value->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ArrayElemsCopied &)
-{}
+DefaultResolver::visit (AST::ArrayElemsCopied &array)
+{
+  array.get_elem_to_copy ()->accept_vis (*this);
+  array.get_num_copies ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ArrayExpr &)
-{}
+DefaultResolver::visit (AST::ArrayExpr &expr)
+{
+  expr.get_array_elems ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ArrayIndexExpr &)
-{}
+DefaultResolver::visit (AST::ArrayIndexExpr &expr)
+{
+  expr.get_array_expr ()->accept_vis (*this);
+  expr.get_index_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::TupleExpr &)
-{}
+DefaultResolver::visit (AST::TupleExpr &expr)
+{
+  for (auto &element : expr.get_tuple_elems ())
+    element->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::TupleIndexExpr &)
-{}
+DefaultResolver::visit (AST::TupleIndexExpr &expr)
+{
+  expr.get_tuple_expr ()->accept_vis (*this);
+}
 
 void
 DefaultResolver::visit (AST::StructExprFieldIdentifierValue &)
@@ -150,15 +302,15 @@ DefaultResolver::visit (AST::StructExprFieldIndexValue &)
 {}
 
 void
-DefaultResolver::visit (AST::CallExpr &)
+DefaultResolver::visit (AST::CallExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::MethodCallExpr &)
+DefaultResolver::visit (AST::MethodCallExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::FieldAccessExpr &)
+DefaultResolver::visit (AST::FieldAccessExpr &expr)
 {}
 
 void
@@ -170,59 +322,59 @@ DefaultResolver::visit (AST::ClosureExprInnerTyped &)
 {}
 
 void
-DefaultResolver::visit (AST::ContinueExpr &)
+DefaultResolver::visit (AST::ContinueExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::BreakExpr &)
+DefaultResolver::visit (AST::BreakExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeFromToExpr &)
+DefaultResolver::visit (AST::RangeFromToExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeFromExpr &)
+DefaultResolver::visit (AST::RangeFromExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeToExpr &)
+DefaultResolver::visit (AST::RangeToExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeFullExpr &)
+DefaultResolver::visit (AST::RangeFullExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeFromToInclExpr &)
+DefaultResolver::visit (AST::RangeFromToInclExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::RangeToInclExpr &)
+DefaultResolver::visit (AST::RangeToInclExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::ReturnExpr &)
+DefaultResolver::visit (AST::ReturnExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::UnsafeBlockExpr &)
+DefaultResolver::visit (AST::UnsafeBlockExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::LoopExpr &)
+DefaultResolver::visit (AST::LoopExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::WhileLoopExpr &)
+DefaultResolver::visit (AST::WhileLoopExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::WhileLetLoopExpr &)
+DefaultResolver::visit (AST::WhileLetLoopExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::IfExpr &)
+DefaultResolver::visit (AST::IfExpr &expr)
 {}
 
 void
@@ -230,7 +382,7 @@ DefaultResolver::visit (AST::IfExprConseqElse &)
 {}
 
 void
-DefaultResolver::visit (AST::IfLetExpr &)
+DefaultResolver::visit (AST::IfLetExpr &expr)
 {}
 
 void
@@ -238,15 +390,15 @@ DefaultResolver::visit (AST::IfLetExprConseqElse &)
 {}
 
 void
-DefaultResolver::visit (AST::MatchExpr &)
+DefaultResolver::visit (AST::MatchExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::AwaitExpr &)
+DefaultResolver::visit (AST::AwaitExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::AsyncBlockExpr &)
+DefaultResolver::visit (AST::AsyncBlockExpr &expr)
 {}
 
 void
@@ -270,7 +422,7 @@ DefaultResolver::visit (AST::AttrInputMetaItemContainer &)
 {}
 
 void
-DefaultResolver::visit (AST::IdentifierExpr &)
+DefaultResolver::visit (AST::IdentifierExpr &expr)
 {}
 
 void
@@ -314,7 +466,7 @@ DefaultResolver::visit (AST::QualifiedPathInType &)
 {}
 
 void
-DefaultResolver::visit (AST::LiteralExpr &)
+DefaultResolver::visit (AST::LiteralExpr &expr)
 {}
 
 void
@@ -326,7 +478,7 @@ DefaultResolver::visit (AST::AttrInputMacro &)
 {}
 
 void
-DefaultResolver::visit (AST::MetaItemLitExpr &)
+DefaultResolver::visit (AST::MetaItemLitExpr &expr)
 {}
 
 void

@@ -56,8 +56,8 @@ public:
   // type dec nodes, which visit their fields or variants by default
   void visit (AST::StructStruct &);
   void visit (AST::TupleStruct &);
-  void visit (AST::Enum &);
   void visit (AST::Union &);
+  void visit (AST::Enum &);
 
   // Visitors that visit their expression node
   void visit (AST::BorrowExpr &);
