@@ -23,7 +23,7 @@
 namespace Rust {
 namespace Resolver2_0 {
 
-Early::Early (Resolver &resolver) : resolver (resolver) {}
+Early::Early (Resolver &resolver) : DefaultResolver (resolver) {}
 
 void
 Early::go (AST::Crate &crate)

@@ -22,22 +22,19 @@
 #include "rust-ast.h"
 #include "rust-ast-visitor.h"
 #include "rust-name-resolver-2.0.h"
-#include "rust-ast-resolve-base.h"
+#include "rust-default-resolver.h"
 
 namespace Rust {
 namespace Resolver2_0 {
 
-class Early : public ::Rust::Resolver::ResolverBase
+class Early : public DefaultResolver
 {
-  using ::Rust::Resolver::ResolverBase::visit;
+  using DefaultResolver::visit;
 
 public:
   Early (Resolver &resolver);
 
   void go (AST::Crate &crate);
-
-private:
-  Resolver &resolver;
 };
 
 } // namespace Resolver2_0
