@@ -49,6 +49,8 @@ Rib::insert (std::string name, NodeId id)
 	      name.c_str (), id, ok ? "yes" : "no");
 
   // if we couldn't insert, the element already exists - exit with an error
+  // this is okay if we allow shadowing tho - like macros or labels
+  // how do we deal with this? `bool can_shadow = false`? TODO XXX
   if (!res.second)
     return tl::make_unexpected (DuplicateNameError (name, inserted_id));
 
