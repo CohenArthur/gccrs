@@ -94,7 +94,10 @@ TopLevel::visit (AST::Method &method)
 {
   insert_or_error_out (method.get_method_name (), method, Namespace::Values);
 
-  method.get_definition ()->accept_vis (*this);
+  auto def_fn
+    = [this, &method] () { method.get_definition ()->accept_vis (*this); };
+
+  resolver.scoped (Rib::Kind::Function, method.get_node_id (), def_fn);
 }
 
 void
