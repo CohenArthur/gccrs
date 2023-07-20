@@ -35,6 +35,12 @@ public:
   Early (Resolver &resolver);
 
   void go (AST::Crate &crate);
+
+  void visit (AST::MacroInvocation &) override;
+  void visit (AST::UseDeclaration &) override;
+  void visit (AST::UseTreeRebind &) override;
+  void visit (AST::UseTreeList &) override;
+  void visit (AST::UseTreeGlob &) override;
 };
 
 } // namespace Resolver2_0

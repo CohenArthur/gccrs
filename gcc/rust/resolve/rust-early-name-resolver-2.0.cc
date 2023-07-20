@@ -43,5 +43,42 @@ Early::go (AST::Crate &crate)
     item->accept_vis (*this);
 }
 
+void
+Early::visit (AST::MacroInvocation &invoc)
+{
+  auto definition
+    = resolver
+	/* FIXME: Invalid: we can't use `as_string` here, we need to do path
+	   resolution */
+	.macros.get (invoc.get_invoc_data ().get_path ().as_string ());
+
+  rust_debug_loc (invoc.get_locus (), "[ARTHUR]: definition found: %d",
+		  *definition);
+}
+
+void
+Early::visit (AST::UseDeclaration &use)
+{
+  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
+}
+
+void
+Early::visit (AST::UseTreeRebind &use)
+{
+  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
+}
+
+void
+Early::visit (AST::UseTreeList &use)
+{
+  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
+}
+
+void
+Early::visit (AST::UseTreeGlob &use)
+{
+  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
+}
+
 } // namespace Resolver2_0
 } // namespace Rust
