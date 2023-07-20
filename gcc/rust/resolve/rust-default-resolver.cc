@@ -402,12 +402,22 @@ DefaultResolver::visit (AST::AsyncBlockExpr &expr)
 {}
 
 void
-DefaultResolver::visit (AST::LetStmt &)
-{}
+DefaultResolver::visit (AST::LetStmt &let_stmt)
+{
+  let_stmt.get_pattern ()->accept_vis (*this);
+
+  if (let_stmt.has_type ())
+    let_stmt.get_type ()->accept_vis (*this);
+
+  if (let_stmt.has_init_expr ())
+    let_stmt.get_init_expr ()->accept_vis (*this);
+}
 
 void
-DefaultResolver::visit (AST::ExprStmt &)
-{}
+DefaultResolver::visit (AST::ExprStmt &stmt)
+{
+  stmt.get_expr ()->accept_vis (*this);
+}
 
 void
 DefaultResolver::visit (AST::Token &)
@@ -554,12 +564,22 @@ DefaultResolver::visit (AST::EnumItemDiscriminant &)
 {}
 
 void
-DefaultResolver::visit (AST::ConstantItem &)
-{}
+DefaultResolver::visit (AST::ConstantItem &item)
+{
+  auto expr_vis = [this, &item] () { item.get_expr ()->accept_vis (*this); };
+
+  // FIXME: Why do we need a Rib here?
+  resolver.scoped (Rib::Kind::Item, item.get_node_id (), expr_vis);
+}
 
 void
-DefaultResolver::visit (AST::StaticItem &)
-{}
+DefaultResolver::visit (AST::StaticItem &item)
+{
+  auto expr_vis = [this, &item] () { item.get_expr ()->accept_vis (*this); };
+
+  // FIXME: Why do we need a Rib here?
+  resolver.scoped (Rib::Kind::ConstantItem, item.get_node_id (), expr_vis);
+}
 
 void
 DefaultResolver::visit (AST::TraitItemFunc &)
