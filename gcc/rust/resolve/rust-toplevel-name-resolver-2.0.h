@@ -21,7 +21,7 @@
 
 #include "rust-ast-visitor.h"
 #include "rust-name-resolver-2.0.h"
-#include "rust-ast-resolve-base.h"
+#include "rust-default-resolver.h"
 
 namespace Rust {
 namespace Resolver2_0 {
@@ -31,10 +31,9 @@ namespace Resolver2_0 {
  * crate, and inserting them into the proper namespaces. These definitions can
  * then be accessed by subsequent resolvers, such as `Early` or `Late`.
  */
-// TODO: Merge Resolver namespaces and use `public ResolverBase`
-class TopLevel : public ::Rust::Resolver::ResolverBase
+class TopLevel : public DefaultResolver
 {
-  using ::Rust::Resolver::ResolverBase::visit;
+  using DefaultResolver::visit;
 
 public:
   TopLevel (Resolver &resolver);
@@ -42,8 +41,6 @@ public:
   void go (AST::Crate &crate);
 
 private:
-  Resolver &resolver;
-
   // FIXME: Documentation
   template <typename T>
   void insert_or_error_out (const Identifier &identifier, const T &node,

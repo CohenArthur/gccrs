@@ -23,7 +23,7 @@
 namespace Rust {
 namespace Resolver2_0 {
 
-TopLevel::TopLevel (Resolver &resolver) : resolver (resolver) {}
+TopLevel::TopLevel (Resolver &resolver) : DefaultResolver (resolver) {}
 
 template <typename T>
 void
