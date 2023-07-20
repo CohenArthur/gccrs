@@ -22,6 +22,242 @@ namespace Rust {
 namespace Resolver2_0 {
 
 void
+DefaultResolver::visit (AST::BlockExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::Module &)
+{}
+
+void
+DefaultResolver::visit (AST::Function &)
+{}
+
+void
+DefaultResolver::visit (AST::Method &)
+{}
+
+void
+DefaultResolver::visit (AST::ForLoopExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::Trait &)
+{}
+
+void
+DefaultResolver::visit (AST::InherentImpl &)
+{}
+
+void
+DefaultResolver::visit (AST::TraitImpl &)
+{}
+
+void
+DefaultResolver::visit (AST::ExternBlock &)
+{}
+
+void
+DefaultResolver::visit (AST::StructStruct &)
+{}
+
+void
+DefaultResolver::visit (AST::TupleStruct &)
+{}
+
+void
+DefaultResolver::visit (AST::Enum &)
+{}
+
+void
+DefaultResolver::visit (AST::Union &)
+{}
+
+void
+DefaultResolver::visit (AST::BorrowExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::DereferenceExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ErrorPropagationExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::NegationExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ArithmeticOrLogicalExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ComparisonExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::LazyBooleanExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::TypeCastExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::AssignmentExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::CompoundAssignmentExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::GroupedExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ArrayElemsValues &)
+{}
+
+void
+DefaultResolver::visit (AST::ArrayElemsCopied &)
+{}
+
+void
+DefaultResolver::visit (AST::ArrayExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ArrayIndexExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::TupleExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::TupleIndexExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::StructExprFieldIdentifierValue &)
+{}
+
+void
+DefaultResolver::visit (AST::StructExprFieldIndexValue &)
+{}
+
+void
+DefaultResolver::visit (AST::CallExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::MethodCallExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::FieldAccessExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ClosureExprInner &)
+{}
+
+void
+DefaultResolver::visit (AST::ClosureExprInnerTyped &)
+{}
+
+void
+DefaultResolver::visit (AST::ContinueExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::BreakExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeFromToExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeFromExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeToExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeFullExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeFromToInclExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::RangeToInclExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::ReturnExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::UnsafeBlockExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::LoopExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::WhileLoopExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::WhileLetLoopExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::IfExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::IfExprConseqElse &)
+{}
+
+void
+DefaultResolver::visit (AST::IfLetExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::IfLetExprConseqElse &)
+{}
+
+void
+DefaultResolver::visit (AST::MatchExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::AwaitExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::AsyncBlockExpr &)
+{}
+
+void
+DefaultResolver::visit (AST::LetStmt &)
+{}
+
+void
+DefaultResolver::visit (AST::ExprStmt &)
+{}
+
+void
 DefaultResolver::visit (AST::Token &)
 {}
 
@@ -98,74 +334,6 @@ DefaultResolver::visit (AST::MetaItemPathLit &)
 {}
 
 void
-DefaultResolver::visit (AST::BorrowExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::DereferenceExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ErrorPropagationExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::NegationExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ArithmeticOrLogicalExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ComparisonExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::LazyBooleanExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::TypeCastExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::AssignmentExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::CompoundAssignmentExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::GroupedExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ArrayElemsValues &)
-{}
-
-void
-DefaultResolver::visit (AST::ArrayElemsCopied &)
-{}
-
-void
-DefaultResolver::visit (AST::ArrayExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ArrayIndexExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::TupleExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::TupleIndexExpr &)
-{}
-
-void
 DefaultResolver::visit (AST::StructExprStruct &)
 {}
 
@@ -174,127 +342,11 @@ DefaultResolver::visit (AST::StructExprFieldIdentifier &)
 {}
 
 void
-DefaultResolver::visit (AST::StructExprFieldIdentifierValue &)
-{}
-
-void
-DefaultResolver::visit (AST::StructExprFieldIndexValue &)
-{}
-
-void
 DefaultResolver::visit (AST::StructExprStructFields &)
 {}
 
 void
 DefaultResolver::visit (AST::StructExprStructBase &)
-{}
-
-void
-DefaultResolver::visit (AST::CallExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::MethodCallExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::FieldAccessExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ClosureExprInner &)
-{}
-
-void
-DefaultResolver::visit (AST::BlockExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ClosureExprInnerTyped &)
-{}
-
-void
-DefaultResolver::visit (AST::ContinueExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::BreakExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeFromToExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeFromExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeToExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeFullExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeFromToInclExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::RangeToInclExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ReturnExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::UnsafeBlockExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::LoopExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::WhileLoopExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::WhileLetLoopExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::ForLoopExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::IfExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::IfExprConseqElse &)
-{}
-
-void
-DefaultResolver::visit (AST::IfLetExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::IfLetExprConseqElse &)
-{}
-
-void
-DefaultResolver::visit (AST::MatchExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::AwaitExpr &)
-{}
-
-void
-DefaultResolver::visit (AST::AsyncBlockExpr &)
 {}
 
 void
@@ -307,14 +359,6 @@ DefaultResolver::visit (AST::LifetimeWhereClauseItem &)
 
 void
 DefaultResolver::visit (AST::TypeBoundWhereClauseItem &)
-{}
-
-void
-DefaultResolver::visit (AST::Method &)
-{}
-
-void
-DefaultResolver::visit (AST::Module &)
 {}
 
 void
@@ -338,19 +382,7 @@ DefaultResolver::visit (AST::UseDeclaration &)
 {}
 
 void
-DefaultResolver::visit (AST::Function &)
-{}
-
-void
 DefaultResolver::visit (AST::TypeAlias &)
-{}
-
-void
-DefaultResolver::visit (AST::StructStruct &)
-{}
-
-void
-DefaultResolver::visit (AST::TupleStruct &)
 {}
 
 void
@@ -367,14 +399,6 @@ DefaultResolver::visit (AST::EnumItemStruct &)
 
 void
 DefaultResolver::visit (AST::EnumItemDiscriminant &)
-{}
-
-void
-DefaultResolver::visit (AST::Enum &)
-{}
-
-void
-DefaultResolver::visit (AST::Union &)
 {}
 
 void
@@ -402,18 +426,6 @@ DefaultResolver::visit (AST::TraitItemType &)
 {}
 
 void
-DefaultResolver::visit (AST::Trait &)
-{}
-
-void
-DefaultResolver::visit (AST::InherentImpl &)
-{}
-
-void
-DefaultResolver::visit (AST::TraitImpl &)
-{}
-
-void
 DefaultResolver::visit (AST::ExternalTypeItem &)
 {}
 
@@ -423,10 +435,6 @@ DefaultResolver::visit (AST::ExternalStaticItem &)
 
 void
 DefaultResolver::visit (AST::ExternalFunctionItem &)
-{}
-
-void
-DefaultResolver::visit (AST::ExternBlock &)
 {}
 
 void
@@ -563,14 +571,6 @@ DefaultResolver::visit (AST::AltPattern &)
 
 void
 DefaultResolver::visit (AST::EmptyStmt &)
-{}
-
-void
-DefaultResolver::visit (AST::LetStmt &)
-{}
-
-void
-DefaultResolver::visit (AST::ExprStmt &)
 {}
 
 void
