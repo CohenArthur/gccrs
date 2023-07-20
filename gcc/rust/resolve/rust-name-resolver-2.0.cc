@@ -22,7 +22,8 @@ namespace Rust {
 namespace Resolver2_0 {
 
 tl::expected<NodeId, DuplicateNameError>
-Resolver::insert (Identifier name, NodeId id, Namespace ns)
+Resolver::insert (Identifier name, NodeId id,
+		  Namespace ns /* FIXME: Add a `can_shadow` bool? */)
 {
   switch (ns)
     {
