@@ -171,6 +171,13 @@ ForeverStack<N>::get (const Identifier &name)
   return {};
 }
 
+template <>
+tl::optional<NodeId>
+ForeverStack<Namespace::Macros>::get (const Identifier &name)
+{
+  return {};
+}
+
 // TODO: Are there different fetching behavior for different namespaces?
 // inline template <>
 // tl::optional<NodeId>
