@@ -16,6 +16,8 @@
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#include "expected.h"
+#include "rust-diagnostics.h"
 #include "rust-forever-stack.h"
 #include "rust-rib.h"
 #include "optional.h"
@@ -97,6 +99,12 @@ ForeverStack<N>::pop ()
   update_cursor (cursor ().parent.value ());
 }
 
+static tl::expected<NodeId, DuplicateNameError>
+insert_inner (Rib &rib, std::string name, NodeId node, bool can_shadow)
+{
+  return rib.insert (name, node, can_shadow);
+}
+
 template <Namespace N>
 tl::expected<NodeId, DuplicateNameError>
 ForeverStack<N>::insert (Identifier name, NodeId node)
@@ -107,7 +115,23 @@ ForeverStack<N>::insert (Identifier name, NodeId node)
   // pass, we might end up in a situation where it is okay to re-add new names.
   // Do we just ignore that here? Do we keep track of if the Rib is new or not?
   // should our cursor have info on the current node like "is it newly pushed"?
-  return innermost_rib.insert (name.as_string (), node);
+  return insert_inner (innermost_rib, name.as_string (), node, false);
+}
+
+// Specialization for Macros and Labels - where we are allowed to shadow
+// existing definitions
+template <>
+inline tl::expected<NodeId, DuplicateNameError>
+ForeverStack<Namespace::Macros>::insert (Identifier name, NodeId node)
+{
+  return insert_inner (peek (), name.as_string (), node, true);
+}
+
+template <>
+inline tl::expected<NodeId, DuplicateNameError>
+ForeverStack<Namespace::Labels>::insert (Identifier name, NodeId node)
+{
+  return insert_inner (peek (), name.as_string (), node, true);
 }
 
 template <Namespace N>
@@ -132,7 +156,7 @@ ForeverStack<N>::reverse_iter (std::function<KeepGoing (Rib &)> lambda)
 
   while (true)
     {
-      auto keep_going = lambda (tmp);
+      auto keep_going = lambda (tmp.rib);
       if (keep_going == KeepGoing::No)
 	return;
 
@@ -168,23 +192,140 @@ template <Namespace N>
 tl::optional<NodeId>
 ForeverStack<N>::get (const Identifier &name)
 {
-  return {};
+  return tl::nullopt;
 }
 
 template <>
-tl::optional<NodeId>
+inline tl::optional<NodeId>
 ForeverStack<Namespace::Macros>::get (const Identifier &name)
 {
-  return {};
+  tl::optional<NodeId> resolved_node = tl::nullopt;
+
+  // TODO: Can we improve the API? have `reverse_iter` return an optional?
+  reverse_iter ([&resolved_node, &name] (Rib &current) {
+    auto candidate = current.get (name.as_string ());
+
+    return candidate.map_or (
+      [&resolved_node] (NodeId found) {
+	// macro resolving does not need to care about various ribs - they are
+	// available from all contexts if defined in the current scope, or an
+	// outermore one. so if we do have a candidate, we can return it
+	// directly and stop iterating
+	resolved_node = found;
+
+	return KeepGoing::No;
+      },
+      // if there was no candidate, we keep iterating
+      KeepGoing::Yes);
+  });
+
+  return resolved_node;
 }
 
-// TODO: Are there different fetching behavior for different namespaces?
-// inline template <>
-// tl::optional<NodeId>
-// ForeverStack<Namespace::Values>::get (const Identifier &name)
-// {
-//   return {};
-// }
+template <Namespace N>
+tl::optional<NodeId>
+ForeverStack<N>::resolve_path (const AST::SimplePath &path)
+{
+  // we first need to handle the "starting" segments - `super`, `self` or
+  // `crate`. we don't need to do anything for `self` and can just skip it. for
+  // `crate`, we need to go back to the root of the current stack. for each
+  // `super` segment, we go back to the cursor's parent until we reach the
+  // correct one or the root.
+  auto starting_point = cursor ();
+  auto segments = path.get_segments ();
+  auto iterator = segments.begin ();
+
+  for (; iterator + 1 != segments.end (); iterator++)
+    {
+      auto seg = *iterator;
+
+      if (seg.is_crate_path_seg ())
+	{
+	  starting_point = root;
+	  iterator++;
+	  break;
+	}
+      if (seg.is_lower_self ())
+	{
+	  // do nothing and exit
+	  iterator++;
+	  break;
+	}
+      if (seg.is_super_path_seg ())
+	{
+	  if (starting_point.is_root ())
+	    {
+	      rust_error_at (seg.get_locus (), ErrorCode ("E0433"),
+			     "there are too many leading keywords and you're a "
+			     "dumbass. count them. sigh");
+	      return tl::nullopt;
+	    }
+
+	  starting_point = starting_point.parent.value ();
+	  continue;
+	}
+
+      // now we've gone through the allowd `crate`, `self` or leading `super`
+      // segments. we update the index and start resolving each segment itself.
+      // if we do see an other leading segment, then we can error out.
+      iterator++;
+      break;
+    }
+
+  auto *current_node = &starting_point;
+  for (; iterator + 1 != segments.end (); iterator++)
+    {
+      auto &seg = *iterator;
+      auto str = seg.as_string ();
+
+      if (seg.is_crate_path_seg () || seg.is_super_path_seg ()
+	  || seg.is_lower_self ())
+	{
+	  rust_error_at (
+	    seg.get_locus (), ErrorCode ("E0433"),
+	    "leading keyword %qs can only be used at the beginning of a path",
+	    str.c_str ());
+	  return tl::nullopt;
+	}
+
+      tl::optional<Node &> child = tl::nullopt;
+
+      for (auto &kv : current_node->children)
+	rust_debug ("[ARTHUR] child link: `%s`",
+		    kv.first.path.has_value ()
+		      ? kv.first.path.value ().as_string ().c_str ()
+		      : "<anon>");
+
+      for (auto &kv : current_node->children)
+	{
+	  auto &link = kv.first;
+
+	  if (link.path.map_or (
+		[&str] (Identifier path) {
+		  auto &path_str = path.as_string ();
+		  return str == path_str;
+		},
+		false))
+	    {
+	      child = kv.second;
+	      break;
+	    }
+	}
+
+      if (!child.has_value ())
+	{
+	  rust_error_at (seg.get_locus (), ErrorCode ("E0433"),
+			 "failed to resolve path segment %qs", str.c_str ());
+	  return tl::nullopt;
+	}
+
+      current_node = &child.value ();
+    }
+
+  auto last_seg = path.get_final_segment ().as_string ();
+
+  return current_node->rib.get (last_seg);
+}
 
 template <Namespace N>
 void

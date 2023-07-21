@@ -450,7 +450,12 @@ public:
    * @return a valid option with the NodeId if the identifier is present in the
    *         current map, an empty one otherwise.
    */
-  inline tl::optional<NodeId> get (const Identifier &name);
+  tl::optional<NodeId> get (const Identifier &name);
+
+  // TODO: Rename? `resolve_path`? Probably yeah, since it's not just a "get" -
+  // it's more involved and does not need to be specialized
+  // TODO: Does it?
+  tl::optional<NodeId> resolve_path (const AST::SimplePath &path);
 
   // TODO: Should we dump to a file instead, like the other dumps? Or just print
   // the string to a file in the SessionManager?
