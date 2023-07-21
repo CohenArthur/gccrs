@@ -38,7 +38,7 @@ public:
   // FIXME: Do we need this?
   // is there an easy way to overload the visitors we don't need in a derived
   // class?
-  template <typename T> void do_nothing (T &){};
+  template <typename T> void do_nothing (T &) {}
 
   // First, our lexical scope expressions - these visit their sub nodes, always
   // these nodes create new scopes and ribs - they are often used to declare new
