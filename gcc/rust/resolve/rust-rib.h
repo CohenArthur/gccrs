@@ -107,12 +107,14 @@ public:
    *
    * @param name The name associated with the AST node
    * @param id Its NodeId
+   * @param can_shadow If the newly inserted value can shadow an existing one
    *
    * @return `DuplicateNameError` if the node is already present in the rib. The
    *         `DuplicateNameError` class contains the NodeId of the existing
    * node. Returns the new NodeId on success.
    */
-  tl::expected<NodeId, DuplicateNameError> insert (std::string name, NodeId id);
+  tl::expected<NodeId, DuplicateNameError> insert (std::string name, NodeId id,
+						   bool can_shadow = false);
 
   /**
    * Access an inserted NodeId.

@@ -36,22 +36,15 @@ Rib::Rib (Kind kind, std::unordered_map<std::string, NodeId> values)
 {}
 
 tl::expected<NodeId, DuplicateNameError>
-Rib::insert (std::string name, NodeId id)
+Rib::insert (std::string name, NodeId id, bool can_shadow)
 {
   auto res = values.emplace (name, id);
   auto inserted_id = res.first->second;
+  auto existed = !res.second;
 
-  for (const auto &kv : values)
-    rust_debug ("k: %s, v: %d", kv.first.c_str (), kv.second);
-
-  auto ok = res.second;
-  rust_debug ("Rib(%p), inserting `%s` (%d) -> Ok? %s", (void *) &values,
-	      name.c_str (), id, ok ? "yes" : "no");
-
-  // if we couldn't insert, the element already exists - exit with an error
-  // this is okay if we allow shadowing tho - like macros or labels
-  // how do we deal with this? `bool can_shadow = false`? TODO XXX
-  if (!res.second)
+  // if we couldn't insert, the element already exists - exit with an error,
+  // unless shadowing is allowed
+  if (existed && !can_shadow)
     return tl::make_unexpected (DuplicateNameError (name, inserted_id));
 
   // return the NodeId
