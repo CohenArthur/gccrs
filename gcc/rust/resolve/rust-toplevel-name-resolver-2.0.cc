@@ -43,8 +43,8 @@ TopLevel::insert_or_error_out (const Identifier &identifier, const T &node,
       rich_location rich_loc (line_table, loc);
       rich_loc.add_range (node_locations[result.error ().existing]);
 
-      rust_error_at (rich_loc, "already defined", result.error ().name.c_str (),
-		     result.error ().existing);
+      rust_error_at (rich_loc, "already defined: %s at %d",
+		     result.error ().name.c_str (), result.error ().existing);
     }
 }
 
