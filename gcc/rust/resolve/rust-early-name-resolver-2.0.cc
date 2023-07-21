@@ -36,6 +36,8 @@ Early::go (AST::Crate &crate)
 	      resolver.values.as_debug_string ().c_str ());
   rust_debug ("[ARTHUR] toplevel types:\n%s",
 	      resolver.types.as_debug_string ().c_str ());
+  rust_debug ("[ARTHUR] toplevel macros:\n%s",
+	      resolver.macros.as_debug_string ().c_str ());
 
   // Then we proceed to the proper "early" name resolution: Import and macro
   // name resolution
@@ -47,13 +49,22 @@ void
 Early::visit (AST::MacroInvocation &invoc)
 {
   auto definition
-    = resolver
-	/* FIXME: Invalid: we can't use `as_string` here, we need to do path
-	   resolution */
-	.macros.get (invoc.get_invoc_data ().get_path ().as_string ());
+    = resolver.macros.resolve_path (invoc.get_invoc_data ().get_path ());
+
+  if (!definition.has_value ())
+    {
+      rust_error_at (invoc.get_locus (), "could not resolve macro invocation");
+      return;
+    }
+
+  //  auto definition
+  //    = resolver
+  // /* FIXME: Invalid: we can't use `as_string` here, we need to do path
+  //    resolution */
+  // .macros.get (invoc.get_invoc_data ().get_path ().as_string ());
 
   rust_debug_loc (invoc.get_locus (), "[ARTHUR]: definition found: %d",
-		  *definition);
+		  definition.value ());
 }
 
 void
