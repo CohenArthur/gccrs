@@ -528,6 +528,19 @@ private:
 		   const std::string &next, const std::string &next_next);
   void stream_node (std::stringstream &stream, unsigned indentation,
 		    const Node &node);
+
+  /* Helper types and functions for `resolve_path` */
+
+  using SegIterator = std::vector<AST::SimplePathSegment>::const_iterator;
+
+  tl::optional<SegIterator>
+  find_starting_point (const std::vector<AST::SimplePathSegment> &segments,
+		       Node &starting_point);
+
+  tl::optional<Node &>
+  resolve_segments (Node &starting_point,
+		    const std::vector<AST::SimplePathSegment> &segments,
+		    SegIterator iterator);
 };
 
 } // namespace Resolver2_0

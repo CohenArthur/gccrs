@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "expected.h"
+#include "rust-ast.h"
 #include "rust-diagnostics.h"
 #include "rust-forever-stack.h"
 #include "rust-rib.h"
@@ -222,20 +223,28 @@ ForeverStack<Namespace::Macros>::get (const Identifier &name)
   return resolved_node;
 }
 
-template <Namespace N>
-tl::optional<NodeId>
-ForeverStack<N>::resolve_path (const AST::SimplePath &path)
+/* Check if an iterator points to the last element */
+template <typename T, typename IterT>
+static bool
+is_last (const T &iterator, const IterT &collection)
 {
-  // we first need to handle the "starting" segments - `super`, `self` or
-  // `crate`. we don't need to do anything for `self` and can just skip it. for
-  // `crate`, we need to go back to the root of the current stack. for each
-  // `super` segment, we go back to the cursor's parent until we reach the
-  // correct one or the root.
-  auto starting_point = cursor ();
-  auto segments = path.get_segments ();
+  return iterator + 1 == collection.end ();
+}
+
+template <Namespace N>
+tl::optional<std::vector<AST::SimplePathSegment>::const_iterator>
+ForeverStack<N>::find_starting_point (
+  const std::vector<AST::SimplePathSegment> &segments, Node &starting_point)
+{
   auto iterator = segments.begin ();
 
-  for (; iterator + 1 != segments.end (); iterator++)
+  // TODO: Similarly, if we just start looking from where we are, we might be
+  // inside of a function with no modules defined we need to go back up to the
+  // parent module. not sure how to do that properly.
+
+  // let's clean this up first
+
+  for (; !is_last (iterator, segments); iterator++)
     {
       auto seg = *iterator;
 
@@ -261,6 +270,12 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
 	      return tl::nullopt;
 	    }
 
+	  // this line is invalid - we need to go up to the previous module, not
+	  // just the previous scope
+	  // TODO: How do we identify a module scope?
+	  // Is it those modules which have links? Like if there is a link
+	  // between parent and `starting_point`? is that valid or not really?
+	  // should we have "module links"?
 	  starting_point = starting_point.parent.value ();
 	  continue;
 	}
@@ -268,15 +283,25 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
       // now we've gone through the allowd `crate`, `self` or leading `super`
       // segments. we update the index and start resolving each segment itself.
       // if we do see an other leading segment, then we can error out.
-      iterator++;
+      // iterator++; ?
       break;
     }
 
+  return iterator;
+}
+
+template <Namespace N>
+tl::optional<typename ForeverStack<N>::Node &>
+ForeverStack<N>::resolve_segments (
+  Node &starting_point, const std::vector<AST::SimplePathSegment> &segments,
+  std::vector<AST::SimplePathSegment>::const_iterator iterator)
+{
   auto *current_node = &starting_point;
-  for (; iterator + 1 != segments.end (); iterator++)
+  for (; !is_last (iterator, segments); iterator++)
     {
       auto &seg = *iterator;
       auto str = seg.as_string ();
+      rust_debug ("[ARTHUR]: resolving segment part: %s", str.c_str ());
 
       if (seg.is_crate_path_seg () || seg.is_super_path_seg ()
 	  || seg.is_lower_self ())
@@ -288,8 +313,10 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
 	  return tl::nullopt;
 	}
 
-      tl::optional<Node &> child = tl::nullopt;
+      tl::optional<typename ForeverStack<N>::Node &> child = tl::nullopt;
 
+      rust_debug ("[ARTHUR] how many children: %lu",
+		  current_node->children.size ());
       for (auto &kv : current_node->children)
 	rust_debug ("[ARTHUR] child link: `%s`",
 		    kv.first.path.has_value ()
@@ -322,9 +349,37 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
       current_node = &child.value ();
     }
 
-  auto last_seg = path.get_final_segment ().as_string ();
+  return *current_node;
+}
 
-  return current_node->rib.get (last_seg);
+template <Namespace N>
+tl::optional<NodeId>
+ForeverStack<N>::resolve_path (const AST::SimplePath &path)
+{
+  // we first need to handle the "starting" segments - `super`, `self` or
+  // `crate`. we don't need to do anything for `self` and can just skip it. for
+  // `crate`, we need to go back to the root of the current stack. for each
+  // `super` segment, we go back to the cursor's parent until we reach the
+  // correct one or the root.
+  auto starting_point = cursor ();
+  auto &segments = path.get_segments ();
+
+  return find_starting_point (segments, starting_point)
+    .and_then ([this, &segments, &starting_point] (auto iterator) {
+      rust_debug_loc (iterator->get_locus (),
+		      "[ARTHUR] starting point is now here: id");
+
+      return resolve_segments (starting_point, segments, iterator);
+    })
+    .and_then ([&path] (Node node) {
+      return node.rib.get (path.get_final_segment ().as_string ());
+    });
+
+  // TODO: Similarly, if we just start looking from where we are, we might be
+  // inside of a function with no modules defined we need to go back up to the
+  // parent module. not sure how to do that properly.
+
+  // TODO: Can we go back up until we find a Rib::Module?
 }
 
 template <Namespace N>
