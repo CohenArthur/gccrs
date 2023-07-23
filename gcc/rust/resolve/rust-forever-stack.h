@@ -514,8 +514,9 @@ private:
   /* Add a new Rib to the stack. This is an internal method */
   void push_inner (Rib rib, Link link);
 
-  /* Reverse iterate on all Ribs from the current one, in an outwards fashion */
-  void reverse_iter (std::function<KeepGoing (Rib &)> lambda);
+  /* Reverse iterate on Ribs from a specified one, in an outwards fashion */
+  void reverse_iter (std::function<KeepGoing (Node &)> lambda);
+  void reverse_iter (Node &start, std::function<KeepGoing (Node &)> lambda);
 
   Node &cursor ();
   const Node &cursor () const;
@@ -532,6 +533,8 @@ private:
   /* Helper types and functions for `resolve_path` */
 
   using SegIterator = std::vector<AST::SimplePathSegment>::const_iterator;
+
+  Node &find_closest_module (Node &starting_point);
 
   tl::optional<SegIterator>
   find_starting_point (const std::vector<AST::SimplePathSegment> &segments,

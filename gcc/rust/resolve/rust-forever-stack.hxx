@@ -151,20 +151,28 @@ ForeverStack<N>::peek () const
 
 template <Namespace N>
 void
-ForeverStack<N>::reverse_iter (std::function<KeepGoing (Rib &)> lambda)
+ForeverStack<N>::reverse_iter (std::function<KeepGoing (Node &)> lambda)
 {
-  auto &tmp = cursor ();
+  return reverse_iter (cursor (), lambda);
+}
+
+template <Namespace N>
+void
+ForeverStack<N>::reverse_iter (Node &start,
+			       std::function<KeepGoing (Node &)> lambda)
+{
+  auto *tmp = &start;
 
   while (true)
     {
-      auto keep_going = lambda (tmp.rib);
+      auto keep_going = lambda (*tmp);
       if (keep_going == KeepGoing::No)
 	return;
 
-      if (tmp.is_root ())
+      if (tmp->is_root ())
 	return;
 
-      tmp = tmp.parent.value ();
+      tmp = &tmp->parent.value ();
     }
 }
 
@@ -203,8 +211,8 @@ ForeverStack<Namespace::Macros>::get (const Identifier &name)
   tl::optional<NodeId> resolved_node = tl::nullopt;
 
   // TODO: Can we improve the API? have `reverse_iter` return an optional?
-  reverse_iter ([&resolved_node, &name] (Rib &current) {
-    auto candidate = current.get (name.as_string ());
+  reverse_iter ([&resolved_node, &name] (Node &current) {
+    auto candidate = current.rib.get (name.as_string ());
 
     return candidate.map_or (
       [&resolved_node] (NodeId found) {
@@ -229,6 +237,25 @@ static bool
 is_last (const T &iterator, const IterT &collection)
 {
   return iterator + 1 == collection.end ();
+}
+
+template <Namespace N>
+typename ForeverStack<N>::Node &
+ForeverStack<N>::find_closest_module (Node &starting_point)
+{
+  auto *closest_module = &starting_point;
+
+  reverse_iter (starting_point, [&closest_module] (Node &current) {
+    if (current.rib.kind == Rib::Kind::Module || current.is_root ())
+      {
+	closest_module = &current;
+	return KeepGoing::No;
+      }
+
+    return KeepGoing::Yes;
+  });
+
+  return *closest_module;
 }
 
 template <Namespace N>
@@ -276,7 +303,7 @@ ForeverStack<N>::find_starting_point (
 	  // Is it those modules which have links? Like if there is a link
 	  // between parent and `starting_point`? is that valid or not really?
 	  // should we have "module links"?
-	  starting_point = starting_point.parent.value ();
+	  starting_point = find_closest_module (starting_point.parent.value ());
 	  continue;
 	}
 
@@ -361,7 +388,7 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
   // `crate`, we need to go back to the root of the current stack. for each
   // `super` segment, we go back to the cursor's parent until we reach the
   // correct one or the root.
-  auto starting_point = cursor ();
+  auto starting_point = find_closest_module (cursor ());
   auto &segments = path.get_segments ();
 
   return find_starting_point (segments, starting_point)
