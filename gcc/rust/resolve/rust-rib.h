@@ -93,7 +93,7 @@ public:
     ForwardTypeParamBan,
     /* Const generic, as in the following example: fn foo<T, const X: T>() {} */
     ConstParamType,
-  };
+  } kind;
 
   Rib (Kind kind);
   Rib (Kind kind, std::string identifier, NodeId id);
@@ -129,7 +129,6 @@ public:
   const std::unordered_map<std::string, NodeId> &get_values () const;
 
 private:
-  Kind kind;
   std::unordered_map<std::string, NodeId> values;
 };
 
