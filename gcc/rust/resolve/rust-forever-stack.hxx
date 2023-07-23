@@ -389,7 +389,7 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
   // correct one or the root.
   // soooo this does not work if the macro is defined in the current function
   // instead of a module >:(
-  auto starting_point = find_closest_module (cursor ());
+  auto starting_point = cursor ();
   std::stringstream stream;
   stream_node (stream, 0, root);
   rust_debug ("[ARTHUR] [ARTHUR] first module: %s", stream.str ().c_str ());
