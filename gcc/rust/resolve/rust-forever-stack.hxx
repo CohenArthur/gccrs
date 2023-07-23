@@ -232,9 +232,9 @@ ForeverStack<Namespace::Macros>::get (const Identifier &name)
 }
 
 /* Check if an iterator points to the last element */
-template <typename T, typename IterT>
+template <typename I, typename C>
 static bool
-is_last (const T &iterator, const IterT &collection)
+is_last (const I &iterator, const C &collection)
 {
   return iterator + 1 == collection.end ();
 }
@@ -307,7 +307,7 @@ ForeverStack<N>::find_starting_point (
 	  continue;
 	}
 
-      // now we've gone through the allowd `crate`, `self` or leading `super`
+      // now we've gone through the allowed `crate`, `self` or leading `super`
       // segments. we update the index and start resolving each segment itself.
       // if we do see an other leading segment, then we can error out.
       // iterator++; ?
