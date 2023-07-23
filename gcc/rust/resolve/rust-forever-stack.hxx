@@ -308,9 +308,8 @@ ForeverStack<N>::find_starting_point (
 	}
 
       // now we've gone through the allowed `crate`, `self` or leading `super`
-      // segments. we update the index and start resolving each segment itself.
-      // if we do see an other leading segment, then we can error out.
-      // iterator++; ?
+      // segments. we can start resolving each segment itself.
+      // if we do see another leading segment, then we can error out.
       break;
     }
 
