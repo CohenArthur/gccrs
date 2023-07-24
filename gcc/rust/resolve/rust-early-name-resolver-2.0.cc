@@ -57,12 +57,6 @@ Early::visit (AST::MacroInvocation &invoc)
       return;
     }
 
-  //  auto definition
-  //    = resolver
-  // /* FIXME: Invalid: we can't use `as_string` here, we need to do path
-  //    resolution */
-  // .macros.get (invoc.get_invoc_data ().get_path ().as_string ());
-
   rust_debug_loc (invoc.get_locus (), "[ARTHUR]: definition found: %d",
 		  definition.value ());
 }
