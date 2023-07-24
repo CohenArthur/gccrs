@@ -265,6 +265,11 @@ ForeverStack<N>::find_starting_point (
 {
   auto iterator = segments.begin ();
 
+  // Add documentation - if we need to do path segment resolution, then we start
+  // at the closest module
+  if (segments.size () > 1)
+    starting_point = find_closest_module (starting_point);
+
   // TODO: Similarly, if we just start looking from where we are, we might be
   // inside of a function with no modules defined we need to go back up to the
   // parent module. not sure how to do that properly.
