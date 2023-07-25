@@ -84,7 +84,8 @@ TopLevel::visit (AST::MacroRulesDefinition &macro)
 {
   // FIXME: Do we want to insert macro rules here already? Probably, right?
   // So that we can easily resolve in `Early`?
-  insert_or_error_out (macro.get_rule_name (), macro, Namespace::Macros);
+  // we don't insert them!!!!
+  // insert_or_error_out (macro.get_rule_name (), macro, Namespace::Macros);
 
   if (is_macro_export (macro))
     {
