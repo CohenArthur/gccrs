@@ -37,7 +37,12 @@ public:
 
   void go (AST::Crate &crate);
 
+  // we need to handle definitions for textual scoping
   void visit (AST::MacroRulesDefinition &) override;
+
+  // as well as lexical scopes
+  void visit (AST::BlockExpr &) override;
+
   void visit (AST::MacroInvocation &) override;
   void visit (AST::UseDeclaration &) override;
   void visit (AST::UseTreeRebind &) override;

@@ -39,7 +39,6 @@ Early::go (AST::Crate &crate)
   rust_debug ("[ARTHUR] toplevel macros:\n%s",
 	      resolver.macros.as_debug_string ().c_str ());
 
-  // FIXME: Do we add a `scoped` method?
   textual_scope.push ();
 
   // Then we proceed to the proper "early" name resolution: Import and macro
@@ -70,10 +69,10 @@ Early::TextualScope::insert (std::string name, NodeId id)
 {
   rust_assert (!scopes.empty ());
 
-  // FIXME: Do not ignore return value
+  // we can ignore the return value as we always want the latest defined macro
+  // to shadow a previous one - so if two macros have the same name and get
+  // inserted with the same key, it's not a bug
   scopes.back ().insert ({name, id});
-
-  rust_unreachable ();
 }
 
 tl::optional<NodeId>
@@ -99,6 +98,16 @@ Early::visit (AST::MacroRulesDefinition &def)
 }
 
 void
+Early::visit (AST::BlockExpr &block)
+{
+  textual_scope.push ();
+
+  DefaultResolver::visit (block);
+
+  textual_scope.pop ();
+}
+
+void
 Early::visit (AST::MacroInvocation &invoc)
 {
   auto path = invoc.get_invoc_data ().get_path ();
@@ -117,7 +126,10 @@ Early::visit (AST::MacroInvocation &invoc)
       auto text_def
 	= textual_scope.get (path.get_final_segment ().as_string ());
 
-      if (!text_def)
+      // FIXME: Factor this better
+      if (text_def.has_value ())
+	definition = text_def;
+      else
 	definition = resolver.macros.resolve_path (path);
     }
   else
@@ -127,37 +139,30 @@ Early::visit (AST::MacroInvocation &invoc)
 
   if (!definition.has_value ())
     {
-      rust_error_at (invoc.get_locus (), "could not resolve macro invocation");
+      rust_error_at (invoc.get_locus (), ErrorCode ("E0433"),
+		     "could not resolve macro invocation");
       return;
     }
 
-  rust_debug_loc (invoc.get_locus (), "[ARTHUR]: definition found: %d",
-		  definition.value ());
+  // now do we need to keep mappings or something? or insert "uses" into our
+  // ForeverStack? can we do that? are mappings simpler?
 }
 
 void
 Early::visit (AST::UseDeclaration &use)
-{
-  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
-}
+{}
 
 void
 Early::visit (AST::UseTreeRebind &use)
-{
-  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
-}
+{}
 
 void
 Early::visit (AST::UseTreeList &use)
-{
-  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
-}
+{}
 
 void
 Early::visit (AST::UseTreeGlob &use)
-{
-  rust_debug_loc (use.get_locus (), "ARTHUR: visiting");
-}
+{}
 
 } // namespace Resolver2_0
 } // namespace Rust
