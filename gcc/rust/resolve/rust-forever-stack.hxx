@@ -119,6 +119,17 @@ ForeverStack<N>::insert (Identifier name, NodeId node)
   return insert_inner (innermost_rib, name.as_string (), node, false);
 }
 
+template <Namespace N>
+tl::expected<NodeId, DuplicateNameError>
+ForeverStack<N>::insert_at_root (Identifier name, NodeId node)
+{
+  auto &root_rib = root.rib;
+
+  // inserting in the root of the crate is never a shadowing operation, even for
+  // macros
+  return insert_inner (root_rib, name.as_string (), node, false);
+}
+
 // Specialization for Macros and Labels - where we are allowed to shadow
 // existing definitions
 template <>
@@ -267,6 +278,7 @@ ForeverStack<N>::find_starting_point (
 
   // Add documentation - if we need to do path segment resolution, then we start
   // at the closest module
+  // foo::bar
   if (segments.size () > 1)
     starting_point = find_closest_module (starting_point);
 
@@ -385,6 +397,9 @@ ForeverStack<N>::resolve_segments (
 
 template <Namespace N>
 tl::optional<NodeId>
+// TODO: how do we prevent path resolution from outside the root for macros?
+// can we add an ugly hack in waiting of macros 2.0?
+// can we check that they either live in the current scope or the root scope?
 ForeverStack<N>::resolve_path (const AST::SimplePath &path)
 {
   // we first need to handle the "starting" segments - `super`, `self` or
@@ -395,7 +410,6 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
   // soooo this does not work if the macro is defined in the current function
   // instead of a module >:(
   auto starting_point = cursor ();
-
   auto &segments = path.get_segments ();
 
   return find_starting_point (segments, starting_point)
@@ -404,6 +418,21 @@ ForeverStack<N>::resolve_path (const AST::SimplePath &path)
     })
     .and_then ([&path] (Node node) {
       return node.rib.get (path.get_final_segment ().as_string ());
+    })
+    // HACK because macros don't get resolved like items
+    .and_then ([&path, this] (NodeId resolved) -> tl::optional<NodeId> {
+      // if the macro had a complex path and isn't resolved in the root, then it
+      // SUCKS and we need to error out.
+
+      // doesn't work because of course the nodeId is the same in both
+      // the root module and the current module...
+      auto root_macro = root.rib.get (path.get_final_segment ().as_string ());
+      if (path.get_segments ().size () > 1)
+	if (!root_macro
+	    || (root_macro.has_value () && root_macro.value () != resolved))
+	  return tl::nullopt;
+
+      return resolved;
     });
 
   // TODO: Similarly, if we just start looking from where we are, we might be

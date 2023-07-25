@@ -434,6 +434,21 @@ public:
    */
   tl::expected<NodeId, DuplicateNameError> insert (Identifier name, NodeId id);
 
+  /**
+   * Insert a new definition at the root of this stack
+   *
+   * @param name The name of the definition
+   * @param id Its NodeId
+   *
+   * @return `DuplicateNameError` if that node was already present in the Rib,
+   * the node's `NodeId` otherwise.
+   *
+   * @aborts if there are no `Rib`s inserted in the current map, this function
+   *         aborts the program.
+   */
+  tl::expected<NodeId, DuplicateNameError> insert_at_root (Identifier name,
+							   NodeId id);
+
   /* Access the innermost `Rib` in this map */
   Rib &peek ();
   const Rib &peek () const;
@@ -522,6 +537,7 @@ private:
   const Node &cursor () const;
   void update_cursor (Node &new_cursor);
 
+  // TODO: do we want a textual scope as well? :(
   Node root;
   std::reference_wrapper<Node> cursor_reference;
 
