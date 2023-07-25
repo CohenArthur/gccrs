@@ -250,6 +250,14 @@ is_last (const I &iterator, const C &collection)
   return iterator + 1 == collection.end ();
 }
 
+/* Check if an iterator points to the start of the collection */
+template <typename I, typename C>
+static bool
+is_start (const I &iterator, const C &collection)
+{
+  return iterator == collection.begin ();
+}
+
 template <Namespace N>
 typename ForeverStack<N>::Node &
 ForeverStack<N>::find_closest_module (Node &starting_point)
@@ -269,6 +277,21 @@ ForeverStack<N>::find_closest_module (Node &starting_point)
   return *closest_module;
 }
 
+/* If a the given condition is met, emit an error about misused leading path
+ * segments */
+static bool
+check_leading_kw_at_start (const AST::SimplePathSegment &segment,
+			   bool condition)
+{
+  if (condition)
+    rust_error_at (
+      segment.get_locus (), ErrorCode ("E0433"),
+      "leading path segment %qs can only be used at the beginning of a path",
+      segment.as_string ().c_str ());
+
+  return condition;
+}
+
 template <Namespace N>
 tl::optional<std::vector<AST::SimplePathSegment>::const_iterator>
 ForeverStack<N>::find_starting_point (
@@ -286,11 +309,16 @@ ForeverStack<N>::find_starting_point (
   // inside of a function with no modules defined we need to go back up to the
   // parent module. not sure how to do that properly.
 
-  // let's clean this up first
-
   for (; !is_last (iterator, segments); iterator++)
     {
       auto seg = *iterator;
+      auto is_self_or_crate = seg.is_crate_path_seg () || seg.is_lower_self ();
+
+      // if we're after the first path segment and meet `self` or `crate`, it's
+      // an error - we should only be seeing `super` keywords at this point
+      if (check_leading_kw_at_start (seg, !is_start (iterator, segments)
+					    && is_self_or_crate))
+	return tl::nullopt;
 
       if (seg.is_crate_path_seg ())
 	{
@@ -309,8 +337,7 @@ ForeverStack<N>::find_starting_point (
 	  if (starting_point.is_root ())
 	    {
 	      rust_error_at (seg.get_locus (), ErrorCode ("E0433"),
-			     "there are too many leading keywords and you're a "
-			     "dumbass. count them. sigh");
+			     "too many leading %<super%> keywords");
 	      return tl::nullopt;
 	    }
 
@@ -346,15 +373,11 @@ ForeverStack<N>::resolve_segments (
       auto str = seg.as_string ();
       rust_debug ("[ARTHUR]: resolving segment part: %s", str.c_str ());
 
-      if (seg.is_crate_path_seg () || seg.is_super_path_seg ()
-	  || seg.is_lower_self ())
-	{
-	  rust_error_at (
-	    seg.get_locus (), ErrorCode ("E0433"),
-	    "leading keyword %qs can only be used at the beginning of a path",
-	    str.c_str ());
-	  return tl::nullopt;
-	}
+      // check that we don't encounter *any* leading keywords afterwards
+      if (check_leading_kw_at_start (seg, seg.is_crate_path_seg ()
+					    || seg.is_super_path_seg ()
+					    || seg.is_lower_self ()))
+	return tl::nullopt;
 
       tl::optional<typename ForeverStack<N>::Node &> child = tl::nullopt;
 
