@@ -37,9 +37,11 @@ args = parser.parse_args()
 
 retval = 0
 for git_commit in parse_git_revisions(args.git_path, args.revisions):
-    res = 'OK' if git_commit.success else 'FAILED'
+    success = git_commit.success and git_commit.info.lines[0].startswith("gccrs")
+
+    res = '\033[32mOK\033[0m' if success else '\033[31mFAILED\033[0m'
     print('Checking %s: %s' % (git_commit.original_info.hexsha, res))
-    if git_commit.success:
+    if success:
         if args.print_changelog:
             git_commit.print_output()
         if args.verbose and git_commit.warnings:
