@@ -1,3 +1,34 @@
+2024-02-08  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/113649
+	* pt.cc (do_class_deduction): Add outer_targs parameter.
+	Substitute outer arguments into the CTAD template.
+	(do_auto_deduction): Pass outer_targs to do_class_deduction.
+
+2024-02-08  Jason Merrill  <jason@redhat.com>
+
+	* pt.cc (create_template_parm_object): Pass TARGET_EXPR to
+	cxx_constant_value.
+
+2024-02-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/113788
+	* parser.cc (CP_PARSER_FLAGS_PARAMETER): New enumerator.
+	(cp_parser_decl_specifier_seq): Parse RID_THIS only if
+	CP_PARSER_FLAGS_PARAMETER is set in flags.
+	(cp_parser_parameter_declaration): Or in CP_PARSER_FLAGS_PARAMETER
+	when calling cp_parser_decl_specifier_seq.
+
+2024-02-06  Marek Polacek  <polacek@redhat.com>
+
+	* method.cc (early_check_defaulted_comparison): Add
+	auto_diagnostic_group.
+
+2024-02-06  Jason Merrill  <jason@redhat.com>
+
+	PR c++/107291
+	* method.cc (early_check_defaulted_comparison): Fail if not friend.
+
 2024-02-05  Jason Merrill  <jason@redhat.com>
 
 	PR c++/111286

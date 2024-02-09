@@ -1,3 +1,232 @@
+2024-02-08  Edwin Lu  <ewlu@rivosinc.com>
+
+	* gcc.target/riscv/rvv/base/abi-1.c: change selector
+	* gcc.target/riscv/rvv/base/pragma-2.c: ditto
+	* gcc.target/riscv/rvv/base/pragma-3.c: ditto
+
+2024-02-08  Richard Earnshaw  <rearnsha@arm.com>
+
+	* lib/target-supports.exp
+	(check_effective_target_arm_fp16_alternative_ok_nocache): Use
+	et_arm_fp16_alternative_flags to cache the result.  Improve test
+	for FP16 availability.
+	(add_options_for_arm_fp16_alternative): Use
+	et_arm_fp16_alternative_flags.
+	* g++.dg/ext/arm-fp16/arm-fp16-ops-3.C: Update dg-* flags.
+	* g++.dg/ext/arm-fp16/arm-fp16-ops-4.C: Likewise.
+	* gcc.dg/torture/arm-fp16-int-convert-alt.c: Likewise.
+	* gcc.dg/torture/arm-fp16-ops-3.c: Likewise.
+	* gcc.dg/torture/arm-fp16-ops-4.c: Likewise.
+	* gcc.target/arm/fp16-aapcs-3.c: Likewise.
+	* gcc.target/arm/fp16-aapcs-4.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-1.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-10.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-11.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-12.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-2.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-3.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-4.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-5.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-6.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-7.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-8.c: Likewise.
+	* gcc.target/arm/fp16-compile-alt-9.c: Likewise.
+	* gcc.target/arm/fp16-rounding-alt-1.c: Likewise.
+
+2024-02-08  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/113649
+	* g++.dg/cpp2a/nontype-class65.C: New test.
+
+2024-02-08  Aldy Hernandez  <aldyh@redhat.com>
+
+	PR tree-optimization/113735
+	* gcc.dg/tree-ssa/pr113735.c: New test.
+
+2024-02-08  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR target/113711
+	PR target/113733
+	* gcc.target/i386/apx-ndd-2.c: New test.
+	* gcc.target/i386/apx-ndd-base-index-1.c: Likewise.
+	* gcc.target/i386/apx-ndd-no-seg-global-1.c: Likewise.
+	* gcc.target/i386/apx-ndd-seg-1.c: Likewise.
+	* gcc.target/i386/apx-ndd-seg-2.c: Likewise.
+	* gcc.target/i386/apx-ndd-seg-3.c: Likewise.
+	* gcc.target/i386/apx-ndd-seg-4.c: Likewise.
+	* gcc.target/i386/apx-ndd-seg-5.c: Likewise.
+	* gcc.target/i386/apx-ndd-tls-1a.c: Likewise.
+	* gcc.target/i386/apx-ndd-tls-2.c: Likewise.
+	* gcc.target/i386/apx-ndd-tls-3.c: Likewise.
+	* gcc.target/i386/apx-ndd-tls-4.c: Likewise.
+	* gcc.target/i386/apx-ndd-x32-1.c: Likewise.
+
+2024-02-08  Tamar Christina  <tamar.christina@arm.com>
+
+	PR tree-optimization/113808
+	* gfortran.dg/vect/vect-early-break_1-PR113808.f90: Moved to...
+	* gfortran.dg/vect/vect-early-break_1-pr113808.f90: ...here.
+
+2024-02-08  Tamar Christina  <tamar.christina@arm.com>
+
+	PR tree-optimization/113808
+	* gfortran.dg/vect/vect-early-break_1-PR113808.f90: New test.
+
+2024-02-08  Tamar Christina  <tamar.christina@arm.com>
+
+	* gcc.dg/vect/vect-early-break_110-pr113467.c: Change unsigned long *
+	to uint64_t *.
+
+2024-02-08  Pan Li  <pan2.li@intel.com>
+
+	PR target/113766
+	* gcc.target/riscv/rvv/base/pr113766-1.c: Add new cases.
+
+2024-02-08  Joseph Myers  <josmyers@redhat.com>
+
+	PR c/113776
+	* gcc.dg/pr113776-1.c, gcc.dg/pr113776-2.c, gcc.dg/pr113776-3.c,
+	gcc.dg/pr113776-4.c: New tests.
+
+2024-02-08  Jason Merrill  <jason@redhat.com>
+
+	* g++.dg/cpp2a/nontype-class64.C: New test.
+
+2024-02-07  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/113796
+	* gcc.dg/torture/pr113796.c: New testcase.
+
+2024-02-07  Roger Sayle  <roger@nextmovesoftware.com>
+	    Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/113690
+	* gcc.target/i386/pr113690.c: New test case.
+
+2024-02-07  Victor Do Nascimento  <victor.donascimento@arm.com>
+
+	* gcc.target/aarch64/acle/rwsr-armv8p9.c: New.
+
+2024-02-07  Kushal Pal  <kushalpal109@gmail.com>
+
+	* rust/compile/issue-2040.rs:
+	Enclose 'const' in single quotes.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-2775.rs: New test.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-2782.rs: New test.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-1773.rs: Moved to...
+	* rust/compile/issue-1773.rs.bak: ...here.
+	* rust/compile/issue-2723-1.rs: New test.
+	* rust/compile/issue-2723-2.rs: New test.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-2747.rs: New test.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-2772-1.rs: New test.
+	* rust/compile/issue-2772-2.rs: New test.
+
+2024-02-07  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-1483.rs: New test.
+
+2024-02-07  Kushal Pal  <kushalpal109@gmail.com>
+
+	* rust/compile/issue-2812.rs: New test.
+
+2024-02-07  Tamar Christina  <tamar.christina@arm.com>
+
+	PR tree-optimization/113750
+	* gcc.dg/vect/vect-early-break_112-pr113750.c: New test.
+	* gcc.dg/vect/vect-early-break_113-pr113750.c: New test.
+	* gcc.dg/vect/vect-early-break_114-pr113750.c: New test.
+	* gcc.dg/vect/vect-early-break_115-pr113750.c: New test.
+	* gcc.dg/vect/vect-early-break_116-pr113750.c: New test.
+
+2024-02-07  Tamar Christina  <tamar.christina@arm.com>
+
+	PR tree-optimization/113731
+	* gcc.dg/vect/vect-early-break_111-pr113731.c: New test.
+
+2024-02-07  Tamar Christina  <tamar.christina@arm.com>
+
+	PR tree-optimization/113467
+	* gcc.dg/vect/vect-early-break_110-pr113467.c: New test.
+
+2024-02-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/113756
+	* gcc.dg/pr113756.c: New test.
+
+2024-02-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* gcc.dg/debug/dwarf2/inline5.c: Don't xfail scan-assembler-not on
+	{ aix || solaris2 } && !gas.
+
+2024-02-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/113753
+	* gcc.dg/torture/bitint-56.c: New test.
+	* gcc.dg/bitint-87.c: New test.
+
+2024-02-07  Pan Li  <pan2.li@intel.com>
+
+	PR target/113766
+	* gcc.target/riscv/rvv/base/pr113766-1.c: New test.
+	* gcc.target/riscv/rvv/base/pr113766-2.c: New test.
+
+2024-02-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/113788
+	* g++.dg/parse/pr113788.C: New test.
+
+2024-02-06  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/94231
+	* g++.dg/cpp0x/deleted17.C: New test.
+
+2024-02-06  Andrew Carlotti  <andrew.carlotti@arm.com>
+
+	* g++.target/aarch64/mv-symbols1.C: New test.
+	* g++.target/aarch64/mv-symbols2.C: Ditto.
+	* g++.target/aarch64/mv-symbols3.C: Ditto.
+	* g++.target/aarch64/mv-symbols4.C: Ditto.
+	* g++.target/aarch64/mv-symbols5.C: Ditto.
+	* g++.target/aarch64/mvc-symbols1.C: Ditto.
+	* g++.target/aarch64/mvc-symbols2.C: Ditto.
+	* g++.target/aarch64/mvc-symbols3.C: Ditto.
+	* g++.target/aarch64/mvc-symbols4.C: Ditto.
+
+2024-02-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR sanitizer/110676
+	* gcc.dg/asan/pr110676.c: New test.
+
+2024-02-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/113736
+	* gcc.dg/bitint-86.c: New test.
+
+2024-02-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/113759
+	* gcc.c-torture/compile/pr113759.c: New test.
+
+2024-02-06  Jason Merrill  <jason@redhat.com>
+
+	PR c++/107291
+	* g++.dg/cpp2a/spaceship-eq17.C: New test.
+
 2024-02-05  Jason Merrill  <jason@redhat.com>
 
 	PR c++/109359
