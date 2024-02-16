@@ -243,7 +243,7 @@ struct PieceSlice
 extern "C" {
 
 PieceSlice
-collect_pieces (const char *input);
+collect_pieces (const char *input, bool append_newline);
 
 void destroy_pieces (PieceSlice);
 
@@ -251,7 +251,7 @@ void destroy_pieces (PieceSlice);
 
 struct Pieces
 {
-  static Pieces collect (std::string &&to_parse);
+  static Pieces collect (std::string &&to_parse, bool append_newline);
   ~Pieces ();
 
 private:

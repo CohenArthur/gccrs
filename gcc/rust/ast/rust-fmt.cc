@@ -23,9 +23,9 @@ namespace Rust {
 namespace Fmt {
 
 Pieces
-Pieces::collect (std::string &&to_parse)
+Pieces::collect (std::string &&to_parse, bool append_newline)
 {
-  auto piece_slice = collect_pieces (to_parse.c_str ());
+  auto piece_slice = collect_pieces (to_parse.c_str (), append_newline);
 
   rust_debug ("[ARTHUR] %p, %lu", (void *) piece_slice.base_ptr,
 	      piece_slice.len);

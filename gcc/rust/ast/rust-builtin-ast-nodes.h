@@ -109,7 +109,7 @@ public:
     No
   };
 
-  FormatArgs (location_t loc, Fmt::PieceSlice template_str,
+  FormatArgs (location_t loc, Fmt::Pieces template_str,
 	      FormatArguments arguments)
     : loc (loc), template_str (std::move (template_str)),
       arguments (std::move (arguments))
@@ -119,7 +119,11 @@ public:
 
 private:
   location_t loc;
-  Fmt::PieceSlice template_str;
+  // FIXME: This probably needs to be a separate type - it is one in rustc's
+  // expansion of format_args!(). There is extra handling associated with it.
+  // we can maybe do that in rust-fmt.cc? in collect_pieces()? like do the
+  // transformation into something we can handle better
+  Fmt::Pieces template_str;
   FormatArguments arguments;
 };
 

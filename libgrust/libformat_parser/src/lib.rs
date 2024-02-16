@@ -321,8 +321,13 @@ mod ffi {
 pub mod rust {
     use generic_format_parser::{ParseMode, Parser, Piece};
 
-    pub fn collect_pieces(input: &str) -> Vec<Piece<'_>> {
-        let parser = Parser::new(input, None, None, true, ParseMode::Format);
+    pub fn collect_pieces(
+        input: &str,
+        style: Option<usize>,
+        snippet: Option<String>,
+        append_newline: bool,
+    ) -> Vec<Piece<'_>> {
+        let parser = Parser::new(input, style, snippet, append_newline, ParseMode::Format);
 
         parser.into_iter().collect()
     }
@@ -337,16 +342,17 @@ pub struct PieceSlice {
 }
 
 #[no_mangle]
-pub extern "C" fn collect_pieces(input: *const libc::c_char) -> PieceSlice {
+pub extern "C" fn collect_pieces(input: *const libc::c_char, append_newline: bool) -> PieceSlice {
     // FIXME: Add comment
     let str = unsafe { CStr::from_ptr(input) };
     dbg!(str);
 
     // FIXME: No unwrap
-    let pieces: Vec<ffi::Piece<'_>> = rust::collect_pieces(str.to_str().unwrap())
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    let pieces: Vec<ffi::Piece<'_>> =
+        rust::collect_pieces(str.to_str().unwrap(), None, None, append_newline)
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
     println!("[ARTHUR]: debug: {:?}, {:?}", pieces.as_ptr(), pieces.len());
 
