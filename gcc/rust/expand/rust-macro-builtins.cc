@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "libproc_macro_internal/tokenstream.h"
+#include "rust-ast-full-decls.h"
 #include "rust-builtin-ast-nodes.h"
 #include "rust-token-converter.h"
 #include "rust-system.h"
@@ -296,6 +297,8 @@ try_expand_many_expr (Parser<MacroInvocLexer> &parser,
    and return the LiteralExpr for it. Allow for an optional trailing comma,
    but otherwise enforce that these are the only tokens.  */
 
+// FIXME(Arthur): This function needs a rework - it should not emit errors, it
+// should probably be smaller
 std::unique_ptr<AST::Expr>
 parse_single_string_literal (BuiltinMacro kind,
 			     AST::DelimTokenTree &invoc_token_tree,
@@ -956,17 +959,31 @@ MacroBuiltin::stringify_handler (location_t invoc_locus,
 
 tl::optional<AST::Fragment>
 MacroBuiltin::format_args_handler (location_t invoc_locus,
-				   AST::MacroInvocData &invoc, AST::FormatArgs::Newline nl)
+				   AST::MacroInvocData &invoc,
+				   AST::FormatArgs::Newline nl)
 {
+  // Remove the delimiters from the macro invocation:
+  // the invoc data for `format_args!(fmt, arg1, arg2)` is `(fmt, arg1, arg2)`,
+  // so we pop the front and back to remove the parentheses (or curly brackets,
+  // or brackets)
   auto tokens = invoc.get_delim_tok_tree ().to_token_stream ();
   tokens.erase (tokens.begin ());
   tokens.pop_back ();
 
-  std::stringstream stream;
-  for (const auto &tok : tokens)
-    stream << tok->as_string () << ' ';
+  auto append_newline = nl == AST::FormatArgs::Newline::Yes ? true : false;
+  auto fmt_arg
+    = parse_single_string_literal (append_newline ? BuiltinMacro::FormatArgsNl
+						  : BuiltinMacro::FormatArgs,
+				   invoc.get_delim_tok_tree (), invoc_locus,
+				   invoc.get_expander ());
 
-  rust_debug ("[ARTHU]: `%s`", stream.str ().c_str ());
+  if (!fmt_arg->is_literal ())
+    {
+      rust_sorry_at (
+	invoc_locus,
+	"cannot yet use eager macro invocations as format strings");
+      return AST::Fragment::create_empty ();
+    }
 
   // FIXME: We need to handle this
   // // if it is not a literal, it's an eager macro invocation - return it
@@ -977,7 +994,36 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   // 	    token_tree.to_token_stream ());
   //   }
 
-  auto pieces = Fmt::Pieces::collect (stream.str ());
+  auto fmt_str = static_cast<AST::LiteralExpr &> (*fmt_arg.get ());
+
+  // Switch on the format string to know if the string is raw or cooked
+  switch (fmt_str.get_lit_type ())
+    {
+    // case AST::Literal::RAW_STRING:
+    case AST::Literal::STRING:
+      break;
+    case AST::Literal::CHAR:
+    case AST::Literal::BYTE:
+    case AST::Literal::BYTE_STRING:
+    case AST::Literal::INT:
+    case AST::Literal::FLOAT:
+    case AST::Literal::BOOL:
+    case AST::Literal::ERROR:
+      rust_unreachable ();
+    }
+
+  std::stringstream stream;
+  for (const auto &tok : tokens)
+    stream << tok->as_string () << ' ';
+
+  rust_debug ("[ARTHUR]: `%s`", stream.str ().c_str ());
+
+  auto pieces = Fmt::Pieces::collect (stream.str (), append_newline);
+
+  // TODO:
+  // do the transformation into an AST::FormatArgs node
+  // return that
+  // expand it during lowering
 
   return AST::Fragment::create_empty ();
 }
