@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "libproc_macro_internal/tokenstream.h"
+#include "rust-builtin-ast-nodes.h"
 #include "rust-token-converter.h"
 #include "rust-system.h"
 #include "rust-macro-builtins.h"
@@ -78,6 +79,14 @@ const BiMap<std::string, BuiltinMacro> MacroBuiltin::builtins = {{
 
 }};
 
+AST::MacroTranscriberFunc
+format_args_maker (AST::FormatArgs::Newline nl)
+{
+  return [nl] (location_t loc, AST::MacroInvocData &invoc) {
+    return MacroBuiltin::format_args_handler (loc, invoc, nl);
+  };
+}
+
 std::unordered_map<std::string, AST::MacroTranscriberFunc>
   MacroBuiltin::builtin_transcribers = {
     {"assert", MacroBuiltin::assert_handler},
@@ -92,10 +101,10 @@ std::unordered_map<std::string, AST::MacroTranscriberFunc>
     {"env", MacroBuiltin::env_handler},
     {"cfg", MacroBuiltin::cfg_handler},
     {"include", MacroBuiltin::include_handler},
-    {"format_args", MacroBuiltin::format_args_handler},
+    {"format_args", format_args_maker (AST::FormatArgs::Newline::No)},
+    {"format_args_nl", format_args_maker (AST::FormatArgs::Newline::Yes)},
     /* Unimplemented macro builtins */
     {"option_env", MacroBuiltin::sorry},
-    {"format_args_nl", MacroBuiltin::sorry},
     {"concat_idents", MacroBuiltin::sorry},
     {"module_path", MacroBuiltin::sorry},
     {"asm", MacroBuiltin::sorry},
@@ -947,7 +956,7 @@ MacroBuiltin::stringify_handler (location_t invoc_locus,
 
 tl::optional<AST::Fragment>
 MacroBuiltin::format_args_handler (location_t invoc_locus,
-				   AST::MacroInvocData &invoc)
+				   AST::MacroInvocData &invoc, AST::FormatArgs::Newline nl)
 {
   auto tokens = invoc.get_delim_tok_tree ().to_token_stream ();
   tokens.erase (tokens.begin ());
