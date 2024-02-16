@@ -22,7 +22,6 @@
 #include "rust-system.h"
 #include "line-map.h"
 #include "optional.h"
-#include "rust-ast-visitor.h"
 #include "rust-ast.h"
 #include "rust-fmt.h"
 
@@ -104,6 +103,12 @@ class FormatArguments
 class FormatArgs : public Visitable
 {
 public:
+  enum class Newline
+  {
+    Yes,
+    No
+  };
+
   FormatArgs (location_t loc, Fmt::PieceSlice template_str,
 	      FormatArguments arguments)
     : loc (loc), template_str (std::move (template_str)),
