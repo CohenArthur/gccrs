@@ -59,17 +59,10 @@ namespace AST {
 //                      └─┘  └─┘
 //                      positions (could be names, numbers, empty, or `*`)
 
+// FIXME: Merge with the class below this one?
 class FormatArgumentKind
 {
 public:
-  Identifier &get_ident ()
-  {
-    rust_assert (kind == Kind::Captured || kind == Kind::Named);
-
-    return ident.value ();
-  }
-
-private:
   enum class Kind
   {
     Normal,
@@ -77,17 +70,59 @@ private:
     Captured,
   } kind;
 
+  Identifier &get_ident ()
+  {
+    rust_assert (kind == Kind::Captured || kind == Kind::Named);
+
+    return ident.value ();
+  }
+
+  FormatArgumentKind (Kind kind, tl::optional<Identifier> ident)
+    : kind (kind), ident (ident)
+  {}
+
+private:
   tl::optional<Identifier> ident;
 };
 
 class FormatArgument
 {
+public:
+  static FormatArgument normal (std::unique_ptr<Expr> expr)
+  {
+    return FormatArgument (FormatArgumentKind::Kind::Normal, tl::nullopt,
+			   std::move (expr));
+  }
+
+  static FormatArgument named (Identifier ident, std::unique_ptr<Expr> expr)
+  {
+    return FormatArgument (FormatArgumentKind::Kind::Named, ident,
+			   std::move (expr));
+  }
+
+  static FormatArgument captured (Identifier ident, std::unique_ptr<Expr> expr)
+  {
+    return FormatArgument (FormatArgumentKind::Kind::Captured, ident,
+			   std::move (expr));
+  }
+
+private:
+  FormatArgument (FormatArgumentKind::Kind kind, tl::optional<Identifier> ident,
+		  std::unique_ptr<Expr> expr)
+    : kind (FormatArgumentKind (kind, ident)), expr (std::move (expr))
+  {}
+
   FormatArgumentKind kind;
   std::unique_ptr<Expr> expr;
 };
 
 class FormatArguments
 {
+public:
+  FormatArguments () {}
+  void push (FormatArgument &&elt) { args.emplace_back (std::move (elt)); }
+
+private:
   std::vector<FormatArgument> args;
 };
 

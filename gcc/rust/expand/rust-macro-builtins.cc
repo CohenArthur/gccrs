@@ -16,6 +16,7 @@
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#include "expected.h"
 #include "libproc_macro_internal/tokenstream.h"
 #include "rust-ast-full-decls.h"
 #include "rust-builtin-ast-nodes.h"
@@ -35,6 +36,7 @@
 #include "rust-session-manager.h"
 #include "rust-attribute-values.h"
 #include "rust-fmt.h"
+#include "rust-token.h"
 
 namespace Rust {
 
@@ -955,6 +957,90 @@ MacroBuiltin::stringify_handler (location_t invoc_locus,
   auto token
     = make_token (Token::make_string (invoc_locus, std::move (content)));
   return AST::Fragment ({node}, std::move (token));
+}
+
+struct FormatArgsInput
+{
+  std::unique_ptr<AST::Expr> format_str;
+  AST::FormatArguments args;
+  // bool is_literal?
+};
+
+struct FormatArgsParseError
+{
+  enum class Kind
+  {
+    MissingArguments
+  } kind;
+};
+
+static tl::expected<FormatArgsInput, FormatArgsParseError>
+format_args_parse_arguments (AST::MacroInvocData &invoc)
+{
+  MacroInvocLexer lex (invoc.get_delim_tok_tree ().to_token_stream ());
+  Parser<MacroInvocLexer> parser (lex);
+
+  // TODO: check if EOF - return that format_args!() requires at least one
+  // argument
+
+  auto args = AST::FormatArguments ();
+  auto last_token_id = macro_end_token (invoc.get_delim_tok_tree (), parser);
+  std::unique_ptr<AST::Expr> lit_expr = nullptr;
+
+  // TODO: Handle the case where we're not parsing a string literal (macro
+  // invocation for e.g.)
+  if (parser.peek_current_token ()->get_id () == STRING_LITERAL)
+    lit_expr = parser.parse_literal_expr ();
+
+  // TODO: Allow implicit captures ONLY if the the first arg is a string literal
+  // and not a macro invocation
+
+  // TODO: How to consume all of the arguments until the delimiter?
+  while (parser.peek_current_token ()->get_id () != last_token_id)
+    {
+      if (parser.peek_current_token ()->get_id () == IDENTIFIER
+	  && parser.peek (1)->get_id () == EQUAL)
+	{
+	  // FIXME: This is ugly - just add a parser.parse_identifier()?
+	  auto ident_tok = parser.peek_current_token ();
+	  auto ident = Identifier (ident_tok);
+
+	  parser.skip_token (IDENTIFIER);
+	  parser.skip_token (EQUAL);
+
+	  auto expr = parser.parse_expr ();
+
+	  // TODO: Handle graciously
+	  if (!expr)
+	    rust_unreachable ();
+
+	  args.push (AST::FormatArgument::named (ident, std::move (expr)));
+	}
+      else
+	{
+	  auto expr = parser.parse_expr ();
+
+	  // TODO: Handle graciously
+	  if (!expr)
+	    rust_unreachable ();
+
+	  args.push (AST::FormatArgument::normal (std::move (expr)));
+	}
+    }
+
+  // TODO: What we then want to do is as follows:
+  // for each token, check if it is an identifier
+  //     yes? is the next token an equal sign (=)
+  //          yes?
+  //              -> if that identifier is already present in our map, error
+  //              out
+  //              -> parse an expression, return a FormatArgument::Named
+  //     no?
+  //         -> if there have been named arguments before, error out
+  //         (positional after named error)
+  //         -> parse an expression, return a FormatArgument::Normal
+
+  return tl::make_unexpected (FormatArgsParseError ());
 }
 
 tl::optional<AST::Fragment>
