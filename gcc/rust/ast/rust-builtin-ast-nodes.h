@@ -120,9 +120,13 @@ class FormatArguments
 {
 public:
   FormatArguments () {}
+  FormatArguments (FormatArguments &&) = default;
+
   void push (FormatArgument &&elt) { args.emplace_back (std::move (elt)); }
 
 private:
+  FormatArguments (const FormatArguments &) = delete;
+
   std::vector<FormatArgument> args;
 };
 
@@ -145,7 +149,7 @@ public:
   };
 
   FormatArgs (location_t loc, Fmt::Pieces template_str,
-	      FormatArguments arguments)
+	      FormatArguments &&arguments)
     : loc (loc), template_str (std::move (template_str)),
       arguments (std::move (arguments))
   {}

@@ -985,17 +985,29 @@ format_args_parse_arguments (AST::MacroInvocData &invoc)
 
   auto args = AST::FormatArguments ();
   auto last_token_id = macro_end_token (invoc.get_delim_tok_tree (), parser);
-  std::unique_ptr<AST::Expr> lit_expr = nullptr;
+  std::unique_ptr<AST::Expr> format_str = nullptr;
 
   // TODO: Handle the case where we're not parsing a string literal (macro
   // invocation for e.g.)
   if (parser.peek_current_token ()->get_id () == STRING_LITERAL)
-    lit_expr = parser.parse_literal_expr ();
+    format_str = parser.parse_literal_expr ();
 
   // TODO: Allow implicit captures ONLY if the the first arg is a string literal
   // and not a macro invocation
 
   // TODO: How to consume all of the arguments until the delimiter?
+
+  // TODO: What we then want to do is as follows:
+  // for each token, check if it is an identifier
+  //     yes? is the next token an equal sign (=)
+  //          yes?
+  //              -> if that identifier is already present in our map, error
+  //              out
+  //              -> parse an expression, return a FormatArgument::Named
+  //     no?
+  //         -> if there have been named arguments before, error out
+  //         (positional after named error)
+  //         -> parse an expression, return a FormatArgument::Normal
   while (parser.peek_current_token ()->get_id () != last_token_id)
     {
       if (parser.peek_current_token ()->get_id () == IDENTIFIER
@@ -1028,19 +1040,7 @@ format_args_parse_arguments (AST::MacroInvocData &invoc)
 	}
     }
 
-  // TODO: What we then want to do is as follows:
-  // for each token, check if it is an identifier
-  //     yes? is the next token an equal sign (=)
-  //          yes?
-  //              -> if that identifier is already present in our map, error
-  //              out
-  //              -> parse an expression, return a FormatArgument::Named
-  //     no?
-  //         -> if there have been named arguments before, error out
-  //         (positional after named error)
-  //         -> parse an expression, return a FormatArgument::Normal
-
-  return tl::make_unexpected (FormatArgsParseError ());
+  return FormatArgsInput{std::move (format_str), std::move (args)};
 }
 
 tl::optional<AST::Fragment>
@@ -1055,6 +1055,9 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   auto tokens = invoc.get_delim_tok_tree ().to_token_stream ();
   tokens.erase (tokens.begin ());
   tokens.pop_back ();
+
+  auto input = format_args_parse_arguments (invoc);
+  rust_debug ("[ARTHUR]: %s", input->format_str->as_string ().c_str ());
 
   auto append_newline = nl == AST::FormatArgs::Newline::Yes ? true : false;
   auto fmt_arg
