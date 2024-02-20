@@ -1119,7 +1119,11 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   // TODO: we now need to take care of creating `unfinished_literal`? this is
   // for creating the `template`
 
-  return AST::Fragment::create_empty ();
+  auto node = std::unique_ptr<AST::Expr> (
+    new AST::FormatArgs (invoc_locus, pieces, std::move (input->args)));
+
+  return AST::Fragment ({AST::SingleASTNode (std::move (node))},
+			invoc.get_delim_tok_tree ().to_token_stream ());
 }
 
 tl::optional<AST::Fragment>

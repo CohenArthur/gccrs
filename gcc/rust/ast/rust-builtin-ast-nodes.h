@@ -81,6 +81,20 @@ public:
     : kind (kind), ident (ident)
   {}
 
+  FormatArgumentKind (const FormatArgumentKind &other)
+  {
+    kind = other.kind;
+    ident = other.ident;
+  }
+
+  FormatArgumentKind operator= (const FormatArgumentKind &other)
+  {
+    kind = other.kind;
+    ident = other.ident;
+
+    return *this;
+  }
+
 private:
   tl::optional<Identifier> ident;
 };
@@ -106,6 +120,18 @@ public:
 			   std::move (expr));
   }
 
+  FormatArgument (const FormatArgument &other)
+    : kind (other.kind), expr (other.expr->clone_expr ())
+  {}
+
+  FormatArgument operator= (const FormatArgument &other)
+  {
+    kind = other.kind;
+    expr = other.expr->clone_expr ();
+
+    return *this;
+  }
+
 private:
   FormatArgument (FormatArgumentKind::Kind kind, tl::optional<Identifier> ident,
 		  std::unique_ptr<Expr> expr)
@@ -121,12 +147,29 @@ class FormatArguments
 public:
   FormatArguments () {}
   FormatArguments (FormatArguments &&) = default;
+  FormatArguments (const FormatArguments &other)
+  {
+    args = std::vector<FormatArgument> ();
+    args.reserve (other.args.size ());
+
+    for (const auto &arg : other.args)
+      args.emplace_back (arg);
+  };
+
+  FormatArguments operator= (const FormatArguments &other)
+  {
+    args = std::vector<FormatArgument> ();
+    args.reserve (other.args.size ());
+
+    for (const auto &arg : other.args)
+      args.emplace_back (arg);
+
+    return *this;
+  }
 
   void push (FormatArgument &&elt) { args.emplace_back (std::move (elt)); }
 
 private:
-  FormatArguments (const FormatArguments &) = delete;
-
   std::vector<FormatArgument> args;
 };
 
@@ -139,7 +182,7 @@ private:
 // format_args!("result: {}", some_result))` -> `format_args!("heyo result: {}",
 // some_result)`
 // FIXME: Move to rust-macro.h
-class FormatArgs : public Visitable
+class FormatArgs : public Expr
 {
 public:
   enum class Newline
@@ -154,7 +197,14 @@ public:
       arguments (std::move (arguments))
   {}
 
-  void accept_vis (AST::ASTVisitor &vis);
+  // FIXME: This might be invalid - we are reusing the same memory allocated
+  // on the Rust side for `other`. This is probably valid as long as we only
+  // ever read that memory and never write to it.
+  FormatArgs (const FormatArgs &other)
+    : template_str (other.template_str), arguments (other.arguments)
+  {}
+
+  void accept_vis (AST::ASTVisitor &vis) override;
 
 private:
   location_t loc;
@@ -164,6 +214,16 @@ private:
   // transformation into something we can handle better
   Fmt::Pieces template_str;
   FormatArguments arguments;
+
+protected:
+  virtual std::string as_string () const override;
+  virtual location_t get_locus () const override;
+  virtual bool is_expr_without_block () const override;
+  virtual void mark_for_strip () override;
+  virtual bool is_marked_for_strip () const override;
+  virtual std::vector<Attribute> &get_outer_attrs () override;
+  virtual void set_outer_attrs (std::vector<Attribute>) override;
+  virtual Expr *clone_expr_impl () const override;
 };
 
 } // namespace AST
