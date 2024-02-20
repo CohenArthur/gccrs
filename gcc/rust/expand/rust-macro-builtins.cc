@@ -1051,17 +1051,8 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
 				   AST::MacroInvocData &invoc,
 				   AST::FormatArgs::Newline nl)
 {
-  // Remove the delimiters from the macro invocation:
-  // the invoc data for `format_args!(fmt, arg1, arg2)` is `(fmt, arg1, arg2)`,
-  // so we pop the front and back to remove the parentheses (or curly brackets,
-  // or brackets)
-  auto tokens = invoc.get_delim_tok_tree ().to_token_stream ();
-  tokens.erase (tokens.begin ());
-  tokens.pop_back ();
-
   auto input = format_args_parse_arguments (invoc);
 
-  auto append_newline = nl == AST::FormatArgs::Newline::Yes ? true : false;
   // auto fmt_arg
   //   // FIXME: this eneds to be split up into a smaller function
   //   = parse_single_string_literal (append_newline ?
@@ -1105,18 +1096,28 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   //     rust_unreachable ();
   //   }
 
+  // Remove the delimiters from the macro invocation:
+  // the invoc data for `format_args!(fmt, arg1, arg2)` is `(fmt, arg1, arg2)`,
+  // so we pop the front and back to remove the parentheses (or curly brackets,
+  // or brackets)
+  auto tokens = invoc.get_delim_tok_tree ().to_token_stream ();
+  tokens.erase (tokens.begin ());
+  tokens.pop_back ();
+
   std::stringstream stream;
   for (const auto &tok : tokens)
     stream << tok->as_string () << ' ';
 
-  rust_debug ("[ARTHUR]: `%s`", stream.str ().c_str ());
-
+  auto append_newline = nl == AST::FormatArgs::Newline::Yes ? true : false;
   auto pieces = Fmt::Pieces::collect (stream.str (), append_newline);
 
   // TODO:
   // do the transformation into an AST::FormatArgs node
   // return that
   // expand it during lowering
+
+  // TODO: we now need to take care of creating `unfinished_literal`? this is
+  // for creating the `template`
 
   return AST::Fragment::create_empty ();
 }
