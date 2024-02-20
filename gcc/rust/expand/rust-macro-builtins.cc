@@ -1010,6 +1010,8 @@ format_args_parse_arguments (AST::MacroInvocData &invoc)
   //         -> parse an expression, return a FormatArgument::Normal
   while (parser.peek_current_token ()->get_id () != last_token_id)
     {
+      parser.skip_token (COMMA);
+
       if (parser.peek_current_token ()->get_id () == IDENTIFIER
 	  && parser.peek (1)->get_id () == EQUAL)
 	{
@@ -1038,6 +1040,7 @@ format_args_parse_arguments (AST::MacroInvocData &invoc)
 
 	  args.push (AST::FormatArgument::normal (std::move (expr)));
 	}
+      // we need to skip commas, don't we?
     }
 
   return FormatArgsInput{std::move (format_str), std::move (args)};
@@ -1057,22 +1060,23 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   tokens.pop_back ();
 
   auto input = format_args_parse_arguments (invoc);
-  rust_debug ("[ARTHUR]: %s", input->format_str->as_string ().c_str ());
 
   auto append_newline = nl == AST::FormatArgs::Newline::Yes ? true : false;
-  auto fmt_arg
-    = parse_single_string_literal (append_newline ? BuiltinMacro::FormatArgsNl
-						  : BuiltinMacro::FormatArgs,
-				   invoc.get_delim_tok_tree (), invoc_locus,
-				   invoc.get_expander ());
+  // auto fmt_arg
+  //   // FIXME: this eneds to be split up into a smaller function
+  //   = parse_single_string_literal (append_newline ?
+  //   BuiltinMacro::FormatArgsNl
+  // 				  : BuiltinMacro::FormatArgs,
+  // 		   invoc.get_delim_tok_tree (), invoc_locus,
+  // 		   invoc.get_expander ());
 
-  if (!fmt_arg->is_literal ())
-    {
-      rust_sorry_at (
-	invoc_locus,
-	"cannot yet use eager macro invocations as format strings");
-      return AST::Fragment::create_empty ();
-    }
+  //  if (!fmt_arg->is_literal ())
+  //    {
+  //      rust_sorry_at (
+  // invoc_locus,
+  // "cannot yet use eager macro invocations as format strings");
+  //      return AST::Fragment::create_empty ();
+  //    }
 
   // FIXME: We need to handle this
   // // if it is not a literal, it's an eager macro invocation - return it
@@ -1083,23 +1087,23 @@ MacroBuiltin::format_args_handler (location_t invoc_locus,
   // 	    token_tree.to_token_stream ());
   //   }
 
-  auto fmt_str = static_cast<AST::LiteralExpr &> (*fmt_arg.get ());
+  // auto fmt_str = static_cast<AST::LiteralExpr &> (*fmt_arg.get ());
 
   // Switch on the format string to know if the string is raw or cooked
-  switch (fmt_str.get_lit_type ())
-    {
-    // case AST::Literal::RAW_STRING:
-    case AST::Literal::STRING:
-      break;
-    case AST::Literal::CHAR:
-    case AST::Literal::BYTE:
-    case AST::Literal::BYTE_STRING:
-    case AST::Literal::INT:
-    case AST::Literal::FLOAT:
-    case AST::Literal::BOOL:
-    case AST::Literal::ERROR:
-      rust_unreachable ();
-    }
+  // switch (fmt_str.get_lit_type ())
+  //   {
+  //   // case AST::Literal::RAW_STRING:
+  //   case AST::Literal::STRING:
+  //     break;
+  //   case AST::Literal::CHAR:
+  //   case AST::Literal::BYTE:
+  //   case AST::Literal::BYTE_STRING:
+  //   case AST::Literal::INT:
+  //   case AST::Literal::FLOAT:
+  //   case AST::Literal::BOOL:
+  //   case AST::Literal::ERROR:
+  //     rust_unreachable ();
+  //   }
 
   std::stringstream stream;
   for (const auto &tok : tokens)
