@@ -27,17 +27,29 @@ Pieces::collect (std::string &&to_parse, bool append_newline)
 {
   auto piece_slice = collect_pieces (to_parse.c_str (), append_newline);
 
-  rust_debug ("[ARTHUR] %p, %lu", (void *) piece_slice.base_ptr,
-	      piece_slice.len);
+  // rust_debug ("[ARTHUR] %p, %lu", (void *) piece_slice.base_ptr,
+  //      piece_slice.len);
 
   // this performs multiple copies, can we avoid them maybe?
-  auto pieces = std::vector (piece_slice.base_ptr,
-			     piece_slice.base_ptr + piece_slice.len);
+  // auto pieces = std::vector (piece_slice.base_ptr,
+  // 	     piece_slice.base_ptr + piece_slice.len);
 
   return Pieces (piece_slice, std::move (to_parse));
 }
 
-Pieces::~Pieces () { destroy_pieces (slice); }
+Pieces::~Pieces ()
+{
+  std::cerr << "Arthur: destoying pieces" << std::endl;
+  destroy_pieces (slice);
+}
+
+Pieces::Pieces (const Pieces &other)
+  : slice (
+    clone_pieces (other.slice.base_ptr, other.slice.len, other.slice.cap)),
+    to_parse (other.to_parse)
+{
+  // auto pieces = std::vector (slice.base_ptr, slice.base_ptr + slice.len);
+}
 
 } // namespace Fmt
 } // namespace Rust

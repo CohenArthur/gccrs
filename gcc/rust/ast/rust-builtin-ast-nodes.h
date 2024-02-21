@@ -156,16 +156,7 @@ public:
       args.emplace_back (arg);
   };
 
-  FormatArguments operator= (const FormatArguments &other)
-  {
-    args = std::vector<FormatArgument> ();
-    args.reserve (other.args.size ());
-
-    for (const auto &arg : other.args)
-      args.emplace_back (arg);
-
-    return *this;
-  }
+  FormatArguments &operator= (const FormatArguments &other) = default;
 
   void push (FormatArgument &&elt) { args.emplace_back (std::move (elt)); }
 
@@ -191,18 +182,33 @@ public:
     No
   };
 
-  FormatArgs (location_t loc, Fmt::Pieces template_str,
+  FormatArgs (location_t loc, Fmt::Pieces &&template_str,
 	      FormatArguments &&arguments)
     : loc (loc), template_str (std::move (template_str)),
       arguments (std::move (arguments))
   {}
 
+  FormatArgs (FormatArgs &&other)
+    : loc (std::move (other.loc)),
+      template_str (std::move (other.template_str)),
+      arguments (std::move (other.arguments))
+  {
+    std::cerr << "[ARTHUR] moving FormatArgs" << std::endl;
+  }
+
   // FIXME: This might be invalid - we are reusing the same memory allocated
   // on the Rust side for `other`. This is probably valid as long as we only
   // ever read that memory and never write to it.
   FormatArgs (const FormatArgs &other)
-    : template_str (other.template_str), arguments (other.arguments)
-  {}
+    : loc (other.loc), template_str (other.template_str),
+      arguments (other.arguments)
+  {
+    std::cerr << "[ARTHUR] copying FormatArgs" << std::endl;
+  }
+
+  // FormatArgs &operator= (const FormatArgs &other) = default;
+  //   : template_str (other.template_str), arguments (other.arguments)
+  // {}
 
   void accept_vis (AST::ASTVisitor &vis) override;
 

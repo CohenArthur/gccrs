@@ -245,6 +245,9 @@ extern "C" {
 PieceSlice
 collect_pieces (const char *input, bool append_newline);
 
+PieceSlice
+clone_pieces (const Piece *base_ptr, size_t len, size_t cap);
+
 void destroy_pieces (PieceSlice);
 
 } // extern "C"
@@ -253,6 +256,20 @@ struct Pieces
 {
   static Pieces collect (std::string &&to_parse, bool append_newline);
   ~Pieces ();
+  Pieces (const Pieces &other);
+  Pieces &operator= (const Pieces &other) = default;
+  Pieces (Pieces &&other)
+    : slice (std::move (other.slice)), to_parse (std::move (other.to_parse))
+  {
+    std::cerr << "Arthur: moving pieces" << std::endl;
+  }
+
+  // {
+  //   slice = clone_pieces (&other.slice);
+  //   to_parse = other.to_parse;
+
+  //   return *this;
+  // }
 
 private:
   Pieces (PieceSlice slice, std::string &&to_parse)

@@ -5101,7 +5101,8 @@ void FormatArgs::set_outer_attrs (std::vector<Attribute>)
 Expr *
 FormatArgs::clone_expr_impl () const
 {
-  rust_unreachable ();
+  std::cerr << "[ARTHUR] cloning FormatArgs! " << std::endl;
+
   return new FormatArgs (*this);
 }
 

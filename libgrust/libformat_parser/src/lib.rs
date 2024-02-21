@@ -77,7 +77,7 @@ mod ffi {
 
     /// A piece is a portion of the format string which represents the next part
     /// to emit. These are emitted as a stream by the `Parser` class.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Debug, PartialEq)]
     #[repr(C)]
     pub enum Piece<'a> {
         /// A literal string which should directly be emitted
@@ -85,6 +85,23 @@ mod ffi {
         /// This describes that formatting should process the next argument (as
         /// specified inside) for emission.
         NextArgument(*const Argument<'a>),
+    }
+
+    impl<'a> Clone for Piece<'a> {
+        fn clone(&self) -> Self {
+            match self {
+                Piece::String(s) => Piece::String(Clone::clone(s)),
+                Piece::NextArgument(arg_ptr) => {
+                    dbg!(arg_ptr);
+                    let arg = unsafe { Box::from_raw(*arg_ptr as *mut Argument) };
+                    let arg = (*arg).clone();
+                    let arg = Box::new(arg);
+                    let arg = Box::leak(arg);
+
+                    dbg!(Piece::NextArgument(arg))
+                }
+            }
+        }
     }
 
     impl<'a> Drop for Piece<'a> {
@@ -215,8 +232,9 @@ mod ffi {
                     // in a Rust destructor
                     let ptr = Box::leak(x);
                     let dst = Into::<Argument>::into(*ptr);
+                    let dst = Box::new(dst);
 
-                    Piece::NextArgument(&dst as *const Argument)
+                    Piece::NextArgument(Box::leak(dst))
                 }
             }
         }
@@ -345,7 +363,6 @@ pub struct PieceSlice {
 pub extern "C" fn collect_pieces(input: *const libc::c_char, append_newline: bool) -> PieceSlice {
     // FIXME: Add comment
     let str = unsafe { CStr::from_ptr(input) };
-    dbg!(str);
 
     // FIXME: No unwrap
     let pieces: Vec<ffi::Piece<'_>> =
@@ -364,6 +381,29 @@ pub extern "C" fn collect_pieces(input: *const libc::c_char, append_newline: boo
 }
 
 #[no_mangle]
-pub extern "C" fn destroy_pieces(PieceSlice { base_ptr, len, cap }: PieceSlice) {
-    let _ = unsafe { Vec::from_raw_parts(base_ptr, len, cap) };
+pub unsafe extern "C" fn destroy_pieces(PieceSlice { base_ptr, len, cap }: PieceSlice) {
+    eprintln!("[ARTHUR] destroying pieces: {base_ptr:?} {len} {cap}");
+    drop(Vec::from_raw_parts(base_ptr, len, cap));
+}
+
+#[no_mangle]
+pub extern "C" fn clone_pieces(
+    base_ptr: *mut ffi::Piece<'static>,
+    len: usize,
+    cap: usize,
+) -> PieceSlice {
+    eprintln!("[ARTHUR] cloning pieces: {base_ptr:?} {len} {cap}");
+
+    let v = unsafe { Vec::from_raw_parts(base_ptr, len, cap) };
+
+    let cloned_v = v.clone();
+
+    // FIXME: Add documentation
+    v.leak();
+
+    PieceSlice {
+        len: cloned_v.len(),
+        cap: cloned_v.capacity(),
+        base_ptr: dbg!(cloned_v.leak().as_mut_ptr()),
+    }
 }
