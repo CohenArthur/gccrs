@@ -29,7 +29,7 @@ class FormatArgsLowering
 {
 public:
   FormatArgsLowering ();
-  HIR::Expr *go (AST::FormatArgs &fmt);
+  HIR::Expr *expand (AST::FormatArgs &fmt);
 
 private:
 };

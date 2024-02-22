@@ -835,7 +835,7 @@ void
 ASTLoweringExpr::visit (AST::FormatArgs &fmt)
 {
   // Lowering FormatArgs is complex, and this file is already very long
-  translated = FormatArgsLowering ().go (fmt);
+  translated = FormatArgsLowering ().expand (fmt);
 
   rust_sorry_at (fmt.get_locus (),
 		 "FormatArgs lowering is not implemented yet");

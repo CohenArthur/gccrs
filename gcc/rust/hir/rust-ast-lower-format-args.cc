@@ -26,15 +26,15 @@ namespace HIR {
 FormatArgsLowering::FormatArgsLowering () {}
 
 HIR::Expr *
-FormatArgsLowering::go (AST::FormatArgs &fmt)
+FormatArgsLowering::expand (AST::FormatArgs &fmt)
 {
   for (const auto &piece : fmt.get_template ().get_pieces ())
     switch (piece.tag)
       {
-      case Fmt::Piece::Tag::String:
-	rust_debug ("Piece::String");
+      case Fmt::ffi::Piece::Tag::String:
+	rust_debug ("Piece::String: %s", piece.string._0.to_string ().c_str ());
 	break;
-      case Fmt::Piece::Tag::NextArgument:
+      case Fmt::ffi::Piece::Tag::NextArgument:
 	rust_debug ("Piece::NextArgument");
 	break;
       };
