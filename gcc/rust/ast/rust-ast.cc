@@ -5077,14 +5077,13 @@ FormatArgs::is_expr_without_block () const
 void
 FormatArgs::mark_for_strip ()
 {
-  // FIXME: This is invalid, we probably do want to mark these as strippable
-  rust_unreachable ();
+  marked_for_strip = true;
 }
 
 bool
 FormatArgs::is_marked_for_strip () const
 {
-  rust_unreachable ();
+  return marked_for_strip;
 }
 
 std::vector<Attribute> &

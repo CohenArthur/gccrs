@@ -221,6 +221,8 @@ private:
   Fmt::Pieces template_str;
   FormatArguments arguments;
 
+  bool marked_for_strip = false;
+
 protected:
   virtual std::string as_string () const override;
   virtual location_t get_locus () const override;
