@@ -222,7 +222,7 @@ struct Piece
 
   struct NextArgument_Body
   {
-    const Argument *_0;
+    Argument _0;
   };
 
   Tag tag;
@@ -261,7 +261,8 @@ struct Pieces
   Pieces (Pieces &&other)
     : slice (std::move (other.slice)), to_parse (std::move (other.to_parse))
   {
-    std::cerr << "Arthur: moving pieces" << std::endl;
+    std::cerr << "Arthur: moving pieces" << (void *) to_parse.c_str ()
+	      << std::endl;
   }
 
   // {

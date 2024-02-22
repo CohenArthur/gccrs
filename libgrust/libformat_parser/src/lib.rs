@@ -77,37 +77,15 @@ mod ffi {
 
     /// A piece is a portion of the format string which represents the next part
     /// to emit. These are emitted as a stream by the `Parser` class.
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, Clone, PartialEq)]
     #[repr(C)]
     pub enum Piece<'a> {
         /// A literal string which should directly be emitted
         String(&'a str),
         /// This describes that formatting should process the next argument (as
         /// specified inside) for emission.
-        NextArgument(*const Argument<'a>),
-    }
-
-    impl<'a> Clone for Piece<'a> {
-        fn clone(&self) -> Self {
-            match self {
-                Piece::String(s) => Piece::String(Clone::clone(s)),
-                Piece::NextArgument(arg_ptr) => {
-                    dbg!(arg_ptr);
-                    let arg = unsafe { Box::from_raw(*arg_ptr as *mut Argument) };
-                    let arg = (*arg).clone();
-                    let arg = Box::new(arg);
-                    let arg = Box::leak(arg);
-
-                    dbg!(Piece::NextArgument(arg))
-                }
-            }
-        }
-    }
-
-    impl<'a> Drop for Piece<'a> {
-        fn drop(&mut self) {
-            println!("dropping Piece: {:?}", self)
-        }
+        // do we need a pointer here? we're doing big cloning anyway
+        NextArgument(Argument<'a>),
     }
 
     /// Representation of an argument specification.
@@ -232,9 +210,8 @@ mod ffi {
                     // in a Rust destructor
                     let ptr = Box::leak(x);
                     let dst = Into::<Argument>::into(*ptr);
-                    let dst = Box::new(dst);
 
-                    Piece::NextArgument(Box::leak(dst))
+                    Piece::NextArgument(dst)
                 }
             }
         }
@@ -361,6 +338,8 @@ pub struct PieceSlice {
 
 #[no_mangle]
 pub extern "C" fn collect_pieces(input: *const libc::c_char, append_newline: bool) -> PieceSlice {
+    dbg!(input);
+
     // FIXME: Add comment
     let str = unsafe { CStr::from_ptr(input) };
 

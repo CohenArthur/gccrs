@@ -43,11 +43,12 @@ Pieces::~Pieces ()
   destroy_pieces (slice);
 }
 
-Pieces::Pieces (const Pieces &other)
-  : slice (
-    clone_pieces (other.slice.base_ptr, other.slice.len, other.slice.cap)),
-    to_parse (other.to_parse)
+Pieces::Pieces (const Pieces &other) : to_parse (other.to_parse)
 {
+  slice = clone_pieces (other.slice.base_ptr, other.slice.len, other.slice.cap);
+  std::cerr << "Arthur: copying pieces: other.to_parse: "
+	    << (void *) other.to_parse.c_str ()
+	    << " ours to_parse: " << (void *) to_parse.c_str () << std::endl;
   // auto pieces = std::vector (slice.base_ptr, slice.base_ptr + slice.len);
 }
 
