@@ -256,14 +256,11 @@ struct Pieces
 {
   static Pieces collect (std::string &&to_parse, bool append_newline);
   ~Pieces ();
+
   Pieces (const Pieces &other);
-  Pieces &operator= (const Pieces &other) = default;
-  Pieces (Pieces &&other)
-    : slice (std::move (other.slice)), to_parse (std::move (other.to_parse))
-  {
-    std::cerr << "Arthur: moving pieces" << (void *) to_parse.c_str ()
-	      << std::endl;
-  }
+  Pieces &operator= (const Pieces &other);
+
+  Pieces (Pieces &&other);
 
   // {
   //   slice = clone_pieces (&other.slice);
