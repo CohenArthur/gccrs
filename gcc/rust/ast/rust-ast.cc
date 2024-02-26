@@ -5092,7 +5092,8 @@ FormatArgs::get_outer_attrs ()
   rust_unreachable ();
 }
 
-void FormatArgs::set_outer_attrs (std::vector<Attribute>)
+void
+FormatArgs::set_outer_attrs (std::vector<Attribute>)
 {
   rust_unreachable ();
 }
@@ -5100,8 +5101,6 @@ void FormatArgs::set_outer_attrs (std::vector<Attribute>)
 Expr *
 FormatArgs::clone_expr_impl () const
 {
-  std::cerr << "[ARTHUR] cloning FormatArgs! " << std::endl;
-
   return new FormatArgs (*this);
 }
 

@@ -21,6 +21,7 @@
 
 #include "rust-ast-full-decls.h"
 #include "rust-hir-full-decls.h"
+#include "rust-hir-map.h"
 
 namespace Rust {
 namespace HIR {
@@ -32,6 +33,7 @@ public:
   HIR::Expr *expand (AST::FormatArgs &fmt);
 
 private:
+  Analysis::Mappings &mappings;
 };
 
 } // namespace HIR

@@ -117,9 +117,15 @@ public:
     F32_RUNTIME,
     F64_RUNTIME,
 
+    // from core/src/fmt/rt.rs
+    //
     // format_args!() lang items. They are not really lang items as of
     // Rust 1.49, but they help us when expanding format_args!() as part of our
-    // AST lowering - like more recent Rust versions do.
+    // HIR lowering - like more recent Rust versions do.
+    // Expanding as part of HIR Lowering is much easier and less error-prone
+    // than doing so during macro-expansion. It also allows for some interesting
+    // format_args!() optimizations. For this reason, we fake having these lang
+    // items even in 1.49
     FORMAT_PLACEHOLDER,
     FORMAT_ALIGNMENT,
     FORMAT_COUNT,

@@ -404,12 +404,17 @@ pub extern "C" fn collect_pieces(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_pieces(FormatArgsHandle(piece_slice, s): FormatArgsHandle) {
-    let PieceSlice { base_ptr, len, cap } = piece_slice;
-    drop(Vec::from_raw_parts(base_ptr, len, cap));
+pub unsafe extern "C" fn destroy_pieces(FormatArgsHandle(_piece_slice, _s): FormatArgsHandle) {
+    // TODO: This is the drop implementation we eventually want. however, I've already lost
+    // ten billion hours on fixing memory corruption issues because this set of FFI functions
+    // get called by the C++ constructors and destructors, and I'm slowly losing my mind.
+    // GCC already leaks half a computer worth of RAM anyway. So we're leaking too.
 
-    let RustString { ptr, len, cap } = s;
-    drop(String::from_raw_parts(ptr as *mut u8, len, cap));
+    // let PieceSlice { base_ptr, len, cap } = piece_slice;
+    // drop(Vec::from_raw_parts(base_ptr, len, cap));
+
+    // let RustString { ptr, len, cap } = s;
+    // drop(String::from_raw_parts(ptr as *mut u8, len, cap));
 }
 
 #[no_mangle]

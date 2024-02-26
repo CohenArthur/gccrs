@@ -47,16 +47,25 @@ Pieces::collect (const std::string &to_parse, bool append_newline)
   return Pieces (handle, std::move (pieces_vector));
 }
 
-Pieces::~Pieces () { ffi::destroy_pieces (handle); }
+Pieces::~Pieces ()
+{
+  rust_debug ("Pieces::~Pieces");
+
+  ffi::destroy_pieces (handle);
+}
 
 Pieces::Pieces (const Pieces &other) : pieces_vector (other.pieces_vector)
 {
+  rust_debug ("Pieces::Pieces const&");
+
   handle = ffi::clone_pieces (other.handle);
 }
 
 Pieces &
 Pieces::operator= (const Pieces &other)
 {
+  rust_debug ("Pieces::operator=");
+
   handle = ffi::clone_pieces (other.handle);
   pieces_vector = other.pieces_vector;
 
@@ -66,7 +75,9 @@ Pieces::operator= (const Pieces &other)
 Pieces::Pieces (Pieces &&other)
   : pieces_vector (std::move (other.pieces_vector)),
     handle (clone_pieces (other.handle))
-{}
+{
+  rust_debug ("Pieces::Pieces&&");
+}
 
 } // namespace Fmt
 } // namespace Rust

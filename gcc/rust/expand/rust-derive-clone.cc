@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-derive-clone.h"
+#include "rust-ast-dump.h"
 #include "rust-item.h"
 
 namespace Rust {
@@ -102,6 +103,9 @@ std::unique_ptr<AST::Item>
 DeriveClone::go (Item &item)
 {
   item.accept_vis (*this);
+
+  rust_debug ("[ARTHUR] %s: ", item.as_string ().c_str ());
+  AST::Dump::debug (item);
 
   rust_assert (expanded);
 
