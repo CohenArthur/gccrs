@@ -116,6 +116,15 @@ public:
     STR,
     F32_RUNTIME,
     F64_RUNTIME,
+
+    // format_args!() lang items. They are not really lang items as of
+    // Rust 1.49, but they help us when expanding format_args!() as part of our
+    // AST lowering - like more recent Rust versions do.
+    FORMAT_PLACEHOLDER,
+    FORMAT_ALIGNMENT,
+    FORMAT_COUNT,
+    FORMAT_ARGUMENT,
+    FORMAT_UNSAFE_ARG,
   };
 
   static const BiMap<std::string, Kind> lang_items;
