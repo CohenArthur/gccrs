@@ -68,6 +68,13 @@ FormatArgsLowering::FormatArgsLowering ()
   : mappings (*Analysis::Mappings::get ())
 {}
 
+// make_lang_item_path
+/*
+
+require_lang_item();
+
+*/
+
 HIR::Expr *
 FormatArgsLowering::expand (AST::FormatArgs &fmt)
 {
@@ -86,6 +93,9 @@ FormatArgsLowering::expand (AST::FormatArgs &fmt)
   auto mapping = Analysis::NodeMapping (crate_num, UNKNOWN_NODEID,
 					mappings.get_next_hir_id (crate_num),
 					UNKNOWN_LOCAL_DEFID);
+
+  // we basicaly need to create the HIR::PathExpression by hand with the HIR id
+  // we know from the lang item?
 
   return new HIR::CallExpr (mapping, nullptr, {}, {}, fmt.get_locus ());
 }
