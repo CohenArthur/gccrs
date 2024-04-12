@@ -690,6 +690,7 @@ extra_host_zlib_configure_flags
 extra_host_libiberty_configure_flags
 stage1_languages
 host_libs_picflag
+CRAB1_LIBS
 PICFLAG
 host_shared
 gcc_host_pie
@@ -8875,6 +8876,142 @@ fi
 
 
 
+# Rust requires -ldl and -lpthread if you are using an old glibc that does not include them by
+# default, so we check for them here
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if libc includes libdl and libpthread" >&5
+$as_echo_n "checking if libc includes libdl and libpthread... " >&6; }
+
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
+requires_ldl=no
+requires_lpthread=no
+missing_rust_dynlibs=none
+
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <dlfcn.h>
+int
+main ()
+{
+dlopen(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+else
+  requires_ldl=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+if test $requires_ldl = yes; then
+    tmp_LIBS=$LIBS
+    LIBS="$LIBS -ldl"
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <dlfcn.h>
+int
+main ()
+{
+dlopen(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  CRAB1_LIBS="$CRAB1_LIBS -ldl"
+else
+  missing_rust_dynlibs="libdl"
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+    LIBS=$tmp_LIBS
+fi
+
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <pthread.h>
+int
+main ()
+{
+pthread_create(NULL,NULL,NULL,NULL);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+else
+  requires_lpthread=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+if test $requires_lpthread = yes; then
+    tmp_LIBS=$LIBS
+    LIBS="$LIBS -lpthread"
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <pthread.h>
+int
+main ()
+{
+pthread_create(NULL,NULL,NULL,NULL);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  CRAB1_LIBS="$CRAB1_LIBS -lpthread"
+else
+  missing_rust_dynlibs="$missing_rust_dynlibs, libpthread"
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+    LIBS=$tmp_LIBS
+fi
+
+if test "$missing_rust_dynlibs" = "none"; then
+  if test $requires_ldl = yes -a $requires_lpthread = yes; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: not included, but available" >&5
+$as_echo "not included, but available" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no: missing $missing_rust_dynlibs" >&5
+$as_echo "no: missing $missing_rust_dynlibs" >&6; }
+fi
+
+CRAB1_LIBS="$CRAB1_LIBS"
+
+
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
 # If we are building PIC/PIE host executables, and we are building dependent
 # libs (e.g. GMP) in-tree those libs need to be configured to generate PIC
 # code.
@@ -9110,6 +9247,26 @@ $as_echo "$as_me: WARNING: GDC is required to build $language" >&2;}
             add_this_lang=unsupported
             ;;
           *:d:no)
+            # Silently disable.
+            add_this_lang=unsupported
+            ;;
+        esac
+
+        # Disable Rust if we are missing some required C libraries for the Rust runtime.
+        case ${add_this_lang}:${language}:${missing_rust_dynlibs} in
+          *:rust:none)
+            # Nothing to do - we're not missing any C libraries
+            ;;
+          yes:rust:*)
+            as_fn_error $? "some C libraries are required to build $language: $missing_rust_dynlibs" "$LINENO" 5
+            add_this_lang=unsupported
+            ;;
+          all:rust:*)
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: some C libraries are required to build $language: $missing_rust_dynlibs" >&5
+$as_echo "$as_me: WARNING: some C libraries are required to build $language: $missing_rust_dynlibs" >&2;}
+            add_this_lang=unsupported
+            ;;
+          *:rust:*)
             # Silently disable.
             add_this_lang=unsupported
             ;;
