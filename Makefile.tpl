@@ -134,6 +134,8 @@ POSTSTAGE1_LDFLAGS = @poststage1_ldflags@
 # Libraries to use for stage2 and later.
 POSTSTAGE1_LIBS = @poststage1_libs@
 
+CRAB1_LIBS = @CRAB1_LIBS@
+
 # This is the list of variables to export in the environment when
 # configuring any subdirectory.  It must also be exported whenever
 # recursing into a build directory in case that directory's Makefile
@@ -200,6 +202,7 @@ HOST_EXPORTS = \
 	$(BASE_EXPORTS) \
 	CC="$(CC)"; export CC; \
 	ADA_CFLAGS="$(ADA_CFLAGS)"; export ADA_CFLAGS; \
+	CRAB1_LIBS="$(CRAB1_LIBS)"; export CRAB1_LIBS; \
 	CFLAGS="$(CFLAGS)"; export CFLAGS; \
 	CONFIG_SHELL="$(SHELL)"; export CONFIG_SHELL; \
 	CXX="$(CXX)"; export CXX; \
@@ -452,6 +455,8 @@ LIBCXXFLAGS = $(CXXFLAGS) -fno-implicit-templates
 GOCFLAGS = $(CFLAGS)
 GDCFLAGS = @GDCFLAGS@
 GM2FLAGS = $(CFLAGS)
+
+CRAB1_LIBS = @CRAB1_LIBS@
 
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 
