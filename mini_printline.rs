@@ -17,7 +17,6 @@ trait Sized {}
 
 extern "C" {
     fn puts(s: *const i8);
-
 }
 
 pub mod core {
@@ -63,7 +62,7 @@ pub mod core {
                         formatter: transmute(formatter),
                     }
                 }
-            }
+           }
         }
 
         pub trait Display {
@@ -75,6 +74,19 @@ pub mod core {
         impl Display for CustomType {
             fn fmt(&self, f: &mut Formatter) -> Result {
                 f.buf.write_str("CustomType")
+    }
+
+        impl Display for i32 {
+            fn fmt(&self, _: &mut Formatter) -> Result {
+                // { dg-warning "unused name .self." "" { target *-*-* } .-1 }
+                Result
+            }
+        }
+
+        impl Display for &str {
+            fn fmt(&self, _: &mut Formatter) -> Result {
+                // { dg-warning "unused name .self." "" { target *-*-* } .-1 }
+                Result
             }
         }
 
@@ -295,4 +307,8 @@ fn main() {
     let _formatted = format_args!("hello {}", core::fmt::CustomType);
 
     println!("heyooooo {}\0", core::fmt::CustomType);
+
+    let _formatted = format_args!("hello {}", 15);
+
+    println!("heyooooo {}\0", 15);
 }
