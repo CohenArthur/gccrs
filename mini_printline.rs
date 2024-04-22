@@ -16,7 +16,7 @@ macro_rules! format_args_nl {
 trait Sized {}
 
 extern "C" {
-    fn puts(s: *const i8);
+    fn printf(s: *const i8, ...);
 }
 
 pub mod core {
@@ -34,8 +34,8 @@ pub mod core {
         pub struct Result;
 
         pub struct Arguments<'a> {
-            pieces: &'a [&'static str],
-            args: &'a [ArgumentV1<'a>],
+            pub pieces: &'a [&'static str],
+            pub args: &'a [ArgumentV1<'a>],
         }
 
         impl<'a> Arguments<'a> {
@@ -264,7 +264,12 @@ pub mod std {
 
         impl core::fmt::Write for Stdout {
             fn write_str(&mut self, s: &str) -> Result {
-                unsafe { puts(s as *const str as *const i8) };
+                unsafe {
+                    printf(
+                        "%s\0" as *const str as *const i8,
+                        s as *const str as *const i8,
+                    )
+                };
 
                 Result
             }
@@ -286,14 +291,8 @@ macro_rules! println {
     }};
 }
 
-fn main() {
-    // let _formatted = format_args!("hello {}", core::fmt::CustomType);
-
-    // println!("heyooooo {}\0", core::fmt::CustomType);
-
-    // let _formatted = format_args!("hello {}", 15);
-
-    // println!("heyooooo {}\0", 15);
-
+fn main() -> i32 {
     println!("hello, world!");
+
+    0
 }
