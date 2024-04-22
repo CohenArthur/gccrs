@@ -44,11 +44,11 @@ pub mod core {
             }
         }
 
-        struct Opaque;
+        pub struct Opaque;
 
         pub struct ArgumentV1<'a> {
-            value: &'a Opaque,
-            formatter: fn(&Opaque, &mut Formatter) -> Result,
+            pub value: &'a Opaque,
+            pub formatter: fn(&Opaque, &mut Formatter) -> Result,
         }
 
         impl<'a> ArgumentV1<'a> {
@@ -62,19 +62,12 @@ pub mod core {
                         formatter: transmute(formatter),
                     }
                 }
-           }
+            }
         }
 
         pub trait Display {
             fn fmt(&self, _: &mut Formatter) -> Result;
         }
-
-        struct CustomType;
-
-        impl Display for CustomType {
-            fn fmt(&self, f: &mut Formatter) -> Result {
-                f.buf.write_str("CustomType")
-    }
 
         impl Display for i32 {
             fn fmt(&self, _: &mut Formatter) -> Result {
@@ -113,23 +106,22 @@ pub mod core {
             /// assert_eq!(&buf, "world");
             /// ```
             #[stable(feature = "rust1", since = "1.0.0")]
-            fn write_fmt(&mut self, args: Arguments<'_>) -> Result {
-                write(self, args)
+            fn write_fmt(&mut self, _args: Arguments<'_>) -> Result {
+                write(self, _args)
             }
         }
 
         pub fn write<T: Write>(output: &mut T, args: Arguments<'_>) -> Result {
             let mut formatter = Formatter::new(output);
 
-            let mut idx = 0;
-
             let pieces: &[&str] = args.pieces;
-            let args: &[ArgumentV1] = args.args;
 
-            formatter.buf.write_str(&pieces[0usize]);
+            formatter
+                .buf
+                .write_str(unsafe { transmute::<_, &str>(*0usize.get_unchecked(pieces)) });
 
-            let arg = &args[0usize] as &ArgumentV1;
-            (arg.formatter)(arg.value, &mut formatter);
+            // let arg = &args[0usize] as &ArgumentV1;
+            // (arg.formatter)(arg.value, &mut formatter);
 
             // for (arg, piece) in args.args.iter().zip(args.pieces.iter()) {
             //     formatter.buf.write_str(*piece)?;
@@ -158,9 +150,9 @@ extern "C" {
     fn printf(s: *const i8, ...);
 }
 
-struct FatPtr<T> {
-    data: *const T,
-    len: usize,
+pub struct FatPtr<T> {
+    pub data: *const T,
+    pub len: usize,
 }
 
 pub union Repr<T> {
@@ -203,15 +195,6 @@ impl<T> *const T {
 
     pub const fn as_ptr(self) -> *const T {
         self as *const T
-    }
-}
-
-const fn slice_from_raw_parts<T>(data: *const T, len: usize) -> *const [T] {
-    unsafe {
-        Repr {
-            raw: FatPtr { data, len },
-        }
-        .rust
     }
 }
 
@@ -287,7 +270,7 @@ pub mod std {
             }
         }
 
-        fn print_to_stdout(args: core::fmt::Arguments<'_>, label: &str) {
+        fn print_to_stdout(args: core::fmt::Arguments<'_>, _label: &str) {
             Stdout.write_fmt(args);
         }
 
@@ -304,11 +287,13 @@ macro_rules! println {
 }
 
 fn main() {
-    let _formatted = format_args!("hello {}", core::fmt::CustomType);
+    // let _formatted = format_args!("hello {}", core::fmt::CustomType);
 
-    println!("heyooooo {}\0", core::fmt::CustomType);
+    // println!("heyooooo {}\0", core::fmt::CustomType);
 
-    let _formatted = format_args!("hello {}", 15);
+    // let _formatted = format_args!("hello {}", 15);
 
-    println!("heyooooo {}\0", 15);
+    // println!("heyooooo {}\0", 15);
+
+    println!("hello, world!");
 }
