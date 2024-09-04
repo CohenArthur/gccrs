@@ -18,6 +18,8 @@
 
 #include "rust-derive-copy.h"
 #include "rust-ast-full.h"
+#include "rust-mapping-common.h"
+#include "rust-path.h"
 
 namespace Rust {
 namespace AST {
@@ -42,7 +44,8 @@ DeriveCopy::copy_impl (std::string name)
   // `$crate::core::marker::Copy` instead
   auto segments = std::vector<std::unique_ptr<TypePathSegment>> ();
   segments.emplace_back (builder.type_path_segment ("Copy"));
-  auto copy = TypePath (std::move (segments), loc);
+  auto copy = LangItemPath (LangItem::Kind::COPY, loc);
+  // auto copy = TypePath (std::move (segments), loc);
 
   return std::unique_ptr<Item> (
     new TraitImpl (copy, /* unsafe */ false,
