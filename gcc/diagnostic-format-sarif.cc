@@ -1725,6 +1725,10 @@ public:
   {
     m_builder.emit_diagram (&m_context, diagram);
   }
+  void after_diagnostic (const diagnostic_info &) final override
+  {
+    /* No-op.  */
+  }
 
 protected:
   sarif_output_format (diagnostic_context &context,

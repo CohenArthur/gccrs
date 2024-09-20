@@ -32,7 +32,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "flags.h"
 #include "toplev.h"
 #include "langhooks.h"
-#include "tree-diagnostic.h" /* for virt_loc_aware_diagnostic_finalizer */
+#include "diagnostic-macro-unwinding.h" /* for virt_loc_aware_diagnostic_finalizer */
 #include "intl.h"
 #include "cppdefault.h"
 #include "incpath.h"
@@ -43,6 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "dumpfile.h"
 #include "file-prefix-map.h"    /* add_*_prefix_map()  */
 #include "context.h"
+#include "diagnostic-format-text.h"
 
 #ifndef DOLLARS_IN_IDENTIFIERS
 # define DOLLARS_IN_IDENTIFIERS true
@@ -121,6 +122,7 @@ static void set_std_c99 (int);
 static void set_std_c11 (int);
 static void set_std_c17 (int);
 static void set_std_c23 (int);
+static void set_std_c2y (int);
 static void check_deps_environment_vars (void);
 static void handle_deferred_opts (void);
 static void sanitize_cpp_opts (void);
@@ -167,26 +169,28 @@ c_common_option_lang_mask (void)
 
 /* Diagnostic finalizer for C/C++/Objective-C/Objective-C++.  */
 static void
-c_diagnostic_finalizer (diagnostic_context *context,
-			const diagnostic_info *diagnostic,
-			diagnostic_t)
+c_diagnostic_text_finalizer (diagnostic_text_output_format &text_output,
+			     const diagnostic_info *diagnostic,
+			     diagnostic_t)
 {
-  char *saved_prefix = pp_take_prefix (context->printer);
-  pp_set_prefix (context->printer, NULL);
-  pp_newline (context->printer);
-  diagnostic_show_locus (context, diagnostic->richloc, diagnostic->kind);
+  pretty_printer *const pp = text_output.get_printer ();
+  char *saved_prefix = pp_take_prefix (pp);
+  pp_set_prefix (pp, NULL);
+  pp_newline (pp);
+  diagnostic_show_locus (&text_output.get_context (),
+			 diagnostic->richloc, diagnostic->kind, pp);
   /* By default print macro expansion contexts in the diagnostic
      finalizer -- for tokens resulting from macro expansion.  */
-  virt_loc_aware_diagnostic_finalizer (context, diagnostic);
-  pp_set_prefix (context->printer, saved_prefix);
-  pp_flush (context->printer);
+  virt_loc_aware_diagnostic_finalizer (text_output, diagnostic);
+  pp_set_prefix (pp, saved_prefix);
+  pp_flush (pp);
 }
 
 /* Common default settings for diagnostics.  */
 void
 c_common_diagnostics_set_defaults (diagnostic_context *context)
 {
-  diagnostic_finalizer (context) = c_diagnostic_finalizer;
+  diagnostic_text_finalizer (context) = c_diagnostic_text_finalizer;
   context->m_opt_permissive = OPT_fpermissive;
 }
 
@@ -622,6 +626,10 @@ c_common_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
       add_prefixed_path (arg, INC_BRACKET);
       break;
 
+    case OPT__embed_dir_:
+      add_path (xstrdup (arg), INC_EMBED, 0, true);
+      break;
+
     case OPT_lang_asm:
       cpp_set_lang (parse_in, CLK_ASM);
       cpp_opts->dollars_in_ident = false;
@@ -741,6 +749,16 @@ c_common_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
     case OPT_std_gnu23:
       if (!preprocessing_asm_p)
 	set_std_c23 (false /* ISO */);
+      break;
+
+    case OPT_std_c2y:
+      if (!preprocessing_asm_p)
+	set_std_c2y (true /* ISO */);
+      break;
+
+    case OPT_std_gnu2y:
+      if (!preprocessing_asm_p)
+	set_std_c2y (false /* ISO */);
       break;
 
     case OPT_trigraphs:
@@ -1137,17 +1155,10 @@ c_common_post_options (const char **pfilename)
   if (warn_return_type == -1 && c_dialect_cxx ())
     warn_return_type = 1;
 
-  /* C++20 is the final version of concepts. We still use -fconcepts
-     to know when concepts are enabled. Note that -fconcepts-ts can
-     be used to include additional features, although modified to
-     work with the standard.  */
-  if (cxx_dialect >= cxx20 || flag_concepts_ts)
+  /* C++20 is the final version of concepts.  We still use -fconcepts
+     to know when concepts are enabled.  */
+  if (cxx_dialect >= cxx20)
     flag_concepts = 1;
-
-  /* -fconcepts-ts will be removed in GCC 15.  */
-  if (flag_concepts_ts)
-    inform (input_location, "%<-fconcepts-ts%> is deprecated and will be "
-	    "removed in GCC 15; please convert your code to C++20 concepts");
 
   /* -fimmediate-escalation has no effect when immediate functions are not
      supported.  */
@@ -1285,8 +1296,8 @@ c_common_init (void)
 
   if (flag_preprocess_only)
     {
-      c_finish_options ();
       c_init_preprocess ();
+      c_finish_options ();
       preprocess_file (parse_in);
       return false;
     }
@@ -1782,6 +1793,7 @@ set_std_c89 (int c94, int iso)
   flag_isoc99 = 0;
   flag_isoc11 = 0;
   flag_isoc23 = 0;
+  flag_isoc2y = 0;
   lang_hooks.name = "GNU C89";
 }
 
@@ -1793,6 +1805,7 @@ set_std_c99 (int iso)
   flag_no_asm = iso;
   flag_no_nonansi_builtin = iso;
   flag_iso = iso;
+  flag_isoc2y = 0;
   flag_isoc23 = 0;
   flag_isoc11 = 0;
   flag_isoc99 = 1;
@@ -1808,6 +1821,7 @@ set_std_c11 (int iso)
   flag_no_asm = iso;
   flag_no_nonansi_builtin = iso;
   flag_iso = iso;
+  flag_isoc2y = 0;
   flag_isoc23 = 0;
   flag_isoc11 = 1;
   flag_isoc99 = 1;
@@ -1823,6 +1837,7 @@ set_std_c17 (int iso)
   flag_no_asm = iso;
   flag_no_nonansi_builtin = iso;
   flag_iso = iso;
+  flag_isoc2y = 0;
   flag_isoc23 = 0;
   flag_isoc11 = 1;
   flag_isoc99 = 1;
@@ -1830,7 +1845,7 @@ set_std_c17 (int iso)
   lang_hooks.name = "GNU C17";
 }
 
-/* Set the C 2X standard (without GNU extensions if ISO).  */
+/* Set the C 23 standard (without GNU extensions if ISO).  */
 static void
 set_std_c23 (int iso)
 {
@@ -1838,11 +1853,28 @@ set_std_c23 (int iso)
   flag_no_asm = iso;
   flag_no_nonansi_builtin = iso;
   flag_iso = iso;
+  flag_isoc2y = 0;
   flag_isoc23 = 1;
   flag_isoc11 = 1;
   flag_isoc99 = 1;
   flag_isoc94 = 1;
   lang_hooks.name = "GNU C23";
+}
+
+/* Set the C 2Y standard (without GNU extensions if ISO).  */
+static void
+set_std_c2y (int iso)
+{
+  cpp_set_lang (parse_in, iso ? CLK_STDC23: CLK_GNUC23);
+  flag_no_asm = iso;
+  flag_no_nonansi_builtin = iso;
+  flag_iso = iso;
+  flag_isoc2y = 1;
+  flag_isoc23 = 1;
+  flag_isoc11 = 1;
+  flag_isoc99 = 1;
+  flag_isoc94 = 1;
+  lang_hooks.name = "GNU C2Y";
 }
 
 
