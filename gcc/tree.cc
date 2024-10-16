@@ -3692,7 +3692,7 @@ int_byte_position (const_tree field)
    ARRAY_TYPE) minus one. This counts only elements of the top array.  */
 
 tree
-array_type_nelts (const_tree type)
+array_type_nelts_minus_one (const_tree type)
 {
   tree index_type, min, max;
 
@@ -14717,7 +14717,7 @@ is_empty_type (const_tree type)
       return true;
     }
   else if (TREE_CODE (type) == ARRAY_TYPE)
-    return (integer_minus_onep (array_type_nelts (type))
+    return (integer_minus_onep (array_type_nelts_minus_one (type))
 	    || TYPE_DOMAIN (type) == NULL_TREE
 	    || is_empty_type (TREE_TYPE (type)));
   return false;
