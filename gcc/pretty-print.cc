@@ -2125,10 +2125,10 @@ pretty_printer::~pretty_printer ()
 
 /* Base class implementation of pretty_printer::clone vfunc.  */
 
-pretty_printer *
+std::unique_ptr<pretty_printer>
 pretty_printer::clone () const
 {
-  return new pretty_printer (*this);
+  return ::make_unique<pretty_printer> (*this);
 }
 
 /* Append a string delimited by START and END to the output area of

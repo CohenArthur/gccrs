@@ -21,6 +21,14 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_DIAGNOSTIC_H
 #define GCC_DIAGNOSTIC_H
 
+/* This header uses std::unique_ptr, but <memory> can't be directly
+   included due to issues with macros.  Hence it must be included from
+   system.h by defining INCLUDE_MEMORY in any source file using it.  */
+
+#ifndef INCLUDE_MEMORY
+# error "You must define INCLUDE_MEMORY before including system.h to use diagnostic.h"
+#endif
+
 #include "unique-argv.h"
 #include "rich-location.h"
 #include "pretty-print.h"
@@ -76,7 +84,11 @@ enum diagnostics_output_format
   DIAGNOSTICS_OUTPUT_FORMAT_SARIF_STDERR,
 
   /* SARIF-based output, to a file.  */
-  DIAGNOSTICS_OUTPUT_FORMAT_SARIF_FILE
+  DIAGNOSTICS_OUTPUT_FORMAT_SARIF_FILE,
+
+  /* Undocumented, for use by test suite.
+     SARIF-based output, to a file, using a prerelease of the 2.2 schema.  */
+  DIAGNOSTICS_OUTPUT_FORMAT_SARIF_FILE_2_2_PRERELEASE
 };
 
 /* An enum for controlling how diagnostic_paths should be printed.  */
@@ -171,11 +183,16 @@ struct diagnostic_info
 };
 
 /*  Forward declarations.  */
+class diagnostic_location_print_policy;
+class diagnostic_source_print_policy;
+
 typedef void (*diagnostic_text_starter_fn) (diagnostic_text_output_format &,
 					    const diagnostic_info *);
 
-typedef void (*diagnostic_start_span_fn) (diagnostic_context *,
-					  expanded_location);
+typedef void
+(*diagnostic_start_span_fn) (const diagnostic_location_print_policy &,
+			     pretty_printer *,
+			     expanded_location);
 
 typedef void (*diagnostic_text_finalizer_fn) (diagnostic_text_output_format &,
 					      const diagnostic_info *,
@@ -211,13 +228,13 @@ public:
 };
 
 class edit_context;
-namespace json { class value; }
 class diagnostic_client_data_hooks;
 class logical_location;
 class diagnostic_diagram;
 class diagnostic_source_effect_info;
 class diagnostic_output_format;
   class diagnostic_text_output_format;
+class diagnostic_buffer;
 
 /* A stack of sets of classifications: each entry in the stack is
    a mapping from option index to diagnostic severity that can be changed
@@ -256,6 +273,9 @@ public:
   diagnostic_t
   update_effective_level_from_pragmas (diagnostic_info *diagnostic) const;
 
+  int pch_save (FILE *);
+  int pch_restore (FILE *);
+
 private:
   /* Each time a diagnostic's classification is changed with a pragma,
      we record the change and the location of the change in an array of
@@ -287,14 +307,10 @@ private:
      binary-wise or end-to-front, to find the most recent
      classification for a given diagnostic, given the location of the
      diagnostic.  */
-  diagnostic_classification_change_t *m_classification_history;
-
-  /* The size of the above array.  */
-  int m_n_classification_history;
+  vec<diagnostic_classification_change_t> m_classification_history;
 
   /* For pragma push/pop.  */
-  int *m_push_list;
-  int m_n_push;
+  vec<int> m_push_list;
 };
 
 /* A bundle of options relating to printing the user's source code
@@ -346,6 +362,123 @@ struct diagnostic_source_printing_options
   bool show_event_links_p;
 };
 
+/* A bundle of state for determining column numbers in diagnostics
+   (tab stops, whether to start at 0 or 1, etc).
+   Uses a file_cache to handle tabs.  */
+
+class diagnostic_column_policy
+{
+public:
+  diagnostic_column_policy (const diagnostic_context &dc);
+
+  int converted_column (expanded_location s) const;
+
+  label_text get_location_text (const expanded_location &s,
+				bool show_column,
+				bool colorize) const;
+
+  int get_tabstop () const { return m_tabstop; }
+
+private:
+  file_cache &m_file_cache;
+  enum diagnostics_column_unit m_column_unit;
+  int m_column_origin;
+  int m_tabstop;
+};
+
+/* A bundle of state for printing locations within diagnostics
+   (e.g. "FILENAME:LINE:COLUMN"), to isolate the interactions between
+   diagnostic_context and the start_span callbacks.  */
+
+class diagnostic_location_print_policy
+{
+public:
+  diagnostic_location_print_policy (const diagnostic_context &dc);
+  diagnostic_location_print_policy (const diagnostic_text_output_format &);
+
+  bool show_column_p () const { return m_show_column; }
+
+  const diagnostic_column_policy &
+  get_column_policy () const { return m_column_policy; }
+
+private:
+  diagnostic_column_policy m_column_policy;
+  bool m_show_column;
+};
+
+/* A bundle of state for printing source within a diagnostic,
+   to isolate the interactions between diagnostic_context and the
+   implementation of diagnostic_show_locus.  */
+
+class diagnostic_source_print_policy
+{
+public:
+  diagnostic_source_print_policy (const diagnostic_context &);
+
+  void
+  print (pretty_printer &pp,
+	 const rich_location &richloc,
+	 diagnostic_t diagnostic_kind,
+	 diagnostic_source_effect_info *effect_info) const;
+
+  const diagnostic_source_printing_options &
+  get_options () const { return m_options; }
+
+  diagnostic_start_span_fn
+  get_start_span_fn () const { return m_start_span_cb; }
+
+  file_cache &
+  get_file_cache () const { return m_file_cache; }
+
+  enum diagnostics_escape_format
+  get_escape_format () const
+  {
+    return m_escape_format;
+  }
+
+  text_art::theme *
+  get_diagram_theme () const { return m_diagram_theme; }
+
+  const diagnostic_column_policy &get_column_policy () const
+  {
+    return m_location_policy.get_column_policy ();
+  }
+
+  const diagnostic_location_print_policy &get_location_policy () const
+  {
+    return m_location_policy;
+  }
+
+private:
+  const diagnostic_source_printing_options &m_options;
+  class diagnostic_location_print_policy m_location_policy;
+  diagnostic_start_span_fn m_start_span_cb;
+  file_cache &m_file_cache;
+
+  /* Other data copied from diagnostic_context.  */
+  text_art::theme *m_diagram_theme;
+  enum diagnostics_escape_format m_escape_format;
+};
+
+/* A collection of counters of diagnostics, per-kind
+   (e.g. "3 errors and 1 warning"), for use by both diagnostic_context
+   and by diagnostic_buffer.  */
+
+struct diagnostic_counters
+{
+  diagnostic_counters ();
+
+  void dump (FILE *out, int indent) const;
+  void DEBUG_FUNCTION dump () const { dump (stderr, 0); }
+
+  int get_count (diagnostic_t kind) const { return m_count_for_kind[kind]; }
+
+  void move_to (diagnostic_counters &dest);
+  void clear ();
+
+  int m_count_for_kind[DK_LAST_DIAGNOSTIC_KIND];
+};
+
 /* This data structure bundles altogether any information relevant to
    the context of a diagnostic message.  */
 class diagnostic_context
@@ -359,9 +492,9 @@ public:
   friend diagnostic_text_finalizer_fn &
   diagnostic_text_finalizer (diagnostic_context *context);
 
+  friend class diagnostic_source_print_policy;
   friend class diagnostic_text_output_format;
 
-  typedef void (*ice_handler_callback_t) (diagnostic_context *);
   typedef void (*set_locations_callback_t) (diagnostic_context *,
 					    diagnostic_info *);
 
@@ -370,6 +503,9 @@ public:
   void urls_init (int value);
 
   void finish ();
+
+  void dump (FILE *out) const;
+  void DEBUG_FUNCTION dump () const { dump (stderr); }
 
   bool execution_failed_p () const;
 
@@ -398,10 +534,20 @@ public:
     return m_option_classifier.option_unspecified_p (option_id);
   }
 
-  bool report_diagnostic (diagnostic_info *);
+  bool emit_diagnostic_with_group (diagnostic_t kind,
+				   rich_location &richloc,
+				   const diagnostic_metadata *metadata,
+				   diagnostic_option_id option_id,
+				   const char *gmsgid, ...)
+    ATTRIBUTE_GCC_DIAG(6,7);
+  bool emit_diagnostic_with_group_va (diagnostic_t kind,
+				      rich_location &richloc,
+				      const diagnostic_metadata *metadata,
+				      diagnostic_option_id option_id,
+				      const char *gmsgid, va_list *ap)
+    ATTRIBUTE_GCC_DIAG(6,0);
 
-  void check_max_errors (bool flush);
-  void action_after_output (diagnostic_t diag_kind);
+  bool report_diagnostic (diagnostic_info *);
 
   diagnostic_t
   classify_diagnostic (diagnostic_option_id option_id,
@@ -425,21 +571,21 @@ public:
 
   void maybe_show_locus (const rich_location &richloc,
 			 diagnostic_t diagnostic_kind,
-			 pretty_printer *pp,
+			 pretty_printer &pp,
 			 diagnostic_source_effect_info *effect_info);
 
   void emit_diagram (const diagnostic_diagram &diagram);
 
-  const diagnostic_output_format *get_output_format () const
+  diagnostic_output_format *get_output_format () const
   {
     return m_output_format;
   }
 
   /* Various setters for use by option-handling logic.  */
-  void set_output_format (diagnostic_output_format *output_format);
+  void set_output_format (std::unique_ptr<diagnostic_output_format> output_format);
   void set_text_art_charset (enum diagnostic_text_art_charset charset);
-  void set_client_data_hooks (diagnostic_client_data_hooks *hooks);
-  void set_urlifier (urlifier *);
+  void set_client_data_hooks (std::unique_ptr<diagnostic_client_data_hooks> hooks);
+  void set_urlifier (std::unique_ptr<urlifier>);
   void create_edit_context ();
   void set_warning_as_error_requested (bool val)
   {
@@ -467,10 +613,6 @@ public:
   {
     m_escape_format = val;
   }
-  void set_ice_handler_callback (ice_handler_callback_t cb)
-  {
-    m_ice_handler_cb = cb;
-  }
 
   /* Various accessors.  */
   bool warning_as_error_requested_p () const
@@ -495,18 +637,20 @@ public:
   {
     return m_edit_context_ptr;
   }
-  const diagnostic_client_data_hooks *get_client_data_hooks ()
+  const diagnostic_client_data_hooks *get_client_data_hooks () const
   {
     return m_client_data_hooks;
   }
   urlifier *get_urlifier () const { return m_urlifier; }
   text_art::theme *get_diagram_theme () const { return m_diagrams.m_theme; }
 
-  int converted_column (expanded_location s) const;
-
   int &diagnostic_count (diagnostic_t kind)
   {
-    return m_diagnostic_count[kind];
+    return m_diagnostic_counters.m_count_for_kind[kind];
+  }
+  int diagnostic_count (diagnostic_t kind) const
+  {
+    return m_diagnostic_counters.get_count (kind);
   }
 
   /* Option-related member functions.  */
@@ -536,16 +680,13 @@ public:
   }
 
   void
-  set_option_manager (diagnostic_option_manager *mgr,
+  set_option_manager (std::unique_ptr<diagnostic_option_manager> mgr,
 		      unsigned lang_mask);
 
   unsigned get_lang_mask () const
   {
     return m_lang_mask;
   }
-
-  label_text get_location_text (const expanded_location &s,
-				bool colorize) const;
 
   bool diagnostic_impl (rich_location *, const diagnostic_metadata *,
 			diagnostic_option_id, const char *,
@@ -555,6 +696,32 @@ public:
 			  const char *, const char *, va_list *,
 			  diagnostic_t) ATTRIBUTE_GCC_DIAG(7,0);
 
+  int
+  pch_save (FILE *f)
+  {
+    return m_option_classifier.pch_save (f);
+  }
+
+  int
+  pch_restore (FILE *f)
+  {
+    return m_option_classifier.pch_restore (f);
+  }
+
+
+  void set_diagnostic_buffer (diagnostic_buffer *);
+  diagnostic_buffer *get_diagnostic_buffer () const
+  {
+    return m_diagnostic_buffer;
+  }
+  void clear_diagnostic_buffer (diagnostic_buffer &);
+  void flush_diagnostic_buffer (diagnostic_buffer &);
+
+  std::unique_ptr<pretty_printer> clone_printer () const
+  {
+    return m_printer->clone ();
+  }
+
 private:
   void error_recursion () ATTRIBUTE_NORETURN;
 
@@ -562,24 +729,26 @@ private:
 
   void get_any_inlining_info (diagnostic_info *diagnostic);
 
-  void show_locus (const rich_location &richloc,
-		   diagnostic_t diagnostic_kind,
-		   pretty_printer *pp,
-		   diagnostic_source_effect_info *effect_info);
+  void check_max_errors (bool flush);
+  void action_after_output (diagnostic_t diag_kind);
 
   /* Data members.
      Ideally, all of these would be private.  */
 
 public:
-  /* Where most of the diagnostic formatting work is done.  */
+  /* Where most of the diagnostic formatting work is done.
+     Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   pretty_printer *m_printer;
 
 private:
-  /* Cache of source code.  */
+  /* Cache of source code.
+     Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   file_cache *m_file_cache;
 
   /* The number of times we have issued diagnostics.  */
-  int m_diagnostic_count[DK_LAST_DIAGNOSTIC_KIND];
+  diagnostic_counters m_diagnostic_counters;
 
   /* True if it has been requested that warnings be treated as errors.  */
   bool m_warning_as_error_requested;
@@ -667,11 +836,15 @@ public:
   void (*m_adjust_diagnostic_info)(diagnostic_context *, diagnostic_info *);
 
 private:
+  /* Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   diagnostic_option_manager *m_option_mgr;
   unsigned m_lang_mask;
 
   /* An optional hook for adding URLs to quoted text strings in
-     diagnostics.  Only used for the main diagnostic message.  */
+     diagnostics.  Only used for the main diagnostic message.
+     Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   urlifier *m_urlifier;
 
 public:
@@ -714,7 +887,9 @@ private:
   enum diagnostics_escape_format m_escape_format;
 
   /* If non-NULL, an edit_context to which fix-it hints should be
-     applied, for generating patches.  */
+     applied, for generating patches.
+     Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   edit_context *m_edit_context_ptr;
 
   /* Fields relating to diagnostic groups.  */
@@ -728,7 +903,9 @@ private:
   } m_diagnostic_groups;
 
   /* How to output diagnostics (text vs a structured format such as JSON).
-     Must be non-NULL; owned by context.  */
+     Must be non-NULL; owned by context.
+     This would be a std::unique_ptr if diagnostic_context had a proper
+     ctor.  */
   diagnostic_output_format *m_output_format;
 
   /* Callback to set the locations of call sites along the inlining
@@ -737,26 +914,36 @@ private:
      of a diagnostic's location.  */
   set_locations_callback_t m_set_locations_cb;
 
-  /* Optional callback for attempting to handle ICEs gracefully.  */
-  ice_handler_callback_t m_ice_handler_cb;
-
   /* A bundle of hooks for providing data to the context about its client
      e.g. version information, plugins, etc.
      Used by SARIF output to give metadata about the client that's
-     producing diagnostics.  */
+     producing diagnostics.
+     Owned by the context; this would be a std::unique_ptr if
+     diagnostic_context had a proper ctor.  */
   diagnostic_client_data_hooks *m_client_data_hooks;
 
   /* Support for diagrams.  */
   struct
   {
     /* Theme to use when generating diagrams.
-       Can be NULL (if text art is disabled).  */
+       Can be NULL (if text art is disabled).
+       Owned by the context; this would be a std::unique_ptr if
+       diagnostic_context had a proper ctor.  */
     text_art::theme *m_theme;
 
   } m_diagrams;
 
   /* Owned by the context.  */
   char **m_original_argv;
+
+  /* Borrowed pointer to the active diagnostic_buffer, if any.
+     If null (the default), then diagnostics that are reported to the
+     context are immediately issued to the output format.
+     If non-null, then diagnostics that are reported to the context
+     are buffered in the buffer, and may be issued to the output format
+     later (if the buffer is flushed), moved to other buffers, or
+     discarded (if the buffer is cleared).  */
+  diagnostic_buffer *m_diagnostic_buffer;
 };
 
 inline void
@@ -876,11 +1063,13 @@ inline void
 diagnostic_show_locus (diagnostic_context *context,
 		       rich_location *richloc,
 		       diagnostic_t diagnostic_kind,
-		       pretty_printer *pp = nullptr,
+		       pretty_printer *pp,
 		       diagnostic_source_effect_info *effect_info = nullptr)
 {
+  gcc_assert (context);
   gcc_assert (richloc);
-  context->maybe_show_locus (*richloc, diagnostic_kind, pp, effect_info);
+  gcc_assert (pp);
+  context->maybe_show_locus (*richloc, diagnostic_kind, *pp, effect_info);
 }
 
 /* Because we read source files a second time after the frontend did it the
@@ -956,25 +1145,13 @@ extern void diagnostic_set_info_translated (diagnostic_info *, const char *,
 #endif
 void default_diagnostic_text_starter (diagnostic_text_output_format &,
 				      const diagnostic_info *);
-void default_diagnostic_start_span_fn (diagnostic_context *,
+void default_diagnostic_start_span_fn (const diagnostic_location_print_policy &,
+				       pretty_printer *,
 				       expanded_location);
 void default_diagnostic_text_finalizer (diagnostic_text_output_format &,
 					const diagnostic_info *,
 					diagnostic_t);
 void diagnostic_set_caret_max_width (diagnostic_context *context, int value);
-
-inline void
-diagnostic_action_after_output (diagnostic_context *context,
-				diagnostic_t diag_kind)
-{
-  context->action_after_output (diag_kind);
-}
-
-inline void
-diagnostic_check_max_errors (diagnostic_context *context, bool flush = false)
-{
-  context->check_max_errors (flush);
-}
 
 int get_terminal_width (void);
 

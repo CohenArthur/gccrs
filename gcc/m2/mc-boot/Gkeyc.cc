@@ -19,6 +19,7 @@ with gm2; see the file COPYING.  If not, write to the Free Software
 Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
+#define INCLUDE_MEMORY
 #include "config.h"
 #include "system.h"
 #include <stdbool.h>
@@ -555,6 +556,7 @@ static void checkGccConfigSystem (mcPretty_pretty p)
       if (! initializedGCC)
         {
           initializedGCC = true;
+          mcPretty_print (p, (const char *) "#define INCLUDE_MEMORY\\n", 24);
           mcPretty_print (p, (const char *) "#include \"config.h\"\\n", 21);
           mcPretty_print (p, (const char *) "#include \"system.h\"\\n", 21);
         }

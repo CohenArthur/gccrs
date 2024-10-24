@@ -147,6 +147,7 @@ along with GCC; see the file COPYING3.  If not see
    caller while preserving the call to the actual function?  Either that or
    mirror a never-continue post contract with an assume in the caller.  */
 
+#define INCLUDE_MEMORY
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"

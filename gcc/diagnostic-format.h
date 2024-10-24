@@ -21,6 +21,10 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_DIAGNOSTIC_FORMAT_H
 #define GCC_DIAGNOSTIC_FORMAT_H
 
+#include "diagnostic.h"
+
+class diagnostic_per_format_buffer;
+
 /* Abstract base class for a particular output format for diagnostics;
    each value of -fdiagnostics-output-format= will have its own
    implementation.  */
@@ -29,6 +33,19 @@ class diagnostic_output_format
 {
 public:
   virtual ~diagnostic_output_format () {}
+
+  virtual void dump (FILE *out, int indent) const;
+
+  /* Vfunc for making an appropriate diagnostic_per_format_buffer
+     subclass for this format.  */
+  virtual std::unique_ptr<diagnostic_per_format_buffer>
+  make_per_format_buffer () = 0;
+
+  /* Vfunc to be called when call a diagnostic_buffer is set on
+     a diagnostic_context, to update this format.  The per_format_buffer
+     will be one created by make_per_format_buffer above and thus be
+     of the correct subclass.  */
+  virtual void set_buffer (diagnostic_per_format_buffer *) = 0;
 
   virtual void on_begin_group () = 0;
   virtual void on_end_group () = 0;
@@ -49,6 +66,8 @@ public:
   {
     return m_context.get_diagram_theme ();
   }
+
+  void DEBUG_FUNCTION dump () const { dump (stderr, 0); }
 
 protected:
   diagnostic_output_format (diagnostic_context &context)
@@ -71,22 +90,5 @@ extern void
 diagnostic_output_format_init_json_file (diagnostic_context &context,
 					 bool formatted,
 					 const char *base_file_name);
-extern void
-diagnostic_output_format_init_sarif_stderr (diagnostic_context &context,
-					    const line_maps *line_maps,
-					    const char *main_input_filename_,
-					    bool formatted);
-extern void
-diagnostic_output_format_init_sarif_file (diagnostic_context &context,
-					  const line_maps *line_maps,
-					  const char *main_input_filename_,
-					  bool formatted,
-					  const char *base_file_name);
-extern void
-diagnostic_output_format_init_sarif_stream (diagnostic_context &context,
-					    const line_maps *line_maps,
-					    const char *main_input_filename_,
-					    bool formatted,
-					    FILE *stream);
 
 #endif /* ! GCC_DIAGNOSTIC_FORMAT_H */
