@@ -73,7 +73,11 @@ set plugin_test_list [list \
 	  crash-test-ice-stderr.c \
 	  crash-test-write-though-null-stderr.c \
 	  crash-test-ice-sarif.c \
+	  crash-test-ice-in-header-sarif-2.1.c \
+	  crash-test-ice-in-header-sarif-2.2.c \
 	  crash-test-write-though-null-sarif.c } \
+    { diagnostic_plugin_xhtml_format.c \
+	  diagnostic-test-xhtml-1.c } \
     { diagnostic_group_plugin.c \
 	  diagnostic-group-test-1.c } \
     { diagnostic_plugin_test_show_locus.c \
@@ -101,7 +105,9 @@ set plugin_test_list [list \
 	  diagnostic-test-inlining-2.c \
 	  diagnostic-test-inlining-3.c \
 	  diagnostic-test-inlining-4.c } \
-    { diagnostic_plugin_test_metadata.c diagnostic-test-metadata.c } \
+    { diagnostic_plugin_test_metadata.c \
+	  diagnostic-test-metadata.c \
+	  diagnostic-test-metadata-sarif.c } \
     { diagnostic_plugin_test_paths.c \
 	  diagnostic-test-paths-1.c \
 	  diagnostic-test-paths-2.c \
@@ -172,6 +178,8 @@ set plugin_test_list [list \
 	  taint-pr112850-too-complex.c \
 	  taint-pr112850-unsanitized.c \
 	  taint-pr112927.c \
+	  taint-pr112974.c \
+	  taint-pr112975.c \
 	  taint-pr112977.c } \
     { analyzer_cpython_plugin.c \
 	  cpython-plugin-test-no-Python-h.c \

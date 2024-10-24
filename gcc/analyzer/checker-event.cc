@@ -20,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
@@ -160,8 +161,9 @@ maybe_add_sarif_properties (sarif_object &thread_flow_loc_obj) const
   if (m_original_fndecl != m_effective_fndecl)
     {
       tree_logical_location logical_loc (m_original_fndecl);
-      props.set (PROPERTY_PREFIX "original_fndecl",
-		 make_sarif_logical_location_object (logical_loc));
+      props.set<sarif_logical_location>
+	(PROPERTY_PREFIX "original_fndecl",
+	 make_sarif_logical_location_object (logical_loc));
     }
   if (m_original_depth != m_effective_depth)
     props.set_integer (PROPERTY_PREFIX "original_depth", m_original_depth);
@@ -195,13 +197,9 @@ checker_event::dump (pretty_printer *pp) const
 DEBUG_FUNCTION void
 checker_event::debug () const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   dump (&pp);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
 /* Hook for being notified when this event has its final id EMISSION_ID

@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_PARALLEL_ALGORITHMFWD_H
 #define _GLIBCXX_PARALLEL_ALGORITHMFWD_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <parallel/tags.h>
 #include <parallel/settings.h>
@@ -351,6 +353,7 @@ namespace __parallel
            __gnu_parallel::sequential_tag);
 
   template<typename _FIter1, typename _FIter2, typename _BiPredicate>
+    _GLIBCXX20_CONSTEXPR
     _FIter1
     search(_FIter1, _FIter1, _FIter2, _FIter2, _BiPredicate);
 

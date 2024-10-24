@@ -1163,6 +1163,8 @@ struct target_mem_desc;
 /* Special value for refcount - tgt_offset contains target address of the
    artificial pointer to "omp declare target link" object.  */
 #define REFCOUNT_LINK     (REFCOUNT_SPECIAL | 1)
+/* Special value for refcount - created through acc_map_data.  */
+#define REFCOUNT_ACC_MAP_DATA (REFCOUNT_SPECIAL | 2)
 
 /* Special value for refcount - structure element sibling list items.
    All such key refounts have REFCOUNT_STRUCTELEM bits set, with _FLAG_FIRST
@@ -1385,6 +1387,7 @@ struct gomp_device_descr
 
   /* The name of the device.  */
   const char *name;
+  const char *uid;
 
   /* Capabilities of device (supports OpenACC, OpenMP).  */
   unsigned int capabilities;
@@ -1397,6 +1400,7 @@ struct gomp_device_descr
 
   /* Function handlers.  */
   __typeof (GOMP_OFFLOAD_get_name) *get_name_func;
+  __typeof (GOMP_OFFLOAD_get_uid) *get_uid_func;
   __typeof (GOMP_OFFLOAD_get_caps) *get_caps_func;
   __typeof (GOMP_OFFLOAD_get_type) *get_type_func;
   __typeof (GOMP_OFFLOAD_get_num_devices) *get_num_devices_func;

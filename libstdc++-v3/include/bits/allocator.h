@@ -49,6 +49,9 @@
 #include <type_traits>
 #endif
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++11-extensions"
+
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -254,6 +257,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       typedef _Tp value_type;
+      allocator() { }
       template<typename _Up> allocator(const allocator<_Up>&) { }
     };
 
@@ -262,6 +266,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       typedef _Tp value_type;
+      allocator() { }
       template<typename _Up> allocator(const allocator<_Up>&) { }
     };
 
@@ -270,6 +275,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       typedef _Tp value_type;
+      allocator() { }
       template<typename _Up> allocator(const allocator<_Up>&) { }
     };
   /// @endcond
@@ -289,4 +295,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
+#pragma GCC diagnostic pop
 #endif

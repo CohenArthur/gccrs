@@ -1840,6 +1840,9 @@ package body Sprint is
 
             Write_Char (';');
 
+         when N_External_Initializer =>
+            null;
+
          when N_Delta_Aggregate =>
             Write_Str_With_Col_Check_Sloc ("(");
             Sprint_Node (Expression (Node));
@@ -3116,8 +3119,12 @@ package body Sprint is
             Write_Condition_And_Reason (Node);
 
          when N_Raise_Statement =>
-            Write_Indent_Str_Sloc ("raise ");
-            Sprint_Node (Name (Node));
+            if Present (Name (Node)) then
+               Write_Indent_Str_Sloc ("raise ");
+               Sprint_Node (Name (Node));
+            else
+               Write_Indent_Str_Sloc ("raise");
+            end if;
 
             if Present (Expression (Node)) then
                Write_Str_With_Col_Check_Sloc (" with ");
@@ -3127,8 +3134,12 @@ package body Sprint is
             Write_Char (';');
 
          when N_Raise_When_Statement =>
-            Write_Indent_Str_Sloc ("raise ");
-            Sprint_Node (Name (Node));
+            if Present (Name (Node)) then
+               Write_Indent_Str_Sloc ("raise ");
+               Sprint_Node (Name (Node));
+            else
+               Write_Indent_Str_Sloc ("raise");
+            end if;
             Write_Str (" when ");
             Sprint_Node (Condition (Node));
 
@@ -3772,7 +3783,6 @@ package body Sprint is
       Node_Exists : Boolean := False;
 
    begin
-
       if Is_Non_Empty_List (List) then
 
          if Dump_Original_Only then

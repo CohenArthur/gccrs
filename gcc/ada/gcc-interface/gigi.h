@@ -906,7 +906,7 @@ extern tree build_call_alloc_dealloc (tree gnu_obj, tree gnu_size,
 				      Entity_Id gnat_pool, Node_Id gnat_node);
 
 /* Build a GCC tree to correspond to allocating an object of TYPE whose
-   initial value if INIT, if INIT is nonzero.  Convert the expression to
+   initial value is INIT, if INIT is nonzero.  Convert the expression to
    RESULT_TYPE, which must be some type of pointer.  Return the tree.
 
    GNAT_PROC and GNAT_POOL optionally give the procedure to call and
@@ -1008,6 +1008,10 @@ extern bool must_pass_by_ref (tree gnu_type);
 /* Return the size of the FP mode with precision PREC.  */
 extern int fp_prec_to_size (int prec);
 
+/* Return the default alignment of a FIELD of TYPE declared in a record or
+   union type as specified by the ABI of the target architecture.  */
+extern unsigned int default_field_alignment (tree field, tree type);
+
 /* Return the precision of the FP mode with size SIZE.  */
 extern int fp_size_to_prec (int size);
 
@@ -1039,6 +1043,11 @@ extern bool simple_constant_p (Entity_Id gnat_entity);
 
 /* Return the size of TYPE, which must be a positive power of 2.  */
 extern unsigned int resolve_atomic_size (tree type);
+
+/* Try to compute the reduction of OP modulo MODULUS in PRECISION bits with a
+   division-free algorithm.  Return NULL_TREE if this is not easily doable.  */
+extern tree fast_modulo_reduction (tree op, tree modulus,
+				   unsigned int precision);
 
 #ifdef __cplusplus
 extern "C" {

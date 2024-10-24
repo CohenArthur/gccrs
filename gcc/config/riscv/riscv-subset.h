@@ -62,6 +62,12 @@ private:
   /* X-len of m_arch. */
   unsigned m_xlen;
 
+  /* Number of subsets. */
+  unsigned m_subset_num;
+
+  /* Allow adding the same extension more than once.  */
+  bool m_allow_adding_dup;
+
   riscv_subset_list (const char *, location_t);
 
   const char *parsing_subset_version (const char *, const char *, unsigned *,
@@ -105,10 +111,17 @@ public:
   int match_score (riscv_subset_list *) const;
 
   void set_loc (location_t);
+
+  void set_allow_adding_dup (bool v) { m_allow_adding_dup = v; }
+
+  void finalize ();
 };
 
-extern const riscv_subset_list *riscv_current_subset_list (void);
+extern const riscv_subset_list *riscv_cmdline_subset_list (void);
 extern void
 riscv_set_arch_by_subset_list (riscv_subset_list *, struct gcc_options *);
+extern bool
+riscv_ext_is_subset (struct cl_target_option *, struct cl_target_option *);
+extern int riscv_x_target_flags_isa_mask (void);
 
 #endif /* ! GCC_RISCV_SUBSET_H */

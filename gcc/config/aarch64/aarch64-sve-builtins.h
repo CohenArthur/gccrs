@@ -123,6 +123,15 @@ enum units_index
   UNITS_vectors
 };
 
+/* Enumerates the pragma handlers.  */
+enum handle_pragma_index
+{
+  arm_sve_handle,
+  arm_sme_handle,
+  arm_neon_sve_handle,
+  NUM_PRAGMA_HANDLERS
+};
+
 /* Describes the various uses of a governing predicate.  */
 enum predication_index
 {
@@ -419,7 +428,7 @@ class registered_function;
 class function_builder
 {
 public:
-  function_builder ();
+  function_builder (handle_pragma_index, bool);
   ~function_builder ();
 
   void add_unique_function (const function_instance &, tree,
@@ -453,6 +462,12 @@ private:
 
   /* Used for building up function names.  */
   obstack m_string_obstack;
+
+  /* Used to store the index for the current function.  */
+  unsigned int m_function_index;
+
+  /* Stores the mode of the current pragma handler.  */
+  bool m_function_nulls;
 };
 
 /* A base class for handling calls to built-in functions.  */
@@ -614,13 +629,15 @@ public:
   tree fold_contiguous_base (gimple_seq &, tree);
   tree load_store_cookie (tree);
 
-  gimple *redirect_call (const function_instance &);
+  gcall *redirect_call (const function_instance &);
   gimple *redirect_pred_x ();
 
   gimple *fold_to_cstu (poly_uint64);
   gimple *fold_to_pfalse ();
   gimple *fold_to_ptrue ();
   gimple *fold_to_vl_pred (unsigned int);
+  gimple *fold_const_binary (enum tree_code);
+  gimple *fold_active_lanes_to (tree);
 
   gimple *fold ();
 
@@ -644,6 +661,8 @@ public:
   insn_code direct_optab_handler (optab, unsigned int = 0);
   insn_code direct_optab_handler_for_sign (optab, optab, unsigned int = 0,
 					   machine_mode = E_VOIDmode);
+  insn_code convert_optab_handler_for_sign (optab, optab, unsigned int,
+					    machine_mode, machine_mode);
 
   machine_mode result_mode () const;
 
@@ -810,6 +829,7 @@ extern tree acle_svprfop;
 
 bool vector_cst_all_same (tree, unsigned int);
 bool is_ptrue (tree, unsigned int);
+const function_instance *lookup_fndecl (tree);
 
 /* Try to find a mode with the given mode_suffix_info fields.  Return the
    mode on success or MODE_none on failure.  */

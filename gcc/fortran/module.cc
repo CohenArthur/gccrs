@@ -195,7 +195,12 @@ static const char *module_name;
 /* The name of the .smod file that the submodule will write to.  */
 static const char *submodule_name;
 
+/* The list of use statements to apply to the current namespace
+   before parsing the non-use statements.  */
 static gfc_use_list *module_list;
+/* The end of the MODULE_LIST list above at the time the recognition
+   of the current statement started.  */
+static gfc_use_list **old_module_list_tail;
 
 /* If we're reading an intrinsic module, this is its ID.  */
 static intmod_id current_intmod;
@@ -1348,7 +1353,7 @@ parse_integer (int c)
       atom_int = 10 * atom_int + c - '0';
     }
 
-  atom_int *= sign; 
+  atom_int *= sign;
 }
 
 
@@ -2090,7 +2095,7 @@ enum ab_attribute
   AB_OACC_ROUTINE_LOP_GANG, AB_OACC_ROUTINE_LOP_WORKER,
   AB_OACC_ROUTINE_LOP_VECTOR, AB_OACC_ROUTINE_LOP_SEQ,
   AB_OACC_ROUTINE_NOHOST,
-  AB_OMP_REQ_REVERSE_OFFLOAD, AB_OMP_REQ_UNIFIED_ADDRESS,
+  AB_OMP_REQ_REVERSE_OFFLOAD, AB_OMP_REQ_UNIFIED_ADDRESS, AB_OMP_REQ_SELF_MAPS,
   AB_OMP_REQ_UNIFIED_SHARED_MEMORY, AB_OMP_REQ_DYNAMIC_ALLOCATORS,
   AB_OMP_REQ_MEM_ORDER_SEQ_CST, AB_OMP_REQ_MEM_ORDER_ACQ_REL,
   AB_OMP_REQ_MEM_ORDER_ACQUIRE, AB_OMP_REQ_MEM_ORDER_RELEASE,
@@ -2173,6 +2178,7 @@ static const mstring attr_bits[] =
     minit ("OMP_REQ_REVERSE_OFFLOAD", AB_OMP_REQ_REVERSE_OFFLOAD),
     minit ("OMP_REQ_UNIFIED_ADDRESS", AB_OMP_REQ_UNIFIED_ADDRESS),
     minit ("OMP_REQ_UNIFIED_SHARED_MEMORY", AB_OMP_REQ_UNIFIED_SHARED_MEMORY),
+    minit ("OMP_REQ_SELF_MAPS", AB_OMP_REQ_SELF_MAPS),
     minit ("OMP_REQ_DYNAMIC_ALLOCATORS", AB_OMP_REQ_DYNAMIC_ALLOCATORS),
     minit ("OMP_REQ_MEM_ORDER_SEQ_CST", AB_OMP_REQ_MEM_ORDER_SEQ_CST),
     minit ("OMP_REQ_MEM_ORDER_ACQ_REL", AB_OMP_REQ_MEM_ORDER_ACQ_REL),
@@ -2437,6 +2443,8 @@ mio_symbol_attribute (symbol_attribute *attr)
 	    MIO_NAME (ab_attribute) (AB_OMP_REQ_UNIFIED_ADDRESS, attr_bits);
 	  if (gfc_current_ns->omp_requires & OMP_REQ_UNIFIED_SHARED_MEMORY)
 	    MIO_NAME (ab_attribute) (AB_OMP_REQ_UNIFIED_SHARED_MEMORY, attr_bits);
+	  if (gfc_current_ns->omp_requires & OMP_REQ_SELF_MAPS)
+	    MIO_NAME (ab_attribute) (AB_OMP_REQ_SELF_MAPS, attr_bits);
 	  if (gfc_current_ns->omp_requires & OMP_REQ_DYNAMIC_ALLOCATORS)
 	    MIO_NAME (ab_attribute) (AB_OMP_REQ_DYNAMIC_ALLOCATORS, attr_bits);
 	  if ((gfc_current_ns->omp_requires & OMP_REQ_ATOMIC_MEM_ORDER_MASK)
@@ -2717,6 +2725,12 @@ mio_symbol_attribute (symbol_attribute *attr)
 					   &gfc_current_locus,
 					   module_name);
 	      break;
+	    case AB_OMP_REQ_SELF_MAPS:
+	      gfc_omp_requires_add_clause (OMP_REQ_SELF_MAPS,
+					   "self_maps",
+					   &gfc_current_locus,
+					   module_name);
+	      break;
 	    case AB_OMP_REQ_DYNAMIC_ALLOCATORS:
 	      gfc_omp_requires_add_clause (OMP_REQ_DYNAMIC_ALLOCATORS,
 					   "dynamic_allocators",
@@ -2776,6 +2790,7 @@ static const mstring bt_types[] = {
     minit ("UNKNOWN", BT_UNKNOWN),
     minit ("VOID", BT_VOID),
     minit ("ASSUMED", BT_ASSUMED),
+    minit ("UNSIGNED", BT_UNSIGNED),
     minit (NULL, -1)
 };
 
@@ -6331,7 +6346,7 @@ write_module (void)
 
   /* Initialize the column counter. */
   module_column = 1;
-  
+
   /* Write the operator interfaces.  */
   mio_lparen ();
 
@@ -6765,7 +6780,12 @@ import_iso_c_binding_module (void)
 		  not_in_std = (gfc_option.allow_std & d) == 0; \
 		  name = b; \
 		  break;
-#define NAMED_REALCST(a,b,c,d) \
+#define NAMED_UINTCST(a,b,c,d) \
+		case a: \
+		  not_in_std = (gfc_option.allow_std & d) == 0; \
+		  name = b; \
+		  break;
+#define NAMED_REALCST(a,b,c,d)			\
 	        case a: \
 		  not_in_std = (gfc_option.allow_std & d) == 0; \
 		  name = b; \
@@ -6852,7 +6872,12 @@ import_iso_c_binding_module (void)
 		if ((gfc_option.allow_std & d) == 0) \
 		  continue; \
 		break;
-#define NAMED_REALCST(a,b,c,d) \
+#define NAMED_UINTCST(a,b,c,d) \
+	      case a: \
+		if ((gfc_option.allow_std & d) == 0) \
+		  continue; \
+		break;
+#define NAMED_REALCST(a,b,c,d)			\
 	      case a: \
 		if ((gfc_option.allow_std & d) == 0) \
 		  continue; \
@@ -7086,6 +7111,7 @@ use_iso_fortran_env_module (void)
 
   intmod_sym symbol[] = {
 #define NAMED_INTCST(a,b,c,d) { a, b, 0, d },
+#define NAMED_UINTCST(a,b,c,d) { a, b, 0, d },
 #define NAMED_KINDARRAY(a,b,c,d) { a, b, 0, d },
 #define NAMED_DERIVED_TYPE(a,b,c,d) { a, b, 0, d },
 #define NAMED_FUNCTION(a,b,c,d) { a, b, c, d },
@@ -7095,6 +7121,9 @@ use_iso_fortran_env_module (void)
 
   i = 0;
 #define NAMED_INTCST(a,b,c,d) symbol[i++].value = c;
+#include "iso-fortran-env.def"
+
+#define NAMED_UINTCST(a,b,c,d) symbol[i++].value = c;
 #include "iso-fortran-env.def"
 
   /* Generate the symbol for the module itself.  */
@@ -7144,6 +7173,15 @@ use_iso_fortran_env_module (void)
 	      switch (symbol[i].id)
 		{
 #define NAMED_INTCST(a,b,c,d) \
+		case a:
+#include "iso-fortran-env.def"
+		  create_int_parameter (u->local_name[0] ? u->local_name
+							 : u->use_name,
+					symbol[i].value, mod,
+					INTMOD_ISO_FORTRAN_ENV, symbol[i].id);
+		  break;
+
+#define NAMED_UINTCST(a,b,c,d) \
 		case a:
 #include "iso-fortran-env.def"
 		  create_int_parameter (u->local_name[0] ? u->local_name
@@ -7211,6 +7249,13 @@ use_iso_fortran_env_module (void)
 	  switch (symbol[i].id)
 	    {
 #define NAMED_INTCST(a,b,c,d) \
+	    case a:
+#include "iso-fortran-env.def"
+	      create_int_parameter (symbol[i].name, symbol[i].value, mod,
+				    INTMOD_ISO_FORTRAN_ENV, symbol[i].id);
+	      break;
+
+#define NAMED_UINTCST(a,b,c,d)			\
 	    case a:
 #include "iso-fortran-env.def"
 	      create_int_parameter (symbol[i].name, symbol[i].value, mod,
@@ -7561,6 +7606,8 @@ gfc_use_modules (void)
       gfc_use_module (module_list);
       free (module_list);
     }
+  module_list = NULL;
+  old_module_list_tail = &module_list;
   gfc_rename_list = NULL;
 }
 
@@ -7581,6 +7628,30 @@ gfc_free_use_stmts (gfc_use_list *use_stmts)
       next = use_stmts->next;
       free (use_stmts);
     }
+}
+
+
+/* Remember the end of the MODULE_LIST list, so that the list can be restored
+   to its previous state if the current statement is erroneous.  */
+
+void
+gfc_save_module_list ()
+{
+  gfc_use_list **tail = &module_list;
+  while (*tail != NULL)
+    tail = &(*tail)->next;
+  old_module_list_tail = tail;
+}
+
+
+/* Restore the MODULE_LIST list to its previous value and free the use
+   statements that are no longer part of the list.  */
+
+void
+gfc_restore_old_module_list ()
+{
+  gfc_free_use_stmts (*old_module_list_tail);
+  *old_module_list_tail = NULL;
 }
 
 

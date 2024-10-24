@@ -199,6 +199,11 @@ package Lib.Writ is
    --         GP   Set if this compilation was done in GNATprove mode, either
    --              from direct use of GNATprove, or from use of -gnatdF.
 
+   --         ID   Interrupts_System_By_Default pragma applies to this
+   --              partition. No handlers will be installed by default,
+   --              including signal handlers. This is a configuration
+   --              pragma.
+
    --         Lx   A valid Locking_Policy pragma applies to all the units in
    --              this file, where x is the first character (upper case) of
    --              the policy name (e.g. 'C' for Ceiling_Locking).
@@ -1059,6 +1064,7 @@ package Lib.Writ is
 
    procedure Add_Preprocessing_Dependency (S : Source_File_Index);
    --  Indicate that there is a dependency to be added on a preprocessing data
-   --  file or on a preprocessing definition file.
+   --  file, on a preprocessing definition file or on a file included through
+   --  External_Initialization.
 
 end Lib.Writ;

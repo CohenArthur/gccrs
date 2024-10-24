@@ -2309,7 +2309,7 @@ cgraph_node::dump (FILE *f)
 	  if (edge->indirect_info->agg_contents)
 	   fprintf (f, "loaded from %s %s at offset %i ",
 		    edge->indirect_info->member_ptr ? "member ptr" : "aggregate",
-		    edge->indirect_info->by_ref ? "passed by reference":"",
+		    edge->indirect_info->by_ref ? "passed by reference" : "",
 		    (int)edge->indirect_info->offset);
 	  if (edge->indirect_info->vptr_changed)
 	    fprintf (f, "(vptr maybe changed) ");
@@ -2434,7 +2434,9 @@ cgraph_node_cannot_be_local_p_1 (cgraph_node *node, void *)
 		&& !node->forced_by_abi
 		&& !node->used_from_object_file_p ()
 		&& !node->same_comdat_group)
-	       || !node->externally_visible));
+	       || !node->externally_visible)
+	   && !DECL_STATIC_CONSTRUCTOR (node->decl)
+	   && !DECL_STATIC_DESTRUCTOR (node->decl));
 }
 
 /* Return true if cgraph_node can be made local for API change.

@@ -20,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
@@ -92,7 +93,7 @@ interesting_t::dump_to_pp (pretty_printer *pp, bool simple) const
 label_text
 evdesc::event_desc::formatted_print (const char *fmt, ...) const
 {
-  pretty_printer *pp = global_dc->printer->clone ();
+  pretty_printer *pp = global_dc->m_printer->clone ();
 
   pp_show_color (pp) = m_colorize;
 
@@ -269,15 +270,13 @@ pending_diagnostic::add_region_creation_events (const region *reg,
 void
 pending_diagnostic::add_final_event (const state_machine *sm,
 				     const exploded_node *enode,
-				     const gimple *stmt,
+				     const event_loc_info &loc_info,
 				     tree var, state_machine::state_t state,
 				     checker_path *emission_path)
 {
   emission_path->add_event
     (make_unique<warning_event>
-     (event_loc_info (get_stmt_location (stmt, enode->get_function ()),
-		      enode->get_function ()->decl,
-		      enode->get_stack_depth ()),
+     (loc_info,
       enode,
       sm, var, state));
 }

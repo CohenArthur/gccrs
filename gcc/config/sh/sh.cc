@@ -328,6 +328,7 @@ static unsigned int sh_hard_regno_nregs (unsigned int, machine_mode);
 static bool sh_hard_regno_mode_ok (unsigned int, machine_mode);
 static bool sh_modes_tieable_p (machine_mode, machine_mode);
 static bool sh_can_change_mode_class (machine_mode, machine_mode, reg_class_t);
+static machine_mode sh_c_mode_for_floating_type (enum tree_index);
 
 TARGET_GNU_ATTRIBUTES (sh_attribute_table,
 {
@@ -663,6 +664,9 @@ TARGET_GNU_ATTRIBUTES (sh_attribute_table,
 
 #undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
 #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
+
+#undef TARGET_C_MODE_FOR_FLOATING_TYPE
+#define TARGET_C_MODE_FOR_FLOATING_TYPE sh_c_mode_for_floating_type
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -3227,7 +3231,7 @@ multcosts (rtx x ATTRIBUTE_UNUSED)
 static bool
 sh_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
 	      int opno ATTRIBUTE_UNUSED,
-	      int *total, bool speed ATTRIBUTE_UNUSED)
+	      int *total, bool speed)
 {
   int code = GET_CODE (x);
 
@@ -3260,10 +3264,12 @@ sh_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
         }
       return false;
 
-    /* The cost of a mem access is mainly the cost of the address mode.  */
+    /* The cost of a mem access is mainly the cost of the address mode on top
+       of the cost of the load/store insn itself.  */
     case MEM:
       *total = sh_address_cost (XEXP (x, 0), GET_MODE (x), MEM_ADDR_SPACE (x),
-				true);
+				speed)
+	       + COSTS_N_INSNS (1);
       return true;
 
     case IF_THEN_ELSE:
@@ -3313,7 +3319,8 @@ sh_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
 	{
 	  *total = sh_address_cost (XEXP (XEXP (x, 0), 0),
 				    GET_MODE (XEXP (x, 0)),
-				    MEM_ADDR_SPACE (XEXP (x, 0)), true);
+				    MEM_ADDR_SPACE (XEXP (x, 0)), speed)
+		   + COSTS_N_INSNS (1);
 	  return true;
 	}
       return false;
@@ -3331,7 +3338,8 @@ sh_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
 	  /* Handle SH2A's movu.b and movu.w insn.  */
 	  *total = sh_address_cost (XEXP (XEXP (x, 0), 0), 
 				    GET_MODE (XEXP (x, 0)), 
-				    MEM_ADDR_SPACE (XEXP (x, 0)), true);
+				    MEM_ADDR_SPACE (XEXP (x, 0)), speed)
+		   + COSTS_N_INSNS (1);
 	  return true;
 	}
       return false;
@@ -3346,14 +3354,16 @@ sh_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
 	    {
 	      *total = sh_address_cost (XEXP (XEXP (xx, 0), 0), 
 					GET_MODE (XEXP (xx, 0)),
-					MEM_ADDR_SPACE (XEXP (xx, 0)), true);
+					MEM_ADDR_SPACE (XEXP (xx, 0)), speed)
+		       + COSTS_N_INSNS (1);
 	      return true;
 	    }
 	  if (GET_CODE (xx) == SET && MEM_P (XEXP (xx, 1)))
 	    {
 	      *total = sh_address_cost (XEXP (XEXP (xx, 1), 0),
 					GET_MODE (XEXP (xx, 1)),
-					MEM_ADDR_SPACE (XEXP (xx, 1)), true);
+					MEM_ADDR_SPACE (XEXP (xx, 1)), speed)
+		       + COSTS_N_INSNS (1);
 	      return true;
 	    }
 	}
@@ -10674,6 +10684,20 @@ sh_can_change_mode_class (machine_mode from, machine_mode to,
   return true;
 }
 
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return SFmode or DFmode
+   for TI_DOUBLE_TYPE which is for double type, go with the default one
+   for the others.  */
+
+static machine_mode
+sh_c_mode_for_floating_type (enum tree_index ti)
+{
+  /* Since the SH2e has only `float' support, it is desirable to make all
+     floating point types equivalent to `float'.  */
+  if (ti == TI_DOUBLE_TYPE)
+    return TARGET_FPU_SINGLE_ONLY ? SFmode : DFmode;
+  return default_mode_for_floating_type (ti);
+}
+
 /* Return true if registers in machine mode MODE will likely be
    allocated to registers in small register classes.  */
 bool
@@ -12279,7 +12303,17 @@ sh_recog_treg_set_expr (rtx op, machine_mode mode)
      have to capture its current state and restore it afterwards.  */
   recog_data_d prev_recog_data = recog_data;
 
-  rtx_insn* i = make_insn_raw (gen_rtx_SET (get_t_reg_rtx (), op));
+  /* Note we can't use insn_raw here since that increases the uid
+     and could cause debug compare differences; this insn never leaves
+     this function so create a dummy one. */
+  rtx_insn* i = as_a <rtx_insn *> (rtx_alloc (INSN));
+
+  INSN_UID (i) = 1;
+  PATTERN (i) = gen_rtx_SET (get_t_reg_rtx (), op);
+  INSN_CODE (i) = -1;
+  REG_NOTES (i) = NULL;
+  INSN_LOCATION (i) = curr_insn_location ();
+  BLOCK_FOR_INSN (i) = NULL;
   SET_PREV_INSN (i) = NULL;
   SET_NEXT_INSN (i) = NULL;
 

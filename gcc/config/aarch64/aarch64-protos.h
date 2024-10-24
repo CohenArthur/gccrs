@@ -262,6 +262,8 @@ struct sve_vec_cost : simd_vec_cost
 			  unsigned int fadda_f64_cost,
 			  unsigned int gather_load_x32_cost,
 			  unsigned int gather_load_x64_cost,
+			  unsigned int gather_load_x32_init_cost,
+			  unsigned int gather_load_x64_init_cost,
 			  unsigned int scatter_store_elt_cost)
     : simd_vec_cost (base),
       clast_cost (clast_cost),
@@ -270,6 +272,8 @@ struct sve_vec_cost : simd_vec_cost
       fadda_f64_cost (fadda_f64_cost),
       gather_load_x32_cost (gather_load_x32_cost),
       gather_load_x64_cost (gather_load_x64_cost),
+      gather_load_x32_init_cost (gather_load_x32_init_cost),
+      gather_load_x64_init_cost (gather_load_x64_init_cost),
       scatter_store_elt_cost (scatter_store_elt_cost)
   {}
 
@@ -288,6 +292,12 @@ struct sve_vec_cost : simd_vec_cost
      of 32-bit elements and the x64 value is for loads of 64-bit elements.  */
   const int gather_load_x32_cost;
   const int gather_load_x64_cost;
+
+  /* Additional loop initialization cost of using a gather load instruction.  The x32
+     value is for loads of 32-bit elements and the x64 value is for loads of
+     64-bit elements.  */
+  const int gather_load_x32_init_cost;
+  const int gather_load_x64_init_cost;
 
   /* The per-element cost of a scatter store.  */
   const int scatter_store_elt_cost;
@@ -655,16 +665,6 @@ enum aarch64_extra_tuning_flags
   AARCH64_EXTRA_TUNE_ALL = (1u << AARCH64_EXTRA_TUNE_index_END) - 1
 };
 
-/* Enum to distinguish which type of check is to be done in
-   aarch64_simd_valid_immediate.  This is used as a bitmask where
-   AARCH64_CHECK_MOV has both bits set.  Thus AARCH64_CHECK_MOV will
-   perform all checks.  Adding new types would require changes accordingly.  */
-enum simd_immediate_check {
-  AARCH64_CHECK_ORR  = 1 << 0,
-  AARCH64_CHECK_BIC  = 1 << 1,
-  AARCH64_CHECK_MOV  = AARCH64_CHECK_ORR | AARCH64_CHECK_BIC
-};
-
 extern struct tune_params aarch64_tune_params;
 
 /* The available SVE predicate patterns, known in the ACLE as "svpattern".  */
@@ -767,7 +767,7 @@ bool aarch64_constant_address_p (rtx);
 bool aarch64_emit_approx_div (rtx, rtx, rtx);
 bool aarch64_emit_approx_sqrt (rtx, rtx, bool);
 tree aarch64_vector_load_decl (tree);
-rtx aarch64_gen_callee_cookie (aarch64_feature_flags, arm_pcs);
+rtx aarch64_gen_callee_cookie (aarch64_isa_mode, arm_pcs);
 void aarch64_expand_call (rtx, rtx, rtx, bool);
 bool aarch64_expand_cpymem_mops (rtx *, bool);
 bool aarch64_expand_cpymem (rtx *, bool);
@@ -808,7 +808,7 @@ int aarch64_add_offset_temporaries (rtx);
 void aarch64_split_add_offset (scalar_int_mode, rtx, rtx, rtx, rtx, rtx);
 bool aarch64_rdsvl_immediate_p (const_rtx);
 rtx aarch64_sme_vq_immediate (machine_mode mode, HOST_WIDE_INT,
-			      aarch64_feature_flags);
+			      aarch64_isa_mode);
 char *aarch64_output_rdsvl (const_rtx);
 bool aarch64_addsvl_addspl_immediate_p (const_rtx);
 char *aarch64_output_addsvl_addspl (rtx);
@@ -824,8 +824,11 @@ char *aarch64_output_sve_rdvl (rtx);
 char *aarch64_output_sve_addvl_addpl (rtx);
 char *aarch64_output_sve_vector_inc_dec (const char *, rtx);
 char *aarch64_output_scalar_simd_mov_immediate (rtx, scalar_int_mode);
-char *aarch64_output_simd_mov_immediate (rtx, unsigned,
-			enum simd_immediate_check w = AARCH64_CHECK_MOV);
+char *aarch64_output_simd_mov_imm (rtx, unsigned);
+char *aarch64_output_simd_orr_imm (rtx, unsigned);
+char *aarch64_output_simd_and_imm (rtx, unsigned);
+char *aarch64_output_simd_xor_imm (rtx, unsigned);
+
 char *aarch64_output_sve_mov_immediate (rtx);
 char *aarch64_output_sve_ptrues (rtx);
 bool aarch64_pad_reg_upward (machine_mode, const_tree, bool);
@@ -839,8 +842,10 @@ bool aarch64_pars_overlap_p (rtx, rtx);
 bool aarch64_simd_scalar_immediate_valid_for_move (rtx, scalar_int_mode);
 bool aarch64_simd_shift_imm_p (rtx, machine_mode, bool);
 bool aarch64_sve_ptrue_svpattern_p (rtx, struct simd_immediate_info *);
-bool aarch64_simd_valid_immediate (rtx, struct simd_immediate_info *,
-			enum simd_immediate_check w = AARCH64_CHECK_MOV);
+bool aarch64_simd_valid_and_imm (rtx);
+bool aarch64_simd_valid_mov_imm (rtx);
+bool aarch64_simd_valid_orr_imm (rtx);
+bool aarch64_simd_valid_xor_imm (rtx);
 bool aarch64_valid_sysreg_name_p (const char *);
 const char *aarch64_retrieve_sysreg (const char *, bool, bool);
 rtx aarch64_check_zero_based_sve_index_immediate (rtx);
@@ -912,6 +917,7 @@ rtx aarch64_expand_sve_dupq (rtx, machine_mode, rtx);
 void aarch64_expand_mov_immediate (rtx, rtx);
 rtx aarch64_stack_protect_canary_mem (machine_mode, rtx, aarch64_salt_type);
 rtx aarch64_ptrue_reg (machine_mode);
+rtx aarch64_ptrue_reg (machine_mode, unsigned int);
 rtx aarch64_pfalse_reg (machine_mode);
 bool aarch64_sve_same_pred_for_ptest_p (rtx *, rtx *);
 void aarch64_emit_sve_pred_move (rtx, rtx, rtx);
@@ -1008,15 +1014,17 @@ tree aarch64_general_builtin_rsqrt (unsigned int);
 void handle_arm_acle_h (void);
 void handle_arm_neon_h (void);
 
+bool aarch64_check_required_extensions (location_t, tree,
+					aarch64_feature_flags);
 bool aarch64_general_check_builtin_call (location_t, vec<location_t>,
 					 unsigned int, tree, unsigned int,
 					 tree *);
 
 namespace aarch64_sve {
   void init_builtins ();
-  void handle_arm_sve_h ();
-  void handle_arm_sme_h ();
-  void handle_arm_neon_sve_bridge_h ();
+  void handle_arm_sve_h (bool);
+  void handle_arm_sme_h (bool);
+  void handle_arm_neon_sve_bridge_h (bool);
   tree builtin_decl (unsigned, bool);
   bool builtin_type_p (const_tree);
   bool builtin_type_p (const_tree, unsigned int *, unsigned int *);

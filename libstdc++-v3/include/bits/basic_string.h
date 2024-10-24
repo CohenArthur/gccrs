@@ -34,7 +34,9 @@
 #ifndef _BASIC_STRING_H
 #define _BASIC_STRING_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <ext/alloc_traits.h>
 #include <debug/debug.h>
@@ -526,6 +528,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       _GLIBCXX20_CONSTEXPR
       basic_string()
       _GLIBCXX_NOEXCEPT_IF(is_nothrow_default_constructible<_Alloc>::value)
+#if __cpp_concepts && __glibcxx_type_trait_variable_templates
+      requires is_default_constructible_v<_Alloc>
+#endif
       : _M_dataplus(_M_local_data())
       {
 	_M_init_local_buf();
@@ -912,7 +917,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	      __str._M_data(__str._M_use_local_data());
 	  }
 	else // Need to do a deep copy
-	  assign(__str);
+	  _M_assign(__str);
 	__str.clear();
 	return *this;
       }
@@ -1727,18 +1732,25 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	basic_string&
 	assign(_InputIterator __first, _InputIterator __last)
 	{
-#if __cplusplus >= 202002L
-	  if constexpr (contiguous_iterator<_InputIterator>
-			  && is_same_v<iter_value_t<_InputIterator>, _CharT>)
-#else
-	  if constexpr (__is_one_of<_InputIterator, const_iterator, iterator,
-				    const _CharT*, _CharT*>::value)
-#endif
+	  using _IterTraits = iterator_traits<_InputIterator>;
+	  if constexpr (is_pointer<decltype(std::__niter_base(__first))>::value
+			  && is_same<typename _IterTraits::value_type,
+				     _CharT>::value)
 	    {
 	      __glibcxx_requires_valid_range(__first, __last);
 	      return _M_replace(size_type(0), size(),
-				std::__to_address(__first), __last - __first);
+				std::__niter_base(__first), __last - __first);
 	    }
+#if __cplusplus >= 202002L
+	  else if constexpr (contiguous_iterator<_InputIterator>
+			       && is_same_v<iter_value_t<_InputIterator>,
+					    _CharT>)
+	    {
+	      __glibcxx_requires_valid_range(__first, __last);
+	      return _M_replace(size_type(0), size(),
+				std::to_address(__first), __last - __first);
+	    }
+#endif
 	  else
 	    return *this = basic_string(__first, __last, get_allocator());
 	}
@@ -4394,6 +4406,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     return __str;
   }
 #elif _GLIBCXX_USE_C99_STDIO
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
   // NB: (v)snprintf vs sprintf.
 
   _GLIBCXX_NODISCARD
@@ -4425,6 +4439,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
 					   "%Lf", __val);
   }
+#pragma GCC diagnostic pop
 #endif // _GLIBCXX_USE_C99_STDIO
 
 #if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_WCHAR

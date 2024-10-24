@@ -2,6 +2,7 @@
 /* { dg-options "-g" } */
 
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "gcc-plugin.h"
 #include "config.h"
 #include "system.h"
@@ -273,6 +274,11 @@ public:
     return NULL;
   }
 
+  void update_event_loc_info (event_loc_info &) final override
+  {
+    /* No-op.  */
+  }
+
 private:
   const exploded_graph &m_eg;
   tree m_var;
@@ -523,8 +529,8 @@ dump_refcnt_info (const hash_map<const region *, int> &region_to_refcnt,
   region_model_manager *mgr = model->get_manager ();
   pretty_printer pp;
   pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  pp_show_color (&pp) = pp_show_color (global_dc->m_printer);
+  pp.set_output_stream (stderr);
 
   for (const auto &region_refcnt : region_to_refcnt)
     {
@@ -957,17 +963,10 @@ public:
 void
 kf_PyList_New::impl_call_post (const call_details &cd) const
 {
-  class success : public call_info
+  class success : public success_call_info
   {
   public:
-    success (const call_details &cd) : call_info (cd) {}
-
-    label_text
-    get_desc (bool can_colorize) const final override
-    {
-      return make_label_text (can_colorize, "when %qE succeeds",
-                              get_fndecl ());
-    }
+    success (const call_details &cd) : success_call_info (cd) {}
 
     bool
     update_model (region_model *model, const exploded_edge *,
@@ -1098,17 +1097,10 @@ public:
 void
 kf_PyLong_FromLong::impl_call_post (const call_details &cd) const
 {
-  class success : public call_info
+  class success : public success_call_info
   {
   public:
-    success (const call_details &cd) : call_info (cd) {}
-
-    label_text
-    get_desc (bool can_colorize) const final override
-    {
-      return make_label_text (can_colorize, "when %qE succeeds",
-                              get_fndecl ());
-    }
+    success (const call_details &cd) : success_call_info (cd) {}
 
     bool
     update_model (region_model *model, const exploded_edge *,

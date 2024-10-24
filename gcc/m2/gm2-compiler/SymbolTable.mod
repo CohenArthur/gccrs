@@ -33,12 +33,15 @@ FROM Indexing IMPORT InitIndex, InBounds, LowIndice, HighIndice,
                      PutIndice, GetIndice, InitIndexTuned ;
 
 FROM Sets IMPORT Set, InitSet, IncludeElementIntoSet, IsElementInSet ;
-FROM m2linemap IMPORT location_t ;
+FROM gcctypes IMPORT location_t ;
 
-FROM M2Options IMPORT Pedantic, ExtendedOpaque, DebugFunctionLineNumbers, ScaffoldDynamic, DebugBuiltins ;
+FROM M2Options IMPORT Pedantic, ExtendedOpaque,
+                      GetDebugFunctionLineNumbers, ScaffoldDynamic,
+                      DebugBuiltins ;
 
 FROM M2LexBuf IMPORT UnknownTokenNo, TokenToLineNo,
-                     FindFileNameFromToken, TokenToLocation ;
+                     FindFileNameFromToken, TokenToLocation,
+                     MakeVirtual2Tok ;
 
 FROM M2ALU IMPORT InitValue, PtrToValue, PushCard, PopInto,
                   PushString, PushFrom, PushChar, PushInt,
@@ -80,7 +83,7 @@ FROM M2Base IMPORT MixTypes, InitBase, Char, Integer, LongReal,
 
 FROM M2System IMPORT Address ;
 FROM m2expr IMPORT OverflowZType ;
-FROM m2tree IMPORT Tree ;
+FROM gcctypes IMPORT tree ;
 FROM m2linemap IMPORT BuiltinsLocation ;
 FROM StrLib IMPORT StrEqual ;
 FROM m2builtins IMPORT BuiltinExists ;
@@ -99,7 +102,10 @@ IMPORT Indexing ;
 
 
 CONST
-   DebugUnknowns        =  FALSE ;
+   DebugUnknowns        =  FALSE ;   (* Debug unknown symbols.  *)
+   DebugUnknownToken    =  FALSE ;   (* If enabled it will generate a warning every
+                                        time a symbol is created with an unknown
+                                        location.  *)
 
    (*
       The Unbounded is a pseudo type used within the compiler
@@ -144,9 +150,21 @@ TYPE
 
    Where = RECORD
               DefDeclared,
-              ModDeclared,
-              FirstUsed  : CARDINAL ;
+              FirstUsed,
+              ModDeclared: CARDINAL ;
            END ;
+
+   ProcedureDecl = RECORD
+                      Forward,                (* The token locations for     *)
+                      Definition,             (* each potential procedure    *)
+                      Proper    : CARDINAL ;  (* declaration.                *)
+                   END ;
+
+   VarDecl = RECORD
+                FullTok,
+                VarTok,
+                TypeTok: CARDINAL ;           (* Variable and type token     *)
+             END ;                            (* locations.                  *)
 
    PackedInfo = RECORD
                    IsPacked    : BOOLEAN ;    (* is this type packed?        *)
@@ -202,6 +220,7 @@ TYPE
 
    SymError     = RECORD
                      name      : Name ;
+                     Scope     : CARDINAL ;   (* Scope of declaration.       *)
                      At        : Where ;      (* Where was sym declared/used *)
                   END ;
 
@@ -377,6 +396,8 @@ TYPE
                                             (* the .def or .mod first.       *)
                                             (* The second occurence is       *)
                                             (* compared to the first.        *)
+               DefinedByProper,             (* Were the parameters defined   *)
+               DefinedByForward,            (* by a FORWARD declaration?     *)
                HasVarArgs    : BOOLEAN ;    (* Does this procedure use ... ? *)
                HasOptArg     : BOOLEAN ;    (* Does this procedure use [ ] ? *)
                OptArgInit    : CARDINAL ;   (* The optarg initial value.     *)
@@ -389,6 +410,11 @@ TYPE
                IsPublic      : BOOLEAN ;    (* Make this procedure visible.  *)
                IsCtor        : BOOLEAN ;    (* Is this procedure a ctor?     *)
                IsMonoName    : BOOLEAN ;    (* Ignores module name prefix.   *)
+               Declared      : ProcedureDecl ;  (* Forward, definition and   *)
+                                            (* proper token positions.       *)
+               DeclaredForward,             (* The token no used to define   *)
+               DeclaredDefinition,          (* the definition, proper and    *)
+               DeclaredProper: CARDINAL ;   (* forward.                      *)
                Unresolved    : SymbolTree ; (* All symbols currently         *)
                                             (* unresolved in this procedure. *)
                ScopeQuad     : CARDINAL ;   (* Index into quads for scope    *)
@@ -402,6 +428,7 @@ TYPE
                SavePriority  : BOOLEAN ;    (* Does procedure need to save   *)
                                             (* and restore interrupts?       *)
                ReturnType    : CARDINAL ;   (* Return type for function.     *)
+               ProcedureType : CARDINAL ;   (* Proc type for this procedure. *)
                Offset        : CARDINAL ;   (* Location of procedure used    *)
                                             (* in Pass 2 and if procedure    *)
                                             (* is a syscall.                 *)
@@ -504,6 +531,8 @@ TYPE
                                               (* of const.                   *)
                     Value        : PtrToValue ; (* Value of the constant     *)
                     Type         : CARDINAL ; (* TYPE of constant, char etc  *)
+                    IsConditional,            (* Is it the result of a       *)
+                                              (* boolean conditional?        *)
                     IsSet        : BOOLEAN ;  (* is the constant a set?      *)
                     IsConstructor: BOOLEAN ;  (* is the constant a set?      *)
                     FromType     : CARDINAL ; (* type is determined FromType *)
@@ -527,6 +556,7 @@ TYPE
                IsComponentRef: BOOLEAN ;      (* Is temporary referencing a  *)
                                               (* record field?               *)
                list          : Indexing.Index ;  (* the record and fields    *)
+               IsConditional,
                IsTemp        : BOOLEAN ;      (* Is variable a temporary?    *)
                IsParam       : BOOLEAN ;      (* Is variable a parameter?    *)
                IsPointerCheck: BOOLEAN ;      (* Is variable used to         *)
@@ -538,6 +568,7 @@ TYPE
                                               (* to an array?                *)
                Heap          : BOOLEAN ;      (* Is var on the heap?         *)
                InitState     : LRInitDesc ;   (* Initialization state.       *)
+               Declared      : VarDecl ;      (* Var and type tokens.        *)
                At            : Where ;        (* Where was sym declared/used *)
                ReadUsageList,                 (* list of var read quads      *)
                WriteUsageList: LRLists ;      (* list of var write quads     *)
@@ -719,7 +750,7 @@ TYPE
                StartFinishQuad: CARDINAL ;  (* Signify the finalization      *)
                                             (* code.                         *)
                EndFinishQuad : CARDINAL ;   (* should point to a finish      *)
-               FinallyFunction: Tree ;      (* The GCC function for finally  *)
+               FinallyFunction: tree ;      (* The GCC function for finally  *)
                ExceptionFinally,
                ExceptionBlock: BOOLEAN ;    (* does it have an exception?    *)
                ContainsHiddenType: BOOLEAN ;(* True if this module           *)
@@ -794,7 +825,7 @@ TYPE
                StartFinishQuad: CARDINAL ;  (* Signify the finalization      *)
                                             (* code.                         *)
                EndFinishQuad : CARDINAL ;   (* should point to a finish      *)
-               FinallyFunction: Tree ;      (* The GCC function for finally  *)
+               FinallyFunction: tree ;      (* The GCC function for finally  *)
                ExceptionFinally,
                ExceptionBlock: BOOLEAN ;    (* does it have an exception?    *)
                ModLink       : BOOLEAN ;    (* Is the module parsed for      *)
@@ -1372,7 +1403,7 @@ END DebugProcedureLineNumber ;
 
 PROCEDURE DebugLineNumbers (sym: CARDINAL) ;
 BEGIN
-   IF DebugFunctionLineNumbers
+   IF GetDebugFunctionLineNumbers ()
    THEN
       printf0 ('<lines>\n') ;
       ForeachProcedureDo(sym, DebugProcedureLineNumber) ;
@@ -1505,6 +1536,7 @@ BEGIN
    WITH pSym^ DO
       SymbolType := ErrorSym ;
       Error.name := name ;
+      Error.Scope := GetCurrentScope () ;
       InitWhereDeclaredTok(tok, Error.At) ;
       InitWhereFirstUsedTok(tok, Error.At)
    END ;
@@ -3266,6 +3298,29 @@ END GetModuleCtors ;
 
 
 (*
+   CheckTok - checks to see that tok is at a known location.  If not
+              it uses GetTokenNo as a fall back.
+*)
+
+PROCEDURE CheckTok (tok: CARDINAL; name: ARRAY OF CHAR) : CARDINAL ;
+VAR
+   s: String ;
+BEGIN
+   IF tok = UnknownTokenNo
+   THEN
+      tok := GetTokenNo () ;
+      IF DebugUnknownToken
+      THEN
+         s := InitString (name) ;
+         s := ConCat (s, InitString (' symbol {%W} has been created with an unknown token location')) ;
+         MetaErrorStringT0 (GetTokenNo (), s)
+      END
+   END ;
+   RETURN tok
+END CheckTok ;
+
+
+(*
    MakeModule - creates a module sym with ModuleName. It returns the
                 symbol index.
 *)
@@ -3276,6 +3331,7 @@ VAR
    pCall: PtrToCallFrame ;
    Sym  : CARDINAL ;
 BEGIN
+   (* tok := CheckTok (tok, 'module') ; *)
    (*
       Make a new symbol since we are at the outer scope level.
       DeclareSym examines the current scope level for any symbols
@@ -3645,7 +3701,7 @@ BEGIN
    (* We cannot use DeclareSym as it examines the current scope *)
    (* for any symbols which have the correct name, but are yet  *)
    (* undefined.  *)
-
+   (* tok := CheckTok (tok, 'defimp') ;  *)
    NewSym(Sym) ;
    pSym := GetPsym(Sym) ;
    WITH pSym^ DO
@@ -3884,6 +3940,18 @@ END PutModuleCtorExtern ;
 
 
 (*
+   InitProcedureDecl - initializes all fields of ProcedureDecl to UnknownTokenNo.
+*)
+
+PROCEDURE InitProcedureDecl (VAR decl: ProcedureDecl) ;
+BEGIN
+   decl.Forward := UnknownTokenNo ;
+   decl.Definition := UnknownTokenNo ;
+   decl.Proper := UnknownTokenNo
+END InitProcedureDecl ;
+
+
+(*
    MakeProcedure - creates a procedure sym with name. It returns
                    the symbol index.
 *)
@@ -3893,6 +3961,7 @@ VAR
    pSym: PtrToSymbol ;
    Sym : CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'procedure') ;
    Sym := DeclareSym(tok, ProcedureName) ;
    IF NOT IsError(Sym)
    THEN
@@ -3919,6 +3988,10 @@ BEGIN
                                          (* the .def or .mod first.       *)
                                          (* The second occurence is       *)
                                          (* compared to the first.        *)
+            DefinedByProper := FALSE ;   (* Were the parameters defined   *)
+                                         (* in a proper procedure.        *)
+            DefinedByForward := FALSE ;  (* Were the parameters defined   *)
+                                         (* in a FORWARD declaration?     *)
             HasVarArgs := FALSE ;        (* Does the procedure use ... ?  *)
             HasOptArg := FALSE ;         (* Does this procedure use [ ] ? *)
             OptArgInit := NulSym ;       (* The optarg initial value.     *)
@@ -3931,6 +4004,9 @@ BEGIN
             IsPublic := FALSE ;          (* Make this procedure visible.  *)
             IsCtor := FALSE ;            (* Is this procedure a ctor?     *)
             IsMonoName := FALSE ;        (* Overrides module name prefix. *)
+            InitProcedureDecl (Declared) ; (* The token no used to define *)
+                                         (* the definition, proper and    *)
+                                         (* forward.                      *)
             Scope := GetCurrentScope() ; (* Scope of procedure.           *)
             InitTree(Unresolved) ;       (* All symbols currently         *)
                                          (* unresolved in this procedure. *)
@@ -3942,6 +4018,8 @@ BEGIN
             SavePriority := FALSE ;      (* Does procedure need to save   *)
                                          (* and restore interrupts?       *)
             ReturnType := NulSym ;       (* Not a function yet!           *)
+                                         (* The ProcType equivalent.      *)
+            ProcedureType := MakeProcType (tok, NulName) ;
             Offset := 0 ;                (* Location of procedure.        *)
             InitTree(LocalSymbols) ;
             InitList(EnumerationScopeList) ;
@@ -3963,7 +4041,7 @@ BEGIN
                        := InitValue() ;  (* size of all parameters.       *)
             Begin := 0 ;                 (* token number for BEGIN        *)
             End := 0 ;                   (* token number for END          *)
-            InitWhereDeclaredTok(tok, At) ;  (* Where symbol declared.        *)
+            InitWhereDeclaredTok(tok, At) ;  (* Where the symbol was declared.  *)
             errorScope := GetCurrentErrorScope () ; (* Title error scope. *)
          END
       END ;
@@ -4248,6 +4326,237 @@ END AddVarToList ;
 
 
 (*
+   InitVarDecl - initialize the variable and type token location positions.
+*)
+
+PROCEDURE InitVarDecl (VAR decl: VarDecl; vartok: CARDINAL) ;
+BEGIN
+   decl.FullTok := UnknownTokenNo ;
+   decl.VarTok := vartok ;
+   decl.TypeTok := UnknownTokenNo
+END InitVarDecl ;
+
+
+(*
+   doPutVarDeclTypeTok - places typetok into decl.TypeTok.
+                         sym must be a variable.
+*)
+
+PROCEDURE doPutVarDeclTypeTok (sym: CARDINAL; typetok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   Assert (IsVar (sym)) ;
+   pSym := GetPsym (sym) ;
+   WITH pSym^.Var DO
+      Declared.TypeTok := typetok
+   END
+END doPutVarDeclTypeTok ;
+
+
+(*
+   PutVarDeclTypeTok - assigns the TypeTok field to typetok.
+                       sym can be a variable or parameter.
+*)
+
+PROCEDURE PutVarDeclTypeTok (sym: CARDINAL; typetok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   IF IsParameter (sym)
+   THEN
+      pSym := GetPsym (sym) ;
+      IF IsParameterVar (sym)
+      THEN
+         PutVarDeclTypeTok (pSym^.VarParam.ShadowVar, typetok)
+      ELSE
+         PutVarDeclTypeTok (pSym^.Param.ShadowVar, typetok)
+      END
+   ELSIF IsVar (sym)
+   THEN
+      doPutVarDeclTypeTok (sym, typetok)
+   END
+END PutVarDeclTypeTok ;
+
+
+(*
+   doPutVarDeclTok - places vartok into decl.VarTok.
+                     sym must be a variable.
+*)
+
+PROCEDURE doPutVarDeclTok (sym: CARDINAL; vartok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   Assert (IsVar (sym)) ;
+   pSym := GetPsym (sym) ;
+   WITH pSym^.Var DO
+      Declared.VarTok := vartok
+   END
+END doPutVarDeclTok ;
+
+
+(*
+   PutVarDeclTok - assigns the VarTok field to typetok.
+                   sym can be a variable or parameter.
+*)
+
+PROCEDURE PutVarDeclTok (sym: CARDINAL; vartok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   IF IsParameter (sym)
+   THEN
+      pSym := GetPsym (sym) ;
+      IF IsParameterVar (sym)
+      THEN
+         PutVarDeclTok (pSym^.VarParam.ShadowVar, vartok)
+      ELSE
+         PutVarDeclTok (pSym^.Param.ShadowVar, vartok)
+      END
+   ELSIF IsVar (sym)
+   THEN
+      doPutVarDeclTok (sym, vartok)
+   END
+END PutVarDeclTok ;
+
+
+(*
+   doGetVarDeclTok - return decl.VarTok for a variable.
+*)
+
+PROCEDURE doGetVarDeclTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   Assert (IsVar (sym)) ;
+   WITH pSym^.Var DO
+      RETURN Declared.VarTok
+   END
+END doGetVarDeclTok ;
+
+
+(*
+   GetVarDeclTok - returns the TypeTok field associate with variable sym.
+*)
+
+PROCEDURE GetVarDeclTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   IF IsParameter (sym)
+   THEN
+      pSym := GetPsym (sym) ;
+      IF IsParameterVar (sym)
+      THEN
+         RETURN GetVarDeclTok (pSym^.VarParam.ShadowVar)
+      ELSE
+         RETURN GetVarDeclTok (pSym^.Param.ShadowVar)
+      END
+   ELSIF IsVar (sym)
+   THEN
+      RETURN doGetVarDeclTok (sym)
+   ELSE
+      RETURN UnknownTokenNo
+   END
+END GetVarDeclTok ;
+
+
+(*
+   doGetVarDeclTypeTok - return decl.TypeTok for a variable.
+*)
+
+PROCEDURE doGetVarDeclTypeTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   Assert (IsVar (sym)) ;
+   WITH pSym^.Var DO
+      RETURN Declared.TypeTok
+   END
+END doGetVarDeclTypeTok ;
+
+
+(*
+   GetVarDeclTypeTok - returns the TypeTok field associate with variable sym.
+*)
+
+PROCEDURE GetVarDeclTypeTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   IF IsParameter (sym)
+   THEN
+      pSym := GetPsym (sym) ;
+      IF IsParameterVar (sym)
+      THEN
+         RETURN GetVarDeclTypeTok (pSym^.VarParam.ShadowVar)
+      ELSE
+         RETURN GetVarDeclTypeTok (pSym^.Param.ShadowVar)
+      END
+   ELSIF IsVar (sym)
+   THEN
+      RETURN doGetVarDeclTypeTok (sym)
+   ELSE
+      RETURN UnknownTokenNo
+   END
+END GetVarDeclTypeTok ;
+
+
+(*
+   doGetVarDeclFullTok - return the full declaration of var: type.
+*)
+
+PROCEDURE doGetVarDeclFullTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   Assert (IsVar (sym)) ;
+   WITH pSym^.Var DO
+      IF Declared.FullTok = UnknownTokenNo
+      THEN
+         IF Declared.TypeTok = UnknownTokenNo
+         THEN
+            RETURN Declared.VarTok
+         ELSE
+            Declared.FullTok := MakeVirtual2Tok (Declared.VarTok, Declared.TypeTok)
+         END
+      END ;
+      RETURN Declared.FullTok
+   END
+END doGetVarDeclFullTok ;
+
+
+(*
+   GetVarDeclFullTok - returns the full virtual token containing var: type.
+*)
+
+PROCEDURE GetVarDeclFullTok (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   IF IsParameter (sym)
+   THEN
+      IF IsParameterVar (sym)
+      THEN
+         RETURN GetVarDeclFullTok (pSym^.VarParam.ShadowVar)
+      ELSE
+         RETURN GetVarDeclFullTok (pSym^.Param.ShadowVar)
+      END
+   ELSIF IsVar (sym)
+   THEN
+      RETURN doGetVarDeclFullTok (sym)
+   ELSE
+      RETURN UnknownTokenNo
+   END
+END GetVarDeclFullTok ;
+
+
+(*
    MakeVar - creates a variable sym with VarName. It returns the
              symbol index.
 *)
@@ -4273,6 +4582,7 @@ BEGIN
             Scope := GetCurrentScope() ;  (* Procedure or Module?  *)
             AtAddress := FALSE ;
             Address := NulSym ;           (* Address at which declared.  *)
+            IsConditional := FALSE ;
             IsTemp := FALSE ;
             IsComponentRef := FALSE ;
             IsParam := FALSE ;
@@ -4282,6 +4592,7 @@ BEGIN
             IsConst := FALSE ;
             ArrayRef := FALSE ;
             Heap := FALSE ;
+            InitVarDecl (Declared, tok) ;
             InitWhereDeclaredTok(tok, At) ;
             InitWhereFirstUsedTok(tok, At) ;   (* Where symbol first used.  *)
             InitList(ReadUsageList[RightValue]) ;
@@ -4299,6 +4610,52 @@ BEGIN
    END ;
    RETURN Sym
 END MakeVar ;
+
+
+(*
+   PutVarConditional - assign IsConditional to value.
+*)
+
+PROCEDURE PutVarConditional (sym: CARDINAL; value: BOOLEAN) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym(sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      VarSym     : Var.IsConditional := value |
+      ConstVarSym: ConstVar.IsConditional := value
+
+      ELSE
+         InternalError ('expecting Var')
+      END
+   END
+END PutVarConditional ;
+
+
+(*
+   IsVarConditional - return TRUE if the symbol is a var symbol
+                      containing the result of a boolean conditional.
+*)
+
+PROCEDURE IsVarConditional (sym: CARDINAL) : BOOLEAN ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym(sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      VarSym     : RETURN Var.IsConditional |
+      ConstVarSym: RETURN ConstVar.IsConditional
+
+      ELSE
+         RETURN FALSE
+      END
+   END ;
+   RETURN FALSE
+END IsVarConditional ;
 
 
 (*
@@ -4466,6 +4823,7 @@ PROCEDURE MakeRecord (tok: CARDINAL; RecordName: Name) : CARDINAL ;
 VAR
    oaf, sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'record') ;
    sym := HandleHiddenOrDeclare (tok, RecordName, oaf) ;
    FillInRecordFields (tok, sym, RecordName, GetCurrentScope (), oaf) ;
    ForeachOAFamily (oaf, doFillInOAFamily) ;
@@ -4483,6 +4841,7 @@ VAR
    pSym: PtrToSymbol ;
    Sym : CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'varient') ;
    NewSym (Sym) ;
    pSym := GetPsym(Sym) ;
    WITH pSym^ DO
@@ -4632,6 +4991,7 @@ VAR
    pSym    : PtrToSymbol ;
    sym, oaf: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'enumeration') ;
    sym := CheckForHiddenType (EnumerationName) ;
    IF sym=NulSym
    THEN
@@ -4723,6 +5083,7 @@ VAR
    pSym: PtrToSymbol ;
    Sym : CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'hidden') ;
    Sym := DeclareSym (tok, TypeName) ;
    IF NOT IsError(Sym)
    THEN
@@ -4835,6 +5196,7 @@ VAR
    str: String ;
    sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'constant') ;
    str := Sprintf1 (Mark (InitString ("%d")), value) ;
    sym := MakeConstLit (tok, makekey (string (str)), Cardinal) ;
    str := KillString (str) ;
@@ -4970,6 +5332,7 @@ PROCEDURE MakeConstLit (tok: CARDINAL; constName: Name; constType: CARDINAL) : C
 VAR
    sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'constlit') ;
    sym := LookupConstLitPoolEntry (tok, constName, constType) ;
    IF sym = NulSym
    THEN
@@ -5004,6 +5367,7 @@ BEGIN
             Value := InitValue() ;
             Type  := NulSym ;
             IsSet := FALSE ;
+            IsConditional := FALSE ;
             IsConstructor := FALSE ;
             FromType := NulSym ;     (* type is determined FromType *)
             UnresFromType := FALSE ; (* is Type resolved?           *)
@@ -5047,27 +5411,6 @@ END InitConstString ;
 
 
 (*
-   GetConstString - returns the contents of a string constant.
-*)
-
-PROCEDURE GetConstStringContent (sym: CARDINAL) : Name ;
-VAR
-   pSym: PtrToSymbol ;
-BEGIN
-   pSym := GetPsym (sym) ;
-   WITH pSym^ DO
-      CASE SymbolType OF
-
-      ConstStringSym:  RETURN ConstString.Contents
-
-      ELSE
-         InternalError ('expecting ConstStringSym')
-      END
-   END
-END GetConstStringContent ;
-
-
-(*
    IsConstStringNulTerminated - returns TRUE if the constant string, sym,
                                 should be created with a nul terminator.
 *)
@@ -5100,6 +5443,7 @@ PROCEDURE MakeConstStringCnul (tok: CARDINAL; name: Name; known: BOOLEAN) : CARD
 VAR
    newstr: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'conststringcnul') ;
    NewSym (newstr) ;
    InitConstString (tok, newstr, name, name, cnulstr, TRUE, known) ;
    RETURN newstr
@@ -5970,6 +6314,7 @@ VAR
    pSym    : PtrToSymbol ;
    sym, oaf: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'subrange') ;
    sym := HandleHiddenOrDeclare (tok, SubrangeName, oaf) ;
    IF NOT IsError(sym)
    THEN
@@ -6118,7 +6463,7 @@ BEGIN
       SubrangeSym         : type := Subrange.Type |
       ArraySym            : type := Array.Type |
       SubscriptSym        : type := Subscript.Type |
-      SetSym              : type := Set.Type |
+      SetSym              : type := Sym |    (* Stop at the set type.  *)
       UnboundedSym        : type := Unbounded.Type |
       UndefinedSym        : type := NulSym |
       DummySym            : type := NulSym
@@ -6607,6 +6952,31 @@ BEGIN
       END
    END
 END PutVar ;
+
+
+(*
+   PutVarTok - gives the VarSym symbol Sym a type Type at typetok.
+*)
+
+PROCEDURE PutVarTok (Sym: CARDINAL; VarType: CARDINAL; typetok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym(Sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      VarSym     : Var.Type := VarType ;
+                   Var.Declared.TypeTok := typetok ;
+                   ConfigSymInit (Var.InitState[LeftValue], Sym) ;
+                   ConfigSymInit (Var.InitState[RightValue], Sym) |
+      ConstVarSym: ConstVar.Type := VarType
+
+      ELSE
+         InternalError ('expecting VarSym or ConstVarSym')
+      END
+   END
+END PutVarTok ;
 
 
 (*
@@ -7739,6 +8109,7 @@ END IsComponent ;
 
 PROCEDURE MakeTemporary (tok: CARDINAL; Mode: ModeOfAddr) : CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'temporary') ;
    RETURN buildTemporary (tok, Mode, FALSE, NulSym)
 END MakeTemporary ;
 
@@ -7993,34 +8364,13 @@ END CheckForHiddenType ;
 
 PROCEDURE IsReallyPointer (Sym: CARDINAL) : BOOLEAN ;
 BEGIN
-   IF IsVar(Sym)
+   IF IsVar (Sym)
    THEN
-      Sym := GetType(Sym)
+      Sym := GetType (Sym)
    END ;
-   Sym := SkipType(Sym) ;
-   RETURN( IsPointer(Sym) OR (Sym=Address) )
+   Sym := SkipType (Sym) ;
+   RETURN IsPointer (Sym) OR (Sym = Address) OR IsHiddenReallyPointer (Sym)
 END IsReallyPointer ;
-
-
-(*
-   SkipHiddenType - if sym is a TYPE foo = bar
-                    then call SkipType(bar)
-                    else return sym
-
-                    it does skip over hidden type.
-*)
-
-(*
-PROCEDURE SkipHiddenType (Sym: CARDINAL) : CARDINAL ;
-BEGIN
-   IF (Sym#NulSym) AND IsType(Sym) AND (GetType(Sym)#NulSym)
-   THEN
-      RETURN( SkipType(GetType(Sym)) )
-   ELSE
-      RETURN( Sym )
-   END
-END SkipHiddenType ;
-*)
 
 
 (*
@@ -10077,8 +10427,11 @@ BEGIN
       CASE SymbolType OF
 
       ErrorSym: |
-      ProcedureSym: CheckOptFunction(Sym, FALSE) ; Procedure.ReturnType := TypeSym |
-      ProcTypeSym : CheckOptFunction(Sym, FALSE) ; ProcType.ReturnType := TypeSym
+      ProcedureSym: CheckOptFunction(Sym, FALSE) ;
+                    Procedure.ReturnType := TypeSym ;
+                    PutFunction (Procedure.ProcedureType, TypeSym) |
+      ProcTypeSym : CheckOptFunction(Sym, FALSE) ;
+                    ProcType.ReturnType := TypeSym
 
       ELSE
          InternalError ('expecting a Procedure or ProcType symbol')
@@ -10095,13 +10448,16 @@ PROCEDURE PutOptFunction (Sym: CARDINAL; TypeSym: CARDINAL) ;
 VAR
    pSym: PtrToSymbol ;
 BEGIN
-   pSym := GetPsym(Sym) ;
+   pSym := GetPsym (Sym) ;
    WITH pSym^ DO
       CASE SymbolType OF
 
       ErrorSym: |
-      ProcedureSym: CheckOptFunction(Sym, TRUE) ; Procedure.ReturnType := TypeSym |
-      ProcTypeSym : CheckOptFunction(Sym, TRUE) ; ProcType.ReturnType := TypeSym
+      ProcedureSym: CheckOptFunction (Sym, TRUE) ;
+                    Procedure.ReturnType := TypeSym ;
+                    PutOptFunction (Procedure.ProcedureType, TypeSym) |
+      ProcTypeSym : CheckOptFunction (Sym, TRUE) ;
+                    ProcType.ReturnType := TypeSym
 
       ELSE
          InternalError ('expecting a Procedure or ProcType symbol')
@@ -10116,12 +10472,14 @@ END PutOptFunction ;
 
 PROCEDURE MakeVariableForParam (tok      : CARDINAL;
                                 ParamName: Name;
-                                ProcSym  : CARDINAL ;
-                                no       : CARDINAL) : CARDINAL ;
+                                ProcSym  : CARDINAL;
+                                no       : CARDINAL;
+                                typetok  : CARDINAL) : CARDINAL ;
 VAR
    pSym       : PtrToSymbol ;
    VariableSym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'parameter') ;
    VariableSym := MakeVar (tok, ParamName) ;
    pSym := GetPsym (VariableSym) ;
    WITH pSym^ DO
@@ -10135,7 +10493,7 @@ BEGIN
       END
    END ;
    (* Note that the parameter is now treated as a local variable.  *)
-   PutVar (VariableSym, GetType(GetNthParam(ProcSym, no))) ;
+   PutVarTok (VariableSym, GetType(GetNthParam(ProcSym, no)), typetok) ;
    PutDeclared (tok, VariableSym) ;
    (*
       Normal VAR parameters have LeftValue,
@@ -10162,7 +10520,7 @@ END MakeVariableForParam ;
 
 PROCEDURE PutParam (tok: CARDINAL; Sym: CARDINAL; ParamNo: CARDINAL;
                     ParamName: Name; ParamType: CARDINAL;
-                    isUnbounded: BOOLEAN) : BOOLEAN ;
+                    isUnbounded: BOOLEAN; typetok: CARDINAL) : BOOLEAN ;
 VAR
    pSym       : PtrToSymbol ;
    ParSym     : CARDINAL ;
@@ -10188,7 +10546,8 @@ BEGIN
       AddParameter(Sym, ParSym) ;
       IF ParamName#NulName
       THEN
-         VariableSym := MakeVariableForParam(tok, ParamName, Sym, ParamNo) ;
+         VariableSym := MakeVariableForParam(tok, ParamName, Sym,
+                                             ParamNo, typetok) ;
          IF VariableSym=NulSym
          THEN
             RETURN( FALSE )
@@ -10196,7 +10555,8 @@ BEGIN
             pSym := GetPsym(ParSym) ;
             pSym^.Param.ShadowVar := VariableSym
          END
-      END
+      END ;
+      AddProcedureProcTypeParam (Sym, ParamType, isUnbounded, FALSE)
    END ;
    RETURN( TRUE )
 END PutParam ;
@@ -10213,7 +10573,7 @@ END PutParam ;
 
 PROCEDURE PutVarParam (tok: CARDINAL; Sym: CARDINAL; ParamNo: CARDINAL;
                        ParamName: Name; ParamType: CARDINAL;
-                       isUnbounded: BOOLEAN) : BOOLEAN ;
+                       isUnbounded: BOOLEAN; typetok: CARDINAL) : BOOLEAN ;
 VAR
    pSym       : PtrToSymbol ;
    ParSym     : CARDINAL ;
@@ -10240,7 +10600,8 @@ BEGIN
       AddParameter(Sym, ParSym) ;
       IF ParamName#NulName
       THEN
-         VariableSym := MakeVariableForParam(tok, ParamName, Sym, ParamNo) ;
+         VariableSym := MakeVariableForParam(tok, ParamName, Sym,
+                                             ParamNo, typetok) ;
          IF VariableSym=NulSym
          THEN
             RETURN( FALSE )
@@ -10249,6 +10610,7 @@ BEGIN
             pSym^.VarParam.ShadowVar := VariableSym
          END
       END ;
+      AddProcedureProcTypeParam (Sym, ParamType, isUnbounded, TRUE) ;
       RETURN( TRUE )
    END
 END PutVarParam ;
@@ -10259,7 +10621,8 @@ END PutVarParam ;
                   ProcSym.
 *)
 
-PROCEDURE PutParamName (tok: CARDINAL; ProcSym: CARDINAL; no: CARDINAL; name: Name) ;
+PROCEDURE PutParamName (tok: CARDINAL; ProcSym: CARDINAL; no: CARDINAL;
+                        name: Name; typetok: CARDINAL) ;
 VAR
    pSym  : PtrToSymbol ;
    ParSym: CARDINAL ;
@@ -10284,14 +10647,16 @@ BEGIN
       ParamSym:    IF Param.name=NulName
                    THEN
                       Param.name := name ;
-                      Param.ShadowVar := MakeVariableForParam(tok, name, ProcSym, no)
+                      Param.ShadowVar := MakeVariableForParam(tok, name, ProcSym,
+                                                              no, typetok)
                    ELSE
                       InternalError ('name of parameter has already been assigned')
                    END |
       VarParamSym: IF VarParam.name=NulName
                    THEN
                       VarParam.name := name ;
-                      VarParam.ShadowVar := MakeVariableForParam(tok, name, ProcSym, no)
+                      VarParam.ShadowVar := MakeVariableForParam(tok, name, ProcSym,
+                                                                 no, typetok)
                    ELSE
                       InternalError ('name of parameter has already been assigned')
                    END
@@ -10324,6 +10689,36 @@ BEGIN
       END
    END
 END AddParameter ;
+
+
+(*
+   AddProcedureProcTypeParam - adds ParamType to the parameter ProcType
+                               associated with procedure Sym.
+*)
+
+PROCEDURE AddProcedureProcTypeParam (Sym, ParamType: CARDINAL;
+                                     isUnbounded, isVarParam: BOOLEAN) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (Sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: IF isVarParam
+                    THEN
+                       PutProcTypeVarParam (Procedure.ProcedureType,
+                                            ParamType, isUnbounded)
+                    ELSE
+                       PutProcTypeParam (Procedure.ProcedureType,
+                                         ParamType, isUnbounded)
+                    END
+
+      ELSE
+         InternalError ('expecting Sym to be a procedure')
+      END
+   END
+END AddProcedureProcTypeParam ;
 
 
 (*
@@ -10604,6 +10999,7 @@ PROCEDURE MakeParameterHeapVar (tok: CARDINAL; type: CARDINAL; mode: ModeOfAddr)
 VAR
    heapvar: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'parameter heap var') ;
    heapvar := NulSym ;
    type := SkipType (type) ;
    IF IsPointer (type)
@@ -10881,7 +11277,7 @@ BEGIN
       CASE SymbolType OF
 
       ErrorSym    : |
-      ProcedureSym: Assert(NOT Procedure.ParamDefined) ;
+      ProcedureSym: (* Assert(NOT Procedure.ParamDefined) ; *)
                     Procedure.ParamDefined := TRUE
 
       ELSE
@@ -11018,6 +11414,100 @@ END AreParametersDefinedInImplementation ;
 
 
 (*
+   PutParametersDefinedByForward - records that the parameters have been
+                                   defined in a FORWARD declaration.
+*)
+
+PROCEDURE PutParametersDefinedByForward (ProcSym: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   CheckLegal (ProcSym) ;
+   pSym := GetPsym (ProcSym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: Procedure.DefinedByForward := TRUE
+
+      ELSE
+         InternalError ('expecting a Procedure symbol')
+      END
+   END
+END PutParametersDefinedByForward ;
+
+
+(*
+   GetParametersDefinedByForward - return TRUE if ProcSym has had its parameters
+                                   defined by a FORWARD declaration.
+*)
+
+PROCEDURE GetParametersDefinedByForward (ProcSym: CARDINAL) : BOOLEAN ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   CheckLegal (ProcSym) ;
+   pSym := GetPsym (ProcSym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ErrorSym    : RETURN( FALSE ) |
+      ProcedureSym: RETURN( Procedure.DefinedByForward )
+
+      ELSE
+         InternalError ('expecting a Procedure symbol')
+      END
+   END
+END GetParametersDefinedByForward ;
+
+
+(*
+   PutParametersDefinedByProper - records that the parameters have been
+                                   defined in a FORWARD declaration.
+*)
+
+PROCEDURE PutParametersDefinedByProper (ProcSym: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   CheckLegal (ProcSym) ;
+   pSym := GetPsym (ProcSym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: Procedure.DefinedByProper := TRUE
+
+      ELSE
+         InternalError ('expecting a Procedure symbol')
+      END
+   END
+END PutParametersDefinedByProper ;
+
+
+(*
+   GetParametersDefinedByProper - return TRUE if ProcSym has had its parameters
+                                   defined by a FORWARD declaration.
+*)
+
+PROCEDURE GetParametersDefinedByProper (ProcSym: CARDINAL) : BOOLEAN ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   CheckLegal (ProcSym) ;
+   pSym := GetPsym (ProcSym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ErrorSym    : RETURN( FALSE ) |
+      ProcedureSym: RETURN( Procedure.DefinedByProper )
+
+      ELSE
+         InternalError ('expecting a Procedure symbol')
+      END
+   END
+END GetParametersDefinedByProper ;
+
+
+(*
    FillInUnknownFields -
 *)
 
@@ -11079,6 +11569,7 @@ PROCEDURE MakePointer (tok: CARDINAL; PointerName: Name) : CARDINAL ;
 VAR
    oaf, sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'pointer') ;
    sym := HandleHiddenOrDeclare(tok, PointerName, oaf) ;
    FillInPointerFields(sym, PointerName, GetCurrentScope(), oaf) ;
    ForeachOAFamily(oaf, doFillInOAFamily) ;
@@ -11341,6 +11832,7 @@ VAR
    pSym    : PtrToSymbol ;
    oaf, sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'set') ;
    sym := HandleHiddenOrDeclare(tok, SetName, oaf) ;
    IF NOT IsError(sym)
    THEN
@@ -11680,6 +12172,7 @@ PROCEDURE MakeUnbounded (tok: CARDINAL;
 VAR
    sym, oaf: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'unbounded') ;
    oaf := MakeOAFamily(SimpleType) ;
    sym := GetUnbounded(oaf, ndim) ;
    IF sym=NulSym
@@ -12385,7 +12878,7 @@ BEGIN
    WITH pSym^ DO
       CASE SymbolType OF
 
-      ErrorSym           : ErrorAbort0('') |
+      ErrorSym           : RETURN( Error.Scope ) |
       DefImpSym          : RETURN( NulSym ) |
       ModuleSym          : RETURN( Module.Scope ) |
       VarSym             : RETURN( Var.Scope ) |
@@ -12406,6 +12899,19 @@ BEGIN
       ConstLitSym        : RETURN( ConstLit.Scope ) |
       ConstStringSym     : RETURN( ConstString.Scope ) |
       ConstVarSym        : RETURN( ConstVar.Scope ) |
+      ParamSym           : IF Param.ShadowVar = NulSym
+                           THEN
+                              RETURN NulSym
+                           ELSE
+                              RETURN( GetScope (Param.ShadowVar) )
+                           END |
+      VarParamSym        : IF VarParam.ShadowVar = NulSym
+                           THEN
+                              RETURN NulSym
+                           ELSE
+                              RETURN( GetScope (VarParam.ShadowVar) )
+                           END |
+      UndefinedSym       : RETURN( NulSym ) |
       PartialUnboundedSym: InternalError ('should not be requesting the scope of a PartialUnbounded symbol')
 
       ELSE
@@ -12513,6 +13019,7 @@ VAR
    pSym    : PtrToSymbol ;
    oaf, sym: CARDINAL ;
 BEGIN
+   tok := CheckTok (tok, 'proctype') ;
    sym := HandleHiddenOrDeclare (tok, ProcTypeName, oaf) ;
    IF NOT IsError(sym)
    THEN
@@ -12597,6 +13104,27 @@ BEGIN
    END ;
    AddParameter(Sym, ParSym)
 END PutProcTypeVarParam ;
+
+
+(*
+   GetProcedureProcType - returns the proctype matching procedure sym.
+*)
+
+PROCEDURE GetProcedureProcType (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym(sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: RETURN Procedure.ProcedureType
+
+      ELSE
+         InternalError ('expecting Procedure symbol')
+      END
+   END
+END GetProcedureProcType ;
 
 
 (*
@@ -12759,7 +13287,7 @@ END GetModuleQuads ;
    PutModuleFinallyFunction - Places Tree, finally, into the Module symbol, Sym.
 *)
 
-PROCEDURE PutModuleFinallyFunction (Sym: CARDINAL; finally: Tree) ;
+PROCEDURE PutModuleFinallyFunction (Sym: CARDINAL; finally: tree) ;
 VAR
    pSym: PtrToSymbol ;
 BEGIN
@@ -12781,7 +13309,7 @@ END PutModuleFinallyFunction ;
    GetModuleFinallyFunction - returns the finally tree from the Module symbol, Sym.
 *)
 
-PROCEDURE GetModuleFinallyFunction (Sym: CARDINAL) : Tree ;
+PROCEDURE GetModuleFinallyFunction (Sym: CARDINAL) : tree ;
 VAR
    pSym: PtrToSymbol ;
 BEGIN
@@ -13489,6 +14017,151 @@ BEGIN
    END ;
    RETURN declared
 END GetDeclaredMod ;
+
+
+(*
+   GetDeclaredFor - returns the token where this symbol was declared.
+                    It chooses the first from the forward declaration,
+                    implementation module, program module
+                    and definition module.
+*)
+
+PROCEDURE GetDeclaredFor (Sym: CARDINAL) : CARDINAL ;
+BEGIN
+   RETURN GetProcedureDeclaredForward (Sym)
+END GetDeclaredFor ;
+
+
+(*
+   GetProcedureDeclaredForward - return the token at which the forward
+                                 declaration procedure occurred.
+*)
+
+PROCEDURE GetProcedureDeclaredForward (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: RETURN Procedure.Declared.Forward
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END GetProcedureDeclaredForward ;
+
+
+(*
+   PutProcedureDeclaredForward - places the tok to which the forward
+                                 declaration procedure occurred.
+*)
+
+PROCEDURE PutProcedureDeclaredForward (sym: CARDINAL; tok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: Procedure.Declared.Forward := tok
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END PutProcedureDeclaredForward ;
+
+
+(*
+   GetProcedureDeclaredProper - return the token at which the forward
+                                declaration procedure occurred.
+*)
+
+PROCEDURE GetProcedureDeclaredProper (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: RETURN Procedure.Declared.Proper
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END GetProcedureDeclaredProper ;
+
+
+(*
+   PutProcedureDeclaredProper - places the tok to which the forward
+                                declaration procedure occurred.
+*)
+
+PROCEDURE PutProcedureDeclaredProper (sym: CARDINAL; tok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: Procedure.Declared.Proper := tok
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END PutProcedureDeclaredProper ;
+
+
+(*
+   GetProcedureDeclaredDefinition - return the token at which the forward
+                                    declaration procedure occurred.
+*)
+
+PROCEDURE GetProcedureDeclaredDefinition (sym: CARDINAL) : CARDINAL ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: RETURN Procedure.Declared.Definition
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END GetProcedureDeclaredDefinition ;
+
+
+(*
+   PutProcedureDeclaredDefinition - places the tok to which the forward
+                                    declaration procedure occurred.
+*)
+
+PROCEDURE PutProcedureDeclaredDefinition (sym: CARDINAL; tok: CARDINAL) ;
+VAR
+   pSym: PtrToSymbol ;
+BEGIN
+   pSym := GetPsym (sym) ;
+   WITH pSym^ DO
+      CASE SymbolType OF
+
+      ProcedureSym: Procedure.Declared.Definition := tok
+
+      ELSE
+         InternalError ('expecting procedure symbol')
+      END
+   END
+END PutProcedureDeclaredDefinition ;
 
 
 (*
