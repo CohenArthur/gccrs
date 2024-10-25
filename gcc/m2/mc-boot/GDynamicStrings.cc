@@ -765,7 +765,7 @@ static void DSdbExit (DynamicStrings_String s)
 
 static unsigned int Capture (DynamicStrings_String s)
 {
-  /* 
+  /*
  *   #undef GM2_DEBUG_DYNAMICSTINGS
  *   #if defined(GM2_DEBUG_DYNAMICSTINGS)
  *   #  define DSdbEnter doDSdbEnter
@@ -1350,7 +1350,7 @@ static DynamicStrings_String AddToGarbage (DynamicStrings_String a, DynamicStrin
       a = CheckPoisoned (a);
       b = CheckPoisoned (b);
     }
-  /* 
+  /*
    IF (a#NIL) AND (a#b) AND (a^.head^.state=marked)
    THEN
       writeString('warning trying to add to a marked string') ; writeLn

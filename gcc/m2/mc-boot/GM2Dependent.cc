@@ -243,7 +243,7 @@ static M2Dependent_ModuleChain LookupModuleN (M2Dependent_DependencyState state,
 static M2Dependent_ModuleChain LookupModule (M2Dependent_DependencyState state, void * name, void * libname);
 
 /*
-   toCString - replace any character sequence 
+   toCString - replace any character sequence
  into a newline.
 */
 
@@ -621,7 +621,7 @@ static M2Dependent_ModuleChain LookupModule (M2Dependent_DependencyState state, 
 
 
 /*
-   toCString - replace any character sequence 
+   toCString - replace any character sequence
  into a newline.
 */
 

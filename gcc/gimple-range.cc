@@ -198,7 +198,7 @@ gimple_ranger::range_on_exit (vrange &r, basic_block bb, tree name)
     range_on_entry (r, bb, name);
   gcc_checking_assert (r.undefined_p ()
 		       || range_compatible_p (r.type (), TREE_TYPE (name)));
-  
+
   if (idx)
     tracer.trailer (idx, "range_on_exit", true, name, r);
 }
@@ -474,7 +474,7 @@ gimple_ranger::fold_stmt (gimple_stmt_iterator *gsi, tree (*valueize) (tree))
 }
 
 // Called during dominator walks to register any inferred ranges that take
-// effect from this point forward.  
+// effect from this point forward.
 
 void
 gimple_ranger::register_inferred_ranges (gimple *s)

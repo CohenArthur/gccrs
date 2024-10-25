@@ -2157,7 +2157,7 @@ static bool
 stack_protect_return_slot_p ()
 {
   basic_block bb;
-  
+
   FOR_ALL_BB_FN (bb, cfun)
     for (gimple_stmt_iterator gsi = gsi_start_bb (bb);
 	 !gsi_end_p (gsi); gsi_next (&gsi))
@@ -3582,7 +3582,7 @@ expand_asm_stmt (gasm *stmt)
       ASM_OPERANDS_OUTPUT_CONSTRAINT (body) = constraints[0];
       if (nlabels > 0)
 	emit_jump_insn (gen_rtx_SET (output_rvec[0], body));
-      else 
+      else
 	emit_insn (gen_rtx_SET (output_rvec[0], body));
     }
   else

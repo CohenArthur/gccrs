@@ -1881,7 +1881,7 @@ operator_minus::update_bitmask (irange &r, const irange &lh,
   update_known_bitmask (r, MINUS_EXPR, lh, rh);
 }
 
-void 
+void
 operator_minus::wi_fold (irange &r, tree type,
 			 const wide_int &lh_lb, const wide_int &lh_ub,
 			 const wide_int &rh_lb, const wide_int &rh_ub) const
@@ -2172,7 +2172,7 @@ operator_mult::wi_op_overflows (wide_int &res, tree type,
    return overflow;
 }
 
-void 
+void
 operator_mult::wi_fold (irange &r, tree type,
 			const wide_int &lh_lb, const wide_int &lh_ub,
 			const wide_int &rh_lb, const wide_int &rh_ub) const

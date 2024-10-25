@@ -252,7 +252,7 @@ decode_caches_intel (unsigned reg, bool xeon_mp,
 /* Detect cache parameters using CPUID function 2.  */
 
 static void
-detect_caches_cpuid2 (bool xeon_mp, 
+detect_caches_cpuid2 (bool xeon_mp,
 		      struct cache_desc *level1, struct cache_desc *level2)
 {
   unsigned regs[4];
@@ -295,7 +295,7 @@ detect_caches_cpuid4 (struct cache_desc *level1, struct cache_desc *level2,
   int count;
 
   for (count = 0;; count++)
-    { 
+    {
       __cpuid_count(4, count, eax, ebx, ecx, edx);
       switch (eax & 0x1f)
 	{
@@ -683,7 +683,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 		    cpu = "haswell";
 		  /* Assume Sandy Bridge.  */
 		  else
-		    cpu = "sandybridge";	      
+		    cpu = "sandybridge";
 	      }
 	      else if (has_feature (FEATURE_SSE4_2))
 		{

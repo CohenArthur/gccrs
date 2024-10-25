@@ -3300,14 +3300,14 @@ shorten_compare (location_t loc, tree *op0_ptr, tree *op1_ptr,
 	     the comparison isn't an issue, so suppress the
 	     warning.  */
 	  tree folded_op0 = fold_for_warn (op0);
-	  bool warn = 
+	  bool warn =
 	    warn_type_limits && !in_system_header_at (loc)
 	    && !(TREE_CODE (folded_op0) == INTEGER_CST
 		 && !TREE_OVERFLOW (convert (c_common_signed_type (type),
 					     folded_op0)))
 	    /* Do not warn for enumeration types.  */
 	    && (TREE_CODE (expr_original_type (folded_op0)) != ENUMERAL_TYPE);
-	  
+
 	  switch (code)
 	    {
 	    case GE_EXPR:
@@ -7175,9 +7175,9 @@ complete_flexible_array_elts (tree init)
 }
 
 /* Like c_mark_addressable but don't check register qualifier.  */
-void 
+void
 c_common_mark_addressable_vec (tree t)
-{   
+{
   while (handled_component_p (t) || TREE_CODE (t) == C_MAYBE_CONST_EXPR)
     {
       if (TREE_CODE (t) == C_MAYBE_CONST_EXPR)
@@ -7565,7 +7565,7 @@ get_atomic_generic_size (location_t loc, tree function,
   /* Types must be compile time constant sizes. */
   if (!tree_fits_uhwi_p ((TYPE_SIZE_UNIT (TREE_TYPE (type_0)))))
     {
-      error_at (loc, 
+      error_at (loc,
 		"argument 1 of %qE must be a pointer to a constant size type",
 		function);
       return 0;
@@ -7576,7 +7576,7 @@ get_atomic_generic_size (location_t loc, tree function,
   /* Zero size objects are not allowed.  */
   if (size_0 == 0)
     {
-      error_at (loc, 
+      error_at (loc,
 		"argument 1 of %qE must be a pointer to a nonzero size object",
 		function);
       return 0;
@@ -7690,12 +7690,12 @@ get_atomic_generic_size (location_t loc, tree function,
 /* This will take an __atomic_ generic FUNCTION call, and add a size parameter N
    at the beginning of the parameter list PARAMS representing the size of the
    objects.  This is to match the library ABI requirement.  LOC is the location
-   of the function call.  
+   of the function call.
    The new function is returned if it needed rebuilding, otherwise NULL_TREE is
    returned to allow the external call to be constructed.  */
 
 static tree
-add_atomic_size_parameter (unsigned n, location_t loc, tree function, 
+add_atomic_size_parameter (unsigned n, location_t loc, tree function,
 			   vec<tree, va_gc> *params)
 {
   tree size_node;
@@ -7753,12 +7753,12 @@ atomic_size_supported_p (int n)
    PARAMS is the argument list for the call.  The return value is non-null
    TRUE is returned if it is translated into the proper format for a call to the
    external library, and NEW_RETURN is set the tree for that function.
-   FALSE is returned if processing for the _N variation is required, and 
+   FALSE is returned if processing for the _N variation is required, and
    NEW_RETURN is set to the return value the result is copied into.  */
 static bool
-resolve_overloaded_atomic_exchange (location_t loc, tree function, 
+resolve_overloaded_atomic_exchange (location_t loc, tree function,
 				    vec<tree, va_gc> *params, tree *new_return)
-{	
+{
   tree p0, p1, p2, p3;
   tree I_type, I_type_ptr;
   int n = get_atomic_generic_size (loc, function, params);
@@ -7786,14 +7786,14 @@ resolve_overloaded_atomic_exchange (location_t loc, tree function,
   p1 = (*params)[1];
   p2 = (*params)[2];
   p3 = (*params)[3];
-  
+
   /* Create pointer to appropriate size.  */
   I_type = builtin_type_for_size (BITS_PER_UNIT * n, 1);
   I_type_ptr = build_pointer_type (I_type);
 
   /* Convert object pointer to required type.  */
   p0 = build1 (VIEW_CONVERT_EXPR, I_type_ptr, p0);
-  (*params)[0] = p0; 
+  (*params)[0] = p0;
   /* Convert new value to required type, and dereference it.
      If *p1 type can have padding or may involve floating point which
      could e.g. be promoted to wider precision and demoted afterwards,
@@ -7815,7 +7815,7 @@ resolve_overloaded_atomic_exchange (location_t loc, tree function,
 }
 
 
-/* This will process an __atomic_compare_exchange function call, determine 
+/* This will process an __atomic_compare_exchange function call, determine
    whether it needs to be mapped to the _N variation, or turned into a lib call.
    LOC is the location of the builtin call.
    FUNCTION is the DECL that has been invoked;
@@ -7825,10 +7825,10 @@ resolve_overloaded_atomic_exchange (location_t loc, tree function,
    FALSE is returned if processing for the _N variation is required.  */
 
 static bool
-resolve_overloaded_atomic_compare_exchange (location_t loc, tree function, 
-					    vec<tree, va_gc> *params, 
+resolve_overloaded_atomic_compare_exchange (location_t loc, tree function,
+					    vec<tree, va_gc> *params,
 					    tree *new_return)
-{	
+{
   tree p0, p1, p2;
   tree I_type, I_type_ptr;
   int n = get_atomic_generic_size (loc, function, params);
@@ -7843,7 +7843,7 @@ resolve_overloaded_atomic_compare_exchange (location_t loc, tree function,
   /* If not a lock-free size, change to the library generic format.  */
   if (!atomic_size_supported_p (n))
     {
-      /* The library generic format does not have the weak parameter, so 
+      /* The library generic format does not have the weak parameter, so
 	 remove it from the param list.  Since a parameter has been removed,
 	 we can be sure that there is room for the SIZE_T parameter, meaning
 	 there will not be a recursive rebuilding of the parameter list, so
@@ -7866,7 +7866,7 @@ resolve_overloaded_atomic_compare_exchange (location_t loc, tree function,
   p0 = (*params)[0];
   p1 = (*params)[1];
   p2 = (*params)[2];
-  
+
   /* Create pointer to appropriate size.  */
   I_type = builtin_type_for_size (BITS_PER_UNIT * n, 1);
   I_type_ptr = build_pointer_type (I_type);
@@ -7903,13 +7903,13 @@ resolve_overloaded_atomic_compare_exchange (location_t loc, tree function,
    PARAMS is the argument list for the call.  The return value is non-null
    TRUE is returned if it is translated into the proper format for a call to the
    external library, and NEW_RETURN is set the tree for that function.
-   FALSE is returned if processing for the _N variation is required, and 
+   FALSE is returned if processing for the _N variation is required, and
    NEW_RETURN is set to the return value the result is copied into.  */
 
 static bool
-resolve_overloaded_atomic_load (location_t loc, tree function, 
+resolve_overloaded_atomic_load (location_t loc, tree function,
 				vec<tree, va_gc> *params, tree *new_return)
-{	
+{
   tree p0, p1, p2;
   tree I_type, I_type_ptr;
   int n = get_atomic_generic_size (loc, function, params);
@@ -7936,7 +7936,7 @@ resolve_overloaded_atomic_load (location_t loc, tree function,
   p0 = (*params)[0];
   p1 = (*params)[1];
   p2 = (*params)[2];
-  
+
   /* Create pointer to appropriate size.  */
   I_type = builtin_type_for_size (BITS_PER_UNIT * n, 1);
   I_type_ptr = build_pointer_type (I_type);
@@ -7963,13 +7963,13 @@ resolve_overloaded_atomic_load (location_t loc, tree function,
    PARAMS is the argument list for the call.  The return value is non-null
    TRUE is returned if it is translated into the proper format for a call to the
    external library, and NEW_RETURN is set the tree for that function.
-   FALSE is returned if processing for the _N variation is required, and 
+   FALSE is returned if processing for the _N variation is required, and
    NEW_RETURN is set to the return value the result is copied into.  */
 
 static bool
-resolve_overloaded_atomic_store (location_t loc, tree function, 
+resolve_overloaded_atomic_store (location_t loc, tree function,
 				 vec<tree, va_gc> *params, tree *new_return)
-{	
+{
   tree p0, p1;
   tree I_type, I_type_ptr;
   int n = get_atomic_generic_size (loc, function, params);
@@ -7995,7 +7995,7 @@ resolve_overloaded_atomic_store (location_t loc, tree function,
 
   p0 = (*params)[0];
   p1 = (*params)[1];
-  
+
   /* Create pointer to appropriate size.  */
   I_type = builtin_type_for_size (BITS_PER_UNIT * n, 1);
   I_type_ptr = build_pointer_type (I_type);
@@ -8008,7 +8008,7 @@ resolve_overloaded_atomic_store (location_t loc, tree function,
   p1 = build_indirect_ref (loc, p1, RO_UNARY_STAR);
   p1 = build1 (VIEW_CONVERT_EXPR, I_type, p1);
   (*params)[1] = p1;
-  
+
   /* The memory model is in the right spot already. Return is void.  */
   *new_return = NULL_TREE;
 
@@ -9572,7 +9572,7 @@ c_family_tests (void)
 #endif /* #if CHECKING_P */
 
 /* Attempt to locate a suitable location within FILE for a
-   #include directive to be inserted before.  
+   #include directive to be inserted before.
    LOC is the location of the relevant diagnostic.
 
    Attempt to return the location within FILE immediately

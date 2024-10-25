@@ -2780,7 +2780,7 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
 			= TYPE_NEXT_VARIANT (TYPE_NEXT_VARIANT (t));
 		      break;
 		    }
-	    }	    
+	    }
 	  else
 	    for (tree t = TYPE_MAIN_VARIANT (remove); ;
 		 t = TYPE_NEXT_VARIANT (t))
@@ -11167,7 +11167,7 @@ void
 finish_function (location_t end_loc)
 {
   tree fndecl = current_function_decl;
-  
+
   if (c_dialect_objc ())
     objc_finish_function ();
 
@@ -13344,7 +13344,7 @@ collect_source_refs (void)
   unsigned i;
 
   FOR_EACH_VEC_ELT (*all_translation_units, i, t)
-    { 
+    {
       decls = DECL_INITIAL (t);
       for (decl = BLOCK_VARS (decls); decl; decl = TREE_CHAIN (decl))
 	if (!DECL_IS_UNDECLARED_BUILTIN (decl))
