@@ -933,7 +933,7 @@ resolve_simple_move (rtx set, rtx_insn *insn)
 	      if (reg_overlap_mentioned_p (XVECEXP (dest, 0, 0),
 					   XVECEXP (src, 0, 1)))
 		{
-		  /* If there is overlap betwee the first half of the
+		  /* If there is overlap between the first half of the
 		     destination and what will be stored to the second one,
 		     use a temporary pseudo.  See PR114211.  */
 		  rtx tem = gen_reg_rtx (GET_MODE (XVECEXP (src, 0, 1)));
@@ -1100,6 +1100,9 @@ resolve_simple_move (rtx set, rtx_insn *insn)
   else
     {
       unsigned int i;
+
+      if (REG_P (dest) && !HARD_REGISTER_NUM_P (REGNO (dest)))
+	emit_clobber (dest);
 
       for (i = 0; i < words; ++i)
 	{

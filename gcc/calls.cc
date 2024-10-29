@@ -853,6 +853,23 @@ flags_from_decl_or_type (const_tree exp)
 	flags |= ECF_XTHROW;
 
       flags = special_function_p (exp, flags);
+
+      if ((flags & ECF_CONST) == 0
+	  && lookup_attribute ("unsequenced noptr",
+			       TYPE_ATTRIBUTES (TREE_TYPE (exp))))
+	{
+	  /* [[unsequenced]] with no pointers in arguments is like
+	     [[gnu::const]] without finite guarantee.  */
+	  flags |= ECF_CONST;
+	  if ((flags & ECF_PURE) == 0)
+	    flags |= ECF_LOOPING_CONST_OR_PURE;
+	}
+      if ((flags & (ECF_CONST | ECF_PURE)) == 0
+	  && lookup_attribute ("reproducible noptr",
+			       TYPE_ATTRIBUTES (TREE_TYPE (exp))))
+	/* [[reproducible]] with no pointers in arguments is like
+	   [[gnu::pure]] without finite guarantee.  */
+	flags |= ECF_PURE | ECF_LOOPING_CONST_OR_PURE;
     }
   else if (TYPE_P (exp))
     {
@@ -863,6 +880,17 @@ flags_from_decl_or_type (const_tree exp)
 	  && ((flags & ECF_CONST) != 0
 	      || lookup_attribute ("transaction_pure", TYPE_ATTRIBUTES (exp))))
 	flags |= ECF_TM_PURE;
+
+      if ((flags & ECF_CONST) == 0
+	  && lookup_attribute ("unsequenced noptr", TYPE_ATTRIBUTES (exp)))
+	/* [[unsequenced]] with no pointers in arguments is like
+	   [[gnu::const]] without finite guarantee.  */
+	flags |= ECF_CONST | ECF_LOOPING_CONST_OR_PURE;
+      if ((flags & ECF_CONST) == 0
+	  && lookup_attribute ("reproducible noptr", TYPE_ATTRIBUTES (exp)))
+	/* [[reproducible]] with no pointers in arguments is like
+	   [[gnu::pure]] without finite guarantee.  */
+	flags |= ECF_PURE | ECF_LOOPING_CONST_OR_PURE;
     }
   else
     gcc_unreachable ();
@@ -1250,6 +1278,7 @@ maybe_complain_about_tail_call (tree call_expr, const char *reason)
     return;
 
   error_at (EXPR_LOCATION (call_expr), "cannot tail-call: %s", reason);
+  CALL_EXPR_MUST_TAIL_CALL (call_expr) = 0;
 }
 
 /* Fill in ARGS_SIZE and ARGS array based on the parameters found in
@@ -1420,9 +1449,9 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 		{
 		  *may_tailcall = false;
 		  maybe_complain_about_tail_call (exp,
-						  "a callee-copied argument is"
-						  " stored in the current"
-						  " function's frame");
+						  _("a callee-copied argument is"
+						    " stored in the current"
+						    " function's frame"));
 		}
 
 	      args[i].tree_value = build_fold_addr_expr_loc (loc,
@@ -1489,8 +1518,8 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	      type = TREE_TYPE (args[i].tree_value);
 	      *may_tailcall = false;
 	      maybe_complain_about_tail_call (exp,
-					      "argument must be passed"
-					      " by copying");
+					      _("argument must be passed"
+						" by copying"));
 	    }
 	  arg.pass_by_reference = true;
 	}
@@ -2508,8 +2537,8 @@ can_implement_as_sibling_call_p (tree exp,
     {
       maybe_complain_about_tail_call
 	(exp,
-	 "machine description does not have"
-	 " a sibcall_epilogue instruction pattern");
+	 _("machine description does not have"
+	   " a sibcall_epilogue instruction pattern"));
       return false;
     }
 
@@ -2519,7 +2548,7 @@ can_implement_as_sibling_call_p (tree exp,
      sibling calls will return a structure.  */
   if (structure_value_addr != NULL_RTX)
     {
-      maybe_complain_about_tail_call (exp, "callee returns a structure");
+      maybe_complain_about_tail_call (exp, _("callee returns a structure"));
       return false;
     }
 
@@ -2528,8 +2557,8 @@ can_implement_as_sibling_call_p (tree exp,
   if (!targetm.function_ok_for_sibcall (fndecl, exp))
     {
       maybe_complain_about_tail_call (exp,
-				      "target is not able to optimize the"
-				      " call into a sibling call");
+				      _("target is not able to optimize the"
+					" call into a sibling call"));
       return false;
     }
 
@@ -2537,18 +2566,18 @@ can_implement_as_sibling_call_p (tree exp,
      optimized.  */
   if (flags & ECF_RETURNS_TWICE)
     {
-      maybe_complain_about_tail_call (exp, "callee returns twice");
+      maybe_complain_about_tail_call (exp, _("callee returns twice"));
       return false;
     }
   if (flags & ECF_NORETURN)
     {
-      maybe_complain_about_tail_call (exp, "callee does not return");
+      maybe_complain_about_tail_call (exp, _("callee does not return"));
       return false;
     }
 
   if (TYPE_VOLATILE (TREE_TYPE (TREE_TYPE (addr))))
     {
-      maybe_complain_about_tail_call (exp, "volatile function type");
+      maybe_complain_about_tail_call (exp, _("volatile function type"));
       return false;
     }
 
@@ -2567,7 +2596,7 @@ can_implement_as_sibling_call_p (tree exp,
      the argument areas are shared.  */
   if (fndecl && decl_function_context (fndecl) == current_function_decl)
     {
-      maybe_complain_about_tail_call (exp, "nested function");
+      maybe_complain_about_tail_call (exp, _("nested function"));
       return false;
     }
 
@@ -2579,8 +2608,8 @@ can_implement_as_sibling_call_p (tree exp,
 		crtl->args.size - crtl->args.pretend_args_size))
     {
       maybe_complain_about_tail_call (exp,
-				      "callee required more stack slots"
-				      " than the caller");
+				      _("callee required more stack slots"
+					" than the caller"));
       return false;
     }
 
@@ -2594,15 +2623,15 @@ can_implement_as_sibling_call_p (tree exp,
 						crtl->args.size)))
     {
       maybe_complain_about_tail_call (exp,
-				      "inconsistent number of"
-				      " popped arguments");
+				      _("inconsistent number of"
+					" popped arguments"));
       return false;
     }
 
   if (!lang_hooks.decls.ok_for_sibcall (fndecl))
     {
-      maybe_complain_about_tail_call (exp, "frontend does not support"
-					    " sibling call");
+      maybe_complain_about_tail_call (exp, _("frontend does not support"
+					     " sibling call"));
       return false;
     }
 
@@ -2651,7 +2680,13 @@ expand_call (tree exp, rtx target, int ignore)
   /* The type of the function being called.  */
   tree fntype;
   bool try_tail_call = CALL_EXPR_TAILCALL (exp);
-  bool must_tail_call = CALL_EXPR_MUST_TAIL_CALL (exp);
+  /* tree-tailcall decided not to do tail calls. Error for the musttail case,
+     unfortunately we don't know the reason so it's fairly vague.
+     When tree-tailcall reported an error it already cleared the flag,
+     so this shouldn't really happen unless the
+     the musttail pass gave up walking before finding the call.  */
+  if (!try_tail_call)
+      maybe_complain_about_tail_call (exp, _("other reasons"));
   int pass;
 
   /* Register in which non-BLKmode value will be returned,
@@ -3023,10 +3058,21 @@ expand_call (tree exp, rtx target, int ignore)
      pushed these optimizations into -O2.  Don't try if we're already
      expanding a call, as that means we're an argument.  Don't try if
      there's cleanups, as we know there's code to follow the call.  */
-  if (currently_expanding_call++ != 0
-      || (!flag_optimize_sibling_calls && !CALL_FROM_THUNK_P (exp))
-      || args_size.var
-      || dbg_cnt (tail_call) == false)
+  if (currently_expanding_call++ != 0)
+    {
+      maybe_complain_about_tail_call (exp, _("inside another call"));
+      try_tail_call = 0;
+    }
+  if (!flag_optimize_sibling_calls
+	&& !CALL_FROM_THUNK_P (exp)
+	&& !CALL_EXPR_MUST_TAIL_CALL (exp))
+    try_tail_call = 0;
+  if (args_size.var)
+    {
+      maybe_complain_about_tail_call (exp, _("variable size arguments"));
+      try_tail_call = 0;
+    }
+  if (dbg_cnt (tail_call) == false)
     try_tail_call = 0;
 
   /* Workaround buggy C/C++ wrappers around Fortran routines with
@@ -3047,13 +3093,15 @@ expand_call (tree exp, rtx target, int ignore)
 	    if (MEM_P (*iter))
 	      {
 		try_tail_call = 0;
+		maybe_complain_about_tail_call (exp,
+				_("hidden string length argument passed on stack"));
 		break;
 	      }
 	}
 
   /* If the user has marked the function as requiring tail-call
      optimization, attempt it.  */
-  if (must_tail_call)
+  if (CALL_EXPR_MUST_TAIL_CALL (exp))
     try_tail_call = 1;
 
   /*  Rest of purposes for tail call optimizations to fail.  */
@@ -3094,9 +3142,9 @@ expand_call (tree exp, rtx target, int ignore)
 	{
 	  try_tail_call = 0;
 	  maybe_complain_about_tail_call (exp,
-					  "caller and callee disagree in"
-					  " promotion of function"
-					  " return value");
+					  _("caller and callee disagree in"
+					    " promotion of function"
+					    " return value"));
 	}
     }
 
@@ -4006,7 +4054,7 @@ expand_call (tree exp, rtx target, int ignore)
       if (try_tail_call)
 	/* Ideally we'd emit a message for all of the ways that it could
 	   have failed.  */
-	maybe_complain_about_tail_call (exp, "tail call production failed");
+	maybe_complain_about_tail_call (exp, _("tail call production failed"));
     }
 
   currently_expanding_call--;

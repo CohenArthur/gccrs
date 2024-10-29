@@ -542,7 +542,8 @@ duplicate_eh_regions_1 (struct duplicate_eh_regions_data *data,
   eh_region new_r;
 
   new_r = gen_eh_region (old_r->type, outer);
-  gcc_assert (!data->eh_map->put (old_r, new_r));
+  bool existed = data->eh_map->put (old_r, new_r);
+  gcc_assert (!existed);
 
   switch (old_r->type)
     {
@@ -587,7 +588,8 @@ duplicate_eh_regions_1 (struct duplicate_eh_regions_data *data,
 	continue;
 
       new_lp = gen_eh_landing_pad (new_r);
-      gcc_assert (!data->eh_map->put (old_lp, new_lp));
+      bool existed = data->eh_map->put (old_lp, new_lp);
+      gcc_assert (!existed);
 
       new_lp->post_landing_pad
 	= data->label_map (old_lp->post_landing_pad, data->label_map_data);
@@ -1229,6 +1231,10 @@ sjlj_emit_function_enter (rtx_code_label *dispatch_label)
 	else if (NOTE_INSN_BASIC_BLOCK_P (fn_begin))
 	  fn_begin_outside_block = false;
       }
+    /* assign_params can indirectly call emit_block_move_via_loop, e.g.
+       for g++.dg/torture/pr85627.C for 16-bit targets.  */
+    else if (JUMP_P (fn_begin))
+      fn_begin_outside_block = true;
 
 #ifdef DONT_USE_BUILTIN_SETJMP
   if (dispatch_label)
@@ -3223,9 +3229,6 @@ output_one_function_exception_table (int section)
 void
 output_function_exception_table (int section)
 {
-  const char *fnname = get_fnname_from_decl (current_function_decl);
-  rtx personality = get_personality_function (current_function_decl);
-
   /* Not all functions need anything.  */
   if (!crtl->uses_eh_lsda
       || targetm_common.except_unwind_info (&global_options) == UI_NONE)
@@ -3234,6 +3237,9 @@ output_function_exception_table (int section)
   /* No need to emit any boilerplate stuff for the cold part.  */
   if (section == 1 && !crtl->eh.call_site_record_v[1])
     return;
+
+  const char *fnname = get_fnname_from_decl (current_function_decl);
+  rtx personality = get_personality_function (current_function_decl);
 
   if (personality)
     {

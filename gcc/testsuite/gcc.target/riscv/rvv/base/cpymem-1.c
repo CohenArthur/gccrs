@@ -12,7 +12,7 @@ extern void *memcpy(void *__restrict dest, const void *__restrict src, __SIZE_TY
 /* memcpy should be implemented using the cpymem pattern.
 ** f1:
 XX	\.L\d+: # local label is ignored
-**	vsetvli\s+[ta][0-7],a2,e8,m8,ta,ma
+**	vsetvli\s+[ta][0-7],a2,e8,m1,ta,ma
 **	vle8\.v\s+v\d+,0\(a1\)
 **	vse8\.v\s+v\d+,0\(a0\)
 **	add\s+a1,a1,[ta][0-7]
@@ -31,7 +31,7 @@ void f1 (void *a, void *b, __SIZE_TYPE__ l)
    overflow is undefined.
 ** f2:
 XX	\.L\d+: # local label is ignored
-**	vsetvli\s+[ta][0-7],a2,e8,m8,ta,ma
+**	vsetvli\s+[ta][0-7],a2,e8,m1,ta,ma
 **	vle8\.v\s+v\d+,0\(a1\)
 **	vse8\.v\s+v\d+,0\(a0\)
 **	add\s+a1,a1,[ta][0-7]
@@ -50,7 +50,7 @@ void f2 (__INT32_TYPE__* a, __INT32_TYPE__* b, int l)
    Use extern here so that we get a known alignment, lest
    DATA_ALIGNMENT force us to make the scan pattern accomodate
    code for different alignments depending on word size.
-** f3: { target { { any-opts "-mcmodel=medlow" } && { no-opts "-march=rv64gcv_zvl512b" "-march=rv64gcv_zvl1024b" "--param=riscv-autovec-lmul=dynamic" "--param=riscv-autovec-lmul=m2" "--param=riscv-autovec-lmul=m4" "--param=riscv-autovec-lmul=m8" "-mrvv-vector-bits=zvl" } } }
+** f3: { target { { any-opts "-mcmodel=medlow" } && { no-opts "-march=rv64gcv_zvl512b" "-march=rv64gcv_zvl1024b" "-mrvv-max-lmul=dynamic" "-mrvv-max-lmul=m2" "-mrvv-max-lmul=m4" "-mrvv-max-lmul=m8" "-mrvv-vector-bits=zvl" } } }
 **        lui\s+[ta][0-7],%hi\(a_a\)
 **        addi\s+[ta][0-7],[ta][0-7],%lo\(a_a\)
 **        lui\s+[ta][0-7],%hi\(a_b\)
@@ -85,7 +85,7 @@ void f2 (__INT32_TYPE__* a, __INT32_TYPE__* b, int l)
 */
 
 /*
-** f3: { target { { any-opts "-mcmodel=medany" } && { no-opts "-march=rv64gcv_zvl512b" "-march=rv64gcv_zvl256b" "-march=rv64gcv_zvl1024b" "--param=riscv-autovec-lmul=dynamic" "--param=riscv-autovec-lmul=m8" "--param=riscv-autovec-lmul=m4" "-mrvv-vector-bits=zvl" } } }
+** f3: { target { { any-opts "-mcmodel=medany" } && { no-opts "-march=rv64gcv_zvl512b" "-march=rv64gcv_zvl256b" "-march=rv64gcv_zvl1024b" "-mrvv-max-lmul=dynamic" "-mrvv-max-lmul=m8" "-mrvv-max-lmul=m4" "-mrvv-vector-bits=zvl" } } }
 **        lla\s+[ta][0-7],a_a
 **        lla\s+[ta][0-7],a_b
 **        vsetivli\s+zero,16,e32,m8,ta,ma

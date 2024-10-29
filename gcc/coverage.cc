@@ -139,7 +139,8 @@ tree
 get_gcov_type (void)
 {
   scalar_int_mode mode
-    = smallest_int_mode_for_size (LONG_LONG_TYPE_SIZE > 32 ? 64 : 32);
+    = smallest_int_mode_for_size
+      (LONG_LONG_TYPE_SIZE > 32 ? 64 : 32).require ();
   return lang_hooks.types.type_for_mode (mode, false);
 }
 
@@ -148,7 +149,7 @@ get_gcov_type (void)
 static tree
 get_gcov_unsigned_t (void)
 {
-  scalar_int_mode mode = smallest_int_mode_for_size (32);
+  scalar_int_mode mode = smallest_int_mode_for_size (32).require ();
   return lang_hooks.types.type_for_mode (mode, true);
 }
 
@@ -658,7 +659,7 @@ coverage_begin_function (unsigned lineno_checksum, unsigned cfg_checksum)
   int end_line
     = endloc.file == startloc.file ? endloc.line : startloc.line;
   int end_column
-    = endloc.file == startloc.file ? endloc.column: startloc.column;
+    = endloc.file == startloc.file ? endloc.column : startloc.column;
 
   if (startloc.line > end_line)
     {
@@ -1089,8 +1090,8 @@ build_init_ctor (tree gcov_info_type)
   append_to_statement_list (stmt, &ctor);
 
   /* Generate a constructor to run it.  */
-  int priority = SUPPORTS_INIT_PRIORITY
-    ? MAX_RESERVED_INIT_PRIORITY: DEFAULT_INIT_PRIORITY;
+  int priority = (SUPPORTS_INIT_PRIORITY
+		  ? MAX_RESERVED_INIT_PRIORITY : DEFAULT_INIT_PRIORITY);
   cgraph_build_static_cdtor ('I', ctor, priority);
 }
 
@@ -1112,8 +1113,8 @@ build_gcov_exit_decl (void)
   append_to_statement_list (stmt, &dtor);
 
   /* Generate a destructor to run it.  */
-  int priority = SUPPORTS_INIT_PRIORITY
-    ? MAX_RESERVED_INIT_PRIORITY: DEFAULT_INIT_PRIORITY;
+  int priority = (SUPPORTS_INIT_PRIORITY
+		  ? MAX_RESERVED_INIT_PRIORITY : DEFAULT_INIT_PRIORITY);
 
   cgraph_build_static_cdtor ('D', dtor, priority);
 }

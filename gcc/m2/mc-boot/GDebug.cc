@@ -35,9 +35,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
        typedef struct { PROC_t proc; } PROC;
 #   endif
 
-#define _Debug_H
 #define _Debug_C
 
+#include "GDebug.h"
 #   include "GASCII.h"
 #   include "GNumberIO.h"
 #   include "GStdIO.h"
@@ -166,10 +166,10 @@ extern "C" void Debug_DebugString (const char *a_, unsigned int _a_high)
     }
 }
 
-extern "C" void _M2_Debug_init (__attribute__((unused)) int argc,__attribute__((unused)) char *argv[],__attribute__((unused)) char *envp[])
+extern "C" void _M2_Debug_init (__attribute__((unused)) int argc, __attribute__((unused)) char *argv[], __attribute__((unused)) char *envp[])
 {
 }
 
-extern "C" void _M2_Debug_fini (__attribute__((unused)) int argc,__attribute__((unused)) char *argv[],__attribute__((unused)) char *envp[])
+extern "C" void _M2_Debug_fini (__attribute__((unused)) int argc, __attribute__((unused)) char *argv[], __attribute__((unused)) char *envp[])
 {
 }

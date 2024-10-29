@@ -2256,14 +2256,25 @@ simplify_const_unary_operation (enum rtx_code code, machine_mode mode,
       switch (code)
 	{
 	case FIX:
+	  /* According to IEEE standard, for conversions from floating point to
+	     integer. When a NaN or infinite operand cannot be represented in
+	     the destination format and this cannot otherwise be indicated, the
+	     invalid operation exception shall be signaled. When a numeric
+	     operand would convert to an integer outside the range of the
+	     destination format, the invalid operation exception shall be
+	     signaled if this situation cannot otherwise be indicated.  */
 	  if (REAL_VALUE_ISNAN (*x))
-	    return const0_rtx;
+	    return flag_trapping_math ? NULL_RTX : const0_rtx;
+
+	  if (REAL_VALUE_ISINF (*x) && flag_trapping_math)
+	    return NULL_RTX;
 
 	  /* Test against the signed upper bound.  */
 	  wmax = wi::max_value (width, SIGNED);
 	  real_from_integer (&t, VOIDmode, wmax, SIGNED);
 	  if (real_less (&t, x))
-	    return immed_wide_int_const (wmax, mode);
+	    return (flag_trapping_math
+		    ? NULL_RTX : immed_wide_int_const (wmax, mode));
 
 	  /* Test against the signed lower bound.  */
 	  wmin = wi::min_value (width, SIGNED);
@@ -2276,13 +2287,17 @@ simplify_const_unary_operation (enum rtx_code code, machine_mode mode,
 
 	case UNSIGNED_FIX:
 	  if (REAL_VALUE_ISNAN (*x) || REAL_VALUE_NEGATIVE (*x))
-	    return const0_rtx;
+	    return flag_trapping_math ? NULL_RTX : const0_rtx;
+
+	  if (REAL_VALUE_ISINF (*x) && flag_trapping_math)
+	    return NULL_RTX;
 
 	  /* Test against the unsigned upper bound.  */
 	  wmax = wi::max_value (width, UNSIGNED);
 	  real_from_integer (&t, VOIDmode, wmax, UNSIGNED);
 	  if (real_less (&t, x))
-	    return immed_wide_int_const (wmax, mode);
+	    return (flag_trapping_math
+		    ? NULL_RTX : immed_wide_int_const (wmax, mode));
 
 	  return immed_wide_int_const (real_to_integer (x, &fail, width),
 				       mode);
@@ -2979,6 +2994,18 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 				    simplify_gen_binary (XOR, mode, op1,
 							 XEXP (op0, 1)));
 
+      /* (plus (xor X C1) C2) is (xor X (C1^C2)) if X is either 0 or 1 and
+	 2 * ((X ^ C1) & C2) == 0; based on A + B == A ^ B + 2 * (A & B). */
+      if (CONST_SCALAR_INT_P (op1)
+	  && GET_CODE (op0) == XOR
+	  && CONST_SCALAR_INT_P (XEXP (op0, 1))
+	  && nonzero_bits (XEXP (op0, 0), mode) == 1
+	  && 2 * (INTVAL (XEXP (op0, 1)) & INTVAL (op1)) == 0
+	  && 2 * ((1 ^ INTVAL (XEXP (op0, 1))) & INTVAL (op1)) == 0)
+	return simplify_gen_binary (XOR, mode, XEXP (op0, 0),
+				    simplify_gen_binary (XOR, mode, op1,
+							 XEXP (op0, 1)));
+
       /* Canonicalize (plus (mult (neg B) C) A) to (minus A (mult B C)).  */
       if (!HONOR_SIGN_DEPENDENT_ROUNDING (mode)
 	  && GET_CODE (op0) == MULT
@@ -3450,12 +3477,16 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 	}
 
       if (GET_CODE (opleft) == ASHIFT && GET_CODE (opright) == LSHIFTRT
-          && rtx_equal_p (XEXP (opleft, 0), XEXP (opright, 0))
-          && CONST_INT_P (XEXP (opleft, 1))
-          && CONST_INT_P (XEXP (opright, 1))
-          && (INTVAL (XEXP (opleft, 1)) + INTVAL (XEXP (opright, 1))
-	      == GET_MODE_UNIT_PRECISION (mode)))
-        return gen_rtx_ROTATE (mode, XEXP (opright, 0), XEXP (opleft, 1));
+	  && rtx_equal_p (XEXP (opleft, 0), XEXP (opright, 0)))
+	{
+	  rtx leftcst = unwrap_const_vec_duplicate (XEXP (opleft, 1));
+	  rtx rightcst = unwrap_const_vec_duplicate (XEXP (opright, 1));
+
+	  if (CONST_INT_P (leftcst) && CONST_INT_P (rightcst)
+	      && (INTVAL (leftcst) + INTVAL (rightcst)
+		  == GET_MODE_UNIT_PRECISION (mode)))
+	    return gen_rtx_ROTATE (mode, XEXP (opright, 0), XEXP (opleft, 1));
+	}
 
       /* Same, but for ashift that has been "simplified" to a wider mode
         by simplify_shift_const.  */
@@ -3548,6 +3579,12 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 	  if (tem)
 	    return tem;
 	}
+
+      /* Convert (ior (and (not A) B) A) into A | B.  */
+      if (GET_CODE (op0) == AND
+	  && GET_CODE (XEXP (op0, 0)) == NOT
+	  && rtx_equal_p (XEXP (XEXP (op0, 0), 0), op1))
+	return simplify_gen_binary (IOR, mode, XEXP (op0, 1), op1);
 
       tem = simplify_byte_swapping_operation (code, mode, op0, op1);
       if (tem)
@@ -3801,6 +3838,12 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 	    return tem;
 	}
 
+      /* Convert (xor (and (not A) B) A) into A | B.  */
+      if (GET_CODE (op0) == AND
+	  && GET_CODE (XEXP (op0, 0)) == NOT
+	  && rtx_equal_p (XEXP (XEXP (op0, 0), 0), op1))
+	return simplify_gen_binary (IOR, mode, XEXP (op0, 1), op1);
+
       tem = simplify_byte_swapping_operation (code, mode, op0, op1);
       if (tem)
 	return tem;
@@ -4006,6 +4049,23 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 	  && rtx_equal_p (op1, XEXP (XEXP (op0, 1), 0)))
 	return simplify_gen_binary (AND, mode, op1, XEXP (op0, 0));
 
+      /* (and (ior/xor (X Y) (not Y)) -> X & ~Y */
+      if ((GET_CODE (op0) == IOR || GET_CODE (op0) == XOR)
+	  && GET_CODE (op1) == NOT
+	  && rtx_equal_p (XEXP (op1, 0), XEXP (op0, 1)))
+	return simplify_gen_binary (AND, mode, XEXP (op0, 0),
+				    simplify_gen_unary (NOT, mode,
+							XEXP (op1, 0),
+							mode));
+      /* (and (ior/xor (Y X) (not Y)) -> X & ~Y */
+      if ((GET_CODE (op0) == IOR || GET_CODE (op0) == XOR)
+	  && GET_CODE (op1) == NOT
+	  && rtx_equal_p (XEXP (op1, 0), XEXP (op0, 0)))
+	return simplify_gen_binary (AND, mode, XEXP (op0, 1),
+				    simplify_gen_unary (NOT, mode,
+							XEXP (op1, 0),
+							mode));
+
       /* Convert (and (ior A C) (ior B C)) into (ior (and A B) C).  */
       if (GET_CODE (op0) == GET_CODE (op1)
 	  && (GET_CODE (op0) == AND
@@ -4019,6 +4079,33 @@ simplify_context::simplify_binary_operation_1 (rtx_code code,
 	  tem = simplify_distributive_operation (code, mode, op0, op1);
 	  if (tem)
 	    return tem;
+	}
+
+      /* (and:v4si
+	   (ashiftrt:v4si A 16)
+	   (const_vector: 0xffff x4))
+	 is just (lshiftrt:v4si A 16).  */
+      if (VECTOR_MODE_P (mode) && GET_CODE (op0) == ASHIFTRT
+	  && (CONST_INT_P (XEXP (op0, 1))
+	      || (GET_CODE (XEXP (op0, 1)) == CONST_VECTOR
+		  && const_vec_duplicate_p (XEXP (op0, 1))
+		  && CONST_INT_P (XVECEXP (XEXP (op0, 1), 0, 0))))
+	  && GET_CODE (op1) == CONST_VECTOR
+	  && const_vec_duplicate_p (op1)
+	  && CONST_INT_P (XVECEXP (op1, 0, 0)))
+	{
+	  unsigned HOST_WIDE_INT shift_count
+	    = (CONST_INT_P (XEXP (op0, 1))
+	       ? UINTVAL (XEXP (op0, 1))
+	       : UINTVAL (XVECEXP (XEXP (op0, 1), 0, 0)));
+	  unsigned HOST_WIDE_INT inner_prec
+	    = GET_MODE_PRECISION (GET_MODE_INNER (mode));
+
+	  /* Avoid UD shift count.  */
+	  if (shift_count < inner_prec
+	      && (UINTVAL (XVECEXP (op1, 0, 0))
+		  == (HOST_WIDE_INT_1U << (inner_prec - shift_count)) - 1))
+	    return simplify_gen_binary (LSHIFTRT, mode, XEXP (op0, 0), XEXP (op0, 1));
 	}
 
       tem = simplify_byte_swapping_operation (code, mode, op0, op1);
@@ -5019,6 +5106,60 @@ simplify_const_binary_operation (enum rtx_code code, machine_mode mode,
 	}
 
       return gen_rtx_CONST_VECTOR (mode, v);
+    }
+
+  if (VECTOR_MODE_P (mode)
+      && GET_CODE (op0) == CONST_VECTOR
+      && (CONST_SCALAR_INT_P (op1) || CONST_DOUBLE_AS_FLOAT_P (op1))
+      && (CONST_VECTOR_DUPLICATE_P (op0)
+	  || CONST_VECTOR_NUNITS (op0).is_constant ()))
+    {
+      switch (code)
+	{
+	case PLUS:
+	case MINUS:
+	case MULT:
+	case DIV:
+	case MOD:
+	case UDIV:
+	case UMOD:
+	case AND:
+	case IOR:
+	case XOR:
+	case SMIN:
+	case SMAX:
+	case UMIN:
+	case UMAX:
+	case LSHIFTRT:
+	case ASHIFTRT:
+	case ASHIFT:
+	case ROTATE:
+	case ROTATERT:
+	case SS_PLUS:
+	case US_PLUS:
+	case SS_MINUS:
+	case US_MINUS:
+	case SS_ASHIFT:
+	case US_ASHIFT:
+	case COPYSIGN:
+	  break;
+	default:
+	  return NULL_RTX;
+	}
+
+      unsigned int npatterns = (CONST_VECTOR_DUPLICATE_P (op0)
+				? CONST_VECTOR_NPATTERNS (op0)
+				: CONST_VECTOR_NUNITS (op0).to_constant ());
+      rtx_vector_builder builder (mode, npatterns, 1);
+      for (unsigned i = 0; i < npatterns; i++)
+	{
+	  rtx x = simplify_binary_operation (code, GET_MODE_INNER (mode),
+					     CONST_VECTOR_ELT (op0, i), op1);
+	  if (!x || !valid_for_const_vector_p (mode, x))
+	    return 0;
+	  builder.quick_push (x);
+	}
+      return builder.build ();
     }
 
   if (SCALAR_FLOAT_MODE_P (mode)
@@ -6768,6 +6909,28 @@ simplify_context::simplify_ternary_operation (rtx_code code, machine_mode mode,
 		  && rtx_equal_p (XEXP (op0, 1), op1))))
 	return op2;
 
+      /* Convert a != 0 ? -a : 0 into "-a".  */
+      if (GET_CODE (op0) == NE
+	  && ! side_effects_p (op0)
+	  && ! HONOR_NANS (mode)
+	  && ! HONOR_SIGNED_ZEROS (mode)
+	  && XEXP (op0, 1) == CONST0_RTX (mode)
+	  && op2 == CONST0_RTX (mode)
+	  && GET_CODE (op1) == NEG
+	  && rtx_equal_p (XEXP (op0, 0), XEXP (op1, 0)))
+	return op1;
+
+      /* Convert a == 0 ? 0 : -a into "-a".  */
+      if (GET_CODE (op0) == EQ
+	  && ! side_effects_p (op0)
+	  && ! HONOR_NANS (mode)
+	  && ! HONOR_SIGNED_ZEROS (mode)
+	  && op1 == CONST0_RTX (mode)
+	  && XEXP (op0, 1) == CONST0_RTX (mode)
+	  && GET_CODE (op2) == NEG
+	  && rtx_equal_p (XEXP (op0, 0), XEXP (op2, 0)))
+	return op2;
+
       /* Convert (!c) != {0,...,0} ? a : b into
          c != {0,...,0} ? b : a for vector modes.  */
       if (VECTOR_MODE_P (GET_MODE (op1))
@@ -7107,7 +7270,8 @@ native_encode_rtx (machine_mode mode, rtx x, vec<target_unit> &bytes,
 	      target_unit value = 0;
 	      for (unsigned int j = 0; j < BITS_PER_UNIT; j += elt_bits)
 		{
-		  value |= (INTVAL (CONST_VECTOR_ELT (x, elt)) & mask) << j;
+		  if (INTVAL (CONST_VECTOR_ELT (x, elt)))
+		    value |= mask << j;
 		  elt += 1;
 		}
 	      bytes.quick_push (value);
@@ -7612,9 +7776,15 @@ simplify_context::simplify_subreg (machine_mode outermode, rtx op,
       poly_uint64 innermostsize = GET_MODE_SIZE (innermostmode);
       rtx newx;
 
+      /* Make sure that the relationship between the two subregs is
+	 known at compile time.  */
+      if (!ordered_p (outersize, innermostsize))
+	return NULL_RTX;
+
       if (outermode == innermostmode
-	  && known_eq (byte, 0U)
-	  && known_eq (SUBREG_BYTE (op), 0))
+	  && known_eq (byte, subreg_lowpart_offset (outermode, innermode))
+	  && known_eq (SUBREG_BYTE (op),
+		       subreg_lowpart_offset (innermode, innermostmode)))
 	return SUBREG_REG (op);
 
       /* Work out the memory offset of the final OUTERMODE value relative

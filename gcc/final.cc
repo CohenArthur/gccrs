@@ -3147,6 +3147,7 @@ walk_alter_subreg (rtx *xp, bool *changed)
     case PLUS:
     case MULT:
     case AND:
+    case ASHIFT:
       XEXP (x, 0) = walk_alter_subreg (&XEXP (x, 0), changed);
       XEXP (x, 1) = walk_alter_subreg (&XEXP (x, 1), changed);
       break;

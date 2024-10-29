@@ -37,7 +37,6 @@ static bool optimize_op (gfc_expr *);
 static bool optimize_comparison (gfc_expr *, gfc_intrinsic_op);
 static bool optimize_trim (gfc_expr *);
 static bool optimize_lexical_comparison (gfc_expr *);
-static void optimize_minmaxloc (gfc_expr **);
 static bool is_empty_string (gfc_expr *e);
 static void doloop_warn (gfc_namespace *);
 static int do_intent (gfc_expr **);
@@ -192,7 +191,14 @@ check_locus_code (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
 		  void *data ATTRIBUTE_UNUSED)
 {
   current_code = c;
-  if (c && *c && (((*c)->loc.nextc == NULL) || ((*c)->loc.lb == NULL)))
+  if (c
+      && *c
+      && (((*c)->loc.nextc == NULL)
+	  || ((*c)->loc.nextc == (gfc_char_t *) -1
+	      && (*c)->loc.u.location == UNKNOWN_LOCATION)
+	  || ((*c)->loc.nextc != (gfc_char_t *) -1
+	      && ((*c)->loc.u.lb == NULL))))
+
     gfc_warning_internal (0, "Inconsistent internal state: "
 			  "No location in statement");
 
@@ -208,7 +214,13 @@ check_locus_expr (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
 		  void *data ATTRIBUTE_UNUSED)
 {
 
-  if (e && *e && (((*e)->where.nextc == NULL || (*e)->where.lb == NULL)))
+  if (e
+      && *e
+      && (((*e)->where.nextc == NULL)
+	  || ((*e)->where.nextc == (gfc_char_t *) -1
+	      && (*e)->where.u.location == UNKNOWN_LOCATION)
+	  || ((*e)->where.nextc != (gfc_char_t *) -1
+	      && ((*e)->where.u.lb == NULL))))
     gfc_warning_internal (0, "Inconsistent internal state: "
 			  "No location in expression near %L",
 			  &((*current_code)->loc));
@@ -356,17 +368,6 @@ optimize_expr (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
 
   if ((*e)->expr_type == EXPR_OP && optimize_op (*e))
     gfc_simplify_expr (*e, 0);
-
-  if ((*e)->expr_type == EXPR_FUNCTION && (*e)->value.function.isym)
-    switch ((*e)->value.function.isym->id)
-      {
-      case GFC_ISYM_MINLOC:
-      case GFC_ISYM_MAXLOC:
-	optimize_minmaxloc (e);
-	break;
-      default:
-	break;
-      }
 
   if (function_expr)
     count_arglist --;
@@ -516,6 +517,7 @@ callback_reduction (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
       new_expr->ts = fn->ts;
       new_expr->expr_type = EXPR_OP;
       new_expr->rank = fn->rank;
+      new_expr->corank = fn->corank;
       new_expr->where = fn->where;
       new_expr->value.op.op = op;
       new_expr->value.op.op1 = res;
@@ -792,6 +794,7 @@ create_var (gfc_expr * e, const char *vname)
     {
       symbol->as = gfc_get_array_spec ();
       symbol->as->rank = e->rank;
+      symbol->as->corank = e->corank;
 
       if (e->shape == NULL)
 	{
@@ -854,6 +857,7 @@ create_var (gfc_expr * e, const char *vname)
   result->ts = symbol->ts;
   result->ts.deferred = deferred;
   result->rank = e->rank;
+  result->corank = e->corank;
   result->shape = gfc_copy_shape (e->shape, e->rank);
   result->symtree = symtree;
   result->where = e->where;
@@ -1840,6 +1844,7 @@ combine_array_constructor (gfc_expr *e)
       new_expr->ts = e->ts;
       new_expr->expr_type = EXPR_OP;
       new_expr->rank = c->expr->rank;
+      new_expr->corank = c->expr->corank;
       new_expr->where = c->expr->where;
       new_expr->value.op.op = e->value.op.op;
 
@@ -2261,50 +2266,6 @@ optimize_trim (gfc_expr *e)
   gcc_assert (rr != NULL && *rr == NULL);
   *rr = ref;
   return true;
-}
-
-/* Optimize minloc(b), where b is rank 1 array, into
-   (/ minloc(b, dim=1) /), and similarly for maxloc,
-   as the latter forms are expanded inline.  */
-
-static void
-optimize_minmaxloc (gfc_expr **e)
-{
-  gfc_expr *fn = *e;
-  gfc_actual_arglist *a;
-  char *name, *p;
-
-  if (fn->rank != 1
-      || fn->value.function.actual == NULL
-      || fn->value.function.actual->expr == NULL
-      || fn->value.function.actual->expr->ts.type == BT_CHARACTER
-      || fn->value.function.actual->expr->rank != 1)
-    return;
-
-  *e = gfc_get_array_expr (fn->ts.type, fn->ts.kind, &fn->where);
-  (*e)->shape = fn->shape;
-  fn->rank = 0;
-  fn->shape = NULL;
-  gfc_constructor_append_expr (&(*e)->value.constructor, fn, &fn->where);
-
-  name = XALLOCAVEC (char, strlen (fn->value.function.name) + 1);
-  strcpy (name, fn->value.function.name);
-  p = strstr (name, "loc0");
-  p[3] = '1';
-  fn->value.function.name = gfc_get_string ("%s", name);
-  if (fn->value.function.actual->next)
-    {
-      a = fn->value.function.actual->next;
-      gcc_assert (a->expr == NULL);
-    }
-  else
-    {
-      a = gfc_get_actual_arglist ();
-      fn->value.function.actual->next = a;
-    }
-  a->expr = gfc_get_constant_expr (BT_INTEGER, gfc_default_integer_kind,
-				   &fn->where);
-  mpz_set_ui (a->expr->value.integer, 1);
 }
 
 /* Data package to hand down for DO loop checks in a contained
@@ -3405,7 +3366,7 @@ runtime_error_ne (gfc_expr *e1, gfc_expr *e2, const char *msg)
   gfc_code *c;
   gfc_actual_arglist *a1, *a2, *a3;
 
-  gcc_assert (e1->where.lb);
+  gcc_assert (GFC_LOCUS_IS_SET (e1->where));
   /* Build the call to runtime_error.  */
   c = XCNEW (gfc_code);
   c->op = EXEC_CALL;
@@ -5806,6 +5767,9 @@ check_externals_expr (gfc_expr **ep, int *walk_subtrees ATTRIBUTE_UNUSED,
   gfc_actual_arglist *actual;
 
   if (e->expr_type != EXPR_FUNCTION)
+    return 0;
+
+  if (e->symtree && e->symtree->n.sym->attr.subroutine)
     return 0;
 
   sym = e->value.function.esym;

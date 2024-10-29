@@ -195,6 +195,7 @@ enum omp_requires {
   OMP_REQUIRES_REVERSE_OFFLOAD = GOMP_REQUIRES_REVERSE_OFFLOAD,
   OMP_REQUIRES_ATOMIC_DEFAULT_MEM_ORDER_USED = 0x100,
   OMP_REQUIRES_TARGET_USED = GOMP_REQUIRES_TARGET_USED,
+  OMP_REQUIRES_SELF_MAPS = GOMP_REQUIRES_SELF_MAPS
 };
 
 extern GTY(()) enum omp_requires omp_requires_mask;
@@ -282,5 +283,8 @@ extern tree omp_accessed_addr (vec<omp_addr_token *> &, unsigned, tree);
 typedef omp_addr_tokenizer::omp_addr_token omp_addr_token;
 
 extern bool omp_parse_expr (vec<omp_addr_token *> &, tree);
+
+extern tree omp_loop_number_of_iterations (tree, int, tree * = NULL);
+extern void omp_maybe_apply_loop_xforms (tree *, tree);
 
 #endif /* GCC_OMP_GENERAL_H */

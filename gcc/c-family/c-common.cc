@@ -54,6 +54,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "debug.h"
 #include "tree-vector-builder.h"
 #include "vec-perm-indices.h"
+#include "tree-pretty-print-markup.h"
 
 cpp_reader *parse_in;		/* Declared in c-pragma.h.  */
 
@@ -217,17 +218,21 @@ int flag_cond_mismatch;
 
 int flag_isoc94;
 
-/* Nonzero means use the ISO C99 (or C11) dialect of C.  */
+/* Nonzero means use the ISO C99 (or later) dialect of C.  */
 
 int flag_isoc99;
 
-/* Nonzero means use the ISO C11 dialect of C.  */
+/* Nonzero means use the ISO C11 (or later) dialect of C.  */
 
 int flag_isoc11;
 
-/* Nonzero means use the ISO C23 dialect of C.  */
+/* Nonzero means use the ISO C23 (or later) dialect of C.  */
 
 int flag_isoc23;
+
+/* Nonzero means use the ISO C2Y (or later) dialect of C.  */
+
+int flag_isoc2y;
 
 /* Nonzero means that we have builtin functions, and main is an int.  */
 
@@ -426,6 +431,7 @@ const struct c_common_resword c_common_reswords[] =
   { "__builtin_choose_expr", RID_CHOOSE_EXPR, D_CONLY },
   { "__builtin_complex", RID_BUILTIN_COMPLEX, D_CONLY },
   { "__builtin_convertvector", RID_BUILTIN_CONVERTVECTOR, 0 },
+  { "__builtin_counted_by_ref", RID_BUILTIN_COUNTED_BY_REF, D_CONLY },
   { "__builtin_has_attribute", RID_BUILTIN_HAS_ATTRIBUTE, 0 },
   { "__builtin_launder", RID_BUILTIN_LAUNDER, D_CXXONLY },
   { "__builtin_shuffle", RID_BUILTIN_SHUFFLE, 0 },
@@ -442,6 +448,8 @@ const struct c_common_resword c_common_reswords[] =
   { "__builtin_stdc_has_single_bit", RID_BUILTIN_STDC, D_CONLY },
   { "__builtin_stdc_leading_ones", RID_BUILTIN_STDC, D_CONLY },
   { "__builtin_stdc_leading_zeros", RID_BUILTIN_STDC, D_CONLY },
+  { "__builtin_stdc_rotate_left", RID_BUILTIN_STDC, D_CONLY },
+  { "__builtin_stdc_rotate_right", RID_BUILTIN_STDC, D_CONLY },
   { "__builtin_stdc_trailing_ones", RID_BUILTIN_STDC, D_CONLY },
   { "__builtin_stdc_trailing_zeros", RID_BUILTIN_STDC, D_CONLY },
   { "__builtin_tgmath", RID_BUILTIN_TGMATH, D_CONLY },
@@ -2958,9 +2966,11 @@ binary_op_error (rich_location *richloc, enum tree_code code,
     default:
       gcc_unreachable ();
     }
+  pp_markup::element_quoted_type element_0 (type0, highlight_colors::lhs);
+  pp_markup::element_quoted_type element_1 (type1, highlight_colors::rhs);
   error_at (richloc,
-	    "invalid operands to binary %s (have %qT and %qT)",
-	    opname, type0, type1);
+	    "invalid operands to binary %s (have %e and %e)",
+	    opname, &element_0, &element_1);
 }
 
 /* Given an expression as a tree, return its original type.  Do this
@@ -3969,7 +3979,9 @@ c_sizeof_or_alignof_type (location_t loc,
       value = size_one_node;
     }
   else if (!COMPLETE_TYPE_P (type)
-	   && (!c_dialect_cxx () || is_sizeof || type_code != ARRAY_TYPE))
+	   && ((!c_dialect_cxx () && !flag_isoc2y)
+	       || is_sizeof
+	       || type_code != ARRAY_TYPE))
     {
       if (complain)
 	error_at (loc, "invalid application of %qs to incomplete type %qT",
@@ -5784,6 +5796,7 @@ check_function_sentinel (const_tree fntype, int nargs, tree *argarray)
       sentinel = fold_for_warn (argarray[nargs - 1 - pos]);
       if ((!POINTER_TYPE_P (TREE_TYPE (sentinel))
 	   || !integer_zerop (sentinel))
+	  && TREE_CODE (TREE_TYPE (sentinel)) != NULLPTR_TYPE
 	  /* Although __null (in C++) is only an integer we allow it
 	     nevertheless, as we are guaranteed that it's exactly
 	     as wide as a pointer, and we don't want to force
@@ -6152,11 +6165,15 @@ attribute_fallthrough_p (tree attr)
 
    The arguments in ARGARRAY may not have been folded yet (e.g. for C++,
    to preserve location wrappers); checks that require folded arguments
-   should call fold_for_warn on them.  */
+   should call fold_for_warn on them.
+
+   Use the frontend-supplied COMP_TYPES when determining if
+   one type is a subclass of another.  */
 
 bool
 check_function_arguments (location_t loc, const_tree fndecl, const_tree fntype,
-			  int nargs, tree *argarray, vec<location_t> *arglocs)
+			  int nargs, tree *argarray, vec<location_t> *arglocs,
+			  bool (*comp_types) (tree, tree))
 {
   bool warned_p = false;
 
@@ -6173,7 +6190,7 @@ check_function_arguments (location_t loc, const_tree fndecl, const_tree fntype,
 
   if (warn_format || warn_suggest_attribute_format)
     check_function_format (fndecl ? fndecl : fntype, TYPE_ATTRIBUTES (fntype), nargs,
-			   argarray, arglocs);
+			   argarray, arglocs, comp_types);
 
   if (warn_format)
     check_function_sentinel (fntype, nargs, argarray);
@@ -6753,6 +6770,8 @@ c_parse_error (const char *gmsgid, enum cpp_ttype token_type,
     message = catenate_messages (gmsgid, " before end of line");
   else if (token_type == CPP_DECLTYPE)
     message = catenate_messages (gmsgid, " before %<decltype%>");
+  else if (token_type == CPP_EMBED)
+    message = catenate_messages (gmsgid, " before %<#embed%>");
   else if (token_type < N_TTYPES)
     {
       message = catenate_messages (gmsgid, " before %qs token");
@@ -6774,7 +6793,7 @@ c_parse_error (const char *gmsgid, enum cpp_ttype token_type,
 /* Return the gcc option code associated with the reason for a cpp
    message, or 0 if none.  */
 
-static int
+static diagnostic_option_id
 c_option_controlling_cpp_diagnostic (enum cpp_warning_reason reason)
 {
   const struct cpp_reason_option_codes_t *entry;
@@ -6857,9 +6876,8 @@ c_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
     richloc->set_range (0, input_location, SHOW_RANGE_WITH_CARET);
   diagnostic_set_info_translated (&diagnostic, msg, ap,
 				  richloc, dlevel);
-  diagnostic_override_option_index
-    (&diagnostic,
-     c_option_controlling_cpp_diagnostic (reason));
+  diagnostic_set_option_id (&diagnostic,
+			    c_option_controlling_cpp_diagnostic (reason));
   ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   if (level == CPP_DL_WARNING_SYSHDR)
     global_dc->m_warn_system_headers = save_warn_system_headers;
@@ -7115,6 +7133,13 @@ complete_array_type (tree *ptype, tree initial_value, bool do_default)
   TYPE_TYPELESS_STORAGE (main_type) = TYPE_TYPELESS_STORAGE (type);
   layout_type (main_type);
 
+  /* Set TYPE_STRUCTURAL_EQUALITY_P early.  */
+  if (TYPE_STRUCTURAL_EQUALITY_P (TREE_TYPE (main_type))
+      || TYPE_STRUCTURAL_EQUALITY_P (TYPE_DOMAIN (main_type)))
+    SET_TYPE_STRUCTURAL_EQUALITY (main_type);
+  else
+    TYPE_CANONICAL (main_type) = main_type;
+
   /* Make sure we have the canonical MAIN_TYPE. */
   hashval_t hashcode = type_hash_canon_hash (main_type);
   main_type = type_hash_canon (hashcode, main_type);
@@ -7122,7 +7147,7 @@ complete_array_type (tree *ptype, tree initial_value, bool do_default)
   /* Fix the canonical type.  */
   if (TYPE_STRUCTURAL_EQUALITY_P (TREE_TYPE (main_type))
       || TYPE_STRUCTURAL_EQUALITY_P (TYPE_DOMAIN (main_type)))
-    SET_TYPE_STRUCTURAL_EQUALITY (main_type);
+    gcc_assert (TYPE_STRUCTURAL_EQUALITY_P (main_type));
   else if (TYPE_CANONICAL (TREE_TYPE (main_type)) != TREE_TYPE (main_type)
 	   || (TYPE_CANONICAL (TYPE_DOMAIN (main_type))
 	       != TYPE_DOMAIN (main_type)))
@@ -7130,8 +7155,6 @@ complete_array_type (tree *ptype, tree initial_value, bool do_default)
       = build_array_type (TYPE_CANONICAL (TREE_TYPE (main_type)),
 			  TYPE_CANONICAL (TYPE_DOMAIN (main_type)),
 			  TYPE_TYPELESS_STORAGE (main_type));
-  else
-    TYPE_CANONICAL (main_type) = main_type;
 
   if (quals == 0)
     type = main_type;
@@ -8462,7 +8485,19 @@ resolve_overloaded_builtin (location_t loc, tree function,
 	if (new_return)
 	  {
 	    /* Cast function result from I{1,2,4,8,16} to the required type.  */
-	    result = build1 (VIEW_CONVERT_EXPR, TREE_TYPE (new_return), result);
+	    if (TREE_CODE (TREE_TYPE (new_return)) == BITINT_TYPE)
+	      {
+		struct bitint_info info;
+		unsigned prec = TYPE_PRECISION (TREE_TYPE (new_return));
+		targetm.c.bitint_type_info (prec, &info);
+		if (!info.extended)
+		  /* For _BitInt which has the padding bits undefined
+		     convert to the _BitInt type rather than VCE to force
+		     zero or sign extension.  */
+		  result = build1 (NOP_EXPR, TREE_TYPE (new_return), result);
+	      }
+	    result
+	      = build1 (VIEW_CONVERT_EXPR, TREE_TYPE (new_return), result);
 	    result = build2 (MODIFY_EXPR, TREE_TYPE (new_return), new_return,
 			     result);
 	    TREE_SIDE_EFFECTS (result) = 1;
@@ -8947,6 +8982,7 @@ convert_vector_to_array_for_subscript (location_t loc,
   if (gnu_vector_type_p (TREE_TYPE (*vecp)))
     {
       tree type = TREE_TYPE (*vecp);
+      tree newitype;
 
       ret = !lvalue_p (*vecp);
 
@@ -8961,8 +8997,12 @@ convert_vector_to_array_for_subscript (location_t loc,
 	 for function parameters.  */
       c_common_mark_addressable_vec (*vecp);
 
+      /* Make sure qualifiers are copied from the vector type to the new element
+	 of the array type.  */
+      newitype = build_qualified_type (TREE_TYPE (type), TYPE_QUALS (type));
+
       *vecp = build1 (VIEW_CONVERT_EXPR,
-		      build_array_type_nelts (TREE_TYPE (type),
+		      build_array_type_nelts (newitype,
 					      TYPE_VECTOR_SUBPARTS (type)),
 		      *vecp);
     }
@@ -9740,7 +9780,9 @@ maybe_add_include_fixit (rich_location *richloc, const char *header,
 
 /* Attempt to convert a braced array initializer list CTOR for array
    TYPE into a STRING_CST for convenience and efficiency.  Return
-   the converted string on success or the original ctor on failure.  */
+   the converted string on success or the original ctor on failure.
+   Also, for non-convertable CTORs which contain RAW_DATA_CST values
+   among the elts try to extend the range of RAW_DATA_CSTs.  */
 
 static tree
 braced_list_to_string (tree type, tree ctor, bool member)
@@ -9784,26 +9826,155 @@ braced_list_to_string (tree type, tree ctor, bool member)
   auto_vec<char> str;
   str.reserve (nelts + 1);
 
-  unsigned HOST_WIDE_INT i;
+  unsigned HOST_WIDE_INT i, j = HOST_WIDE_INT_M1U;
   tree index, value;
+  bool check_raw_data = false;
 
   FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor), i, index, value)
     {
+      if (check_raw_data)
+	{
+	  /* The preprocessor always surrounds CPP_EMBED tokens in between
+	     CPP_NUMBER and CPP_COMMA tokens.  Try to undo that here now that
+	     the whole initializer is parsed.  E.g. if we have
+	     [0] = 'T', [1] = "his is a #embed tex", [20] = 't'
+	     where the middle value is RAW_DATA_CST and in its owner this is
+	     surrounded by 'T' and 't' characters, we can create from it just
+	     [0] = "This is a #embed text"
+	     Similarly if a RAW_DATA_CST needs to be split into two parts
+	     because of designated init store but the stored value is actually
+	     the same as in the RAW_DATA_OWNER's memory we can merge multiple
+	     RAW_DATA_CSTs.  */
+	  if (TREE_CODE (value) == RAW_DATA_CST
+	      && index
+	      && tree_fits_uhwi_p (index))
+	    {
+	      tree owner = RAW_DATA_OWNER (value);
+	      unsigned int start, end, k;
+	      if (TREE_CODE (owner) == STRING_CST)
+		{
+		  start
+		    = RAW_DATA_POINTER (value) - TREE_STRING_POINTER (owner);
+		  end = TREE_STRING_LENGTH (owner) - RAW_DATA_LENGTH (value);
+		}
+	      else
+		{
+		  gcc_checking_assert (TREE_CODE (owner) == RAW_DATA_CST);
+		  start
+		    = RAW_DATA_POINTER (value) - RAW_DATA_POINTER (owner);
+		  end = RAW_DATA_LENGTH (owner) - RAW_DATA_LENGTH (value);
+		}
+	      end -= start;
+	      unsigned HOST_WIDE_INT l = j == HOST_WIDE_INT_M1U ? i : j;
+	      for (k = 0; k < start && k < l; ++k)
+		{
+		  constructor_elt *elt = CONSTRUCTOR_ELT (ctor, l - k - 1);
+		  if (elt->index == NULL_TREE
+		      || !tree_fits_uhwi_p (elt->index)
+		      || !tree_fits_shwi_p (elt->value)
+		      || wi::to_widest (index) != (wi::to_widest (elt->index)
+						   + (k + 1)))
+		    break;
+		  if (TYPE_UNSIGNED (TREE_TYPE (value)))
+		    {
+		      if (tree_to_shwi (elt->value)
+			  != *((const unsigned char *)
+			       RAW_DATA_POINTER (value) - k - 1))
+			break;
+		    }
+		  else if (tree_to_shwi (elt->value)
+			   != *((const signed char *)
+				RAW_DATA_POINTER (value) - k - 1))
+		    break;
+		}
+	      start = k;
+	      l = 0;
+	      for (k = 0; k < end && k + 1 < CONSTRUCTOR_NELTS (ctor) - i; ++k)
+		{
+		  constructor_elt *elt = CONSTRUCTOR_ELT (ctor, i + k + 1);
+		  if (elt->index == NULL_TREE
+		      || !tree_fits_uhwi_p (elt->index)
+		      || (wi::to_widest (elt->index)
+			  != (wi::to_widest (index)
+			      + (RAW_DATA_LENGTH (value) + l))))
+		    break;
+		  if (TREE_CODE (elt->value) == RAW_DATA_CST
+		      && RAW_DATA_OWNER (elt->value) == RAW_DATA_OWNER (value)
+		      && (RAW_DATA_POINTER (elt->value)
+			  == RAW_DATA_POINTER (value) + l))
+		    {
+		      l += RAW_DATA_LENGTH (elt->value);
+		      end -= RAW_DATA_LENGTH (elt->value) - 1;
+		      continue;
+		    }
+		  if (!tree_fits_shwi_p (elt->value))
+		    break;
+		  if (TYPE_UNSIGNED (TREE_TYPE (value)))
+		    {
+		      if (tree_to_shwi (elt->value)
+			  != *((const unsigned char *)
+			       RAW_DATA_POINTER (value)
+			       + RAW_DATA_LENGTH (value) + k))
+			break;
+		    }
+		  else if (tree_to_shwi (elt->value)
+			   != *((const signed char *)
+				RAW_DATA_POINTER (value)
+				+ RAW_DATA_LENGTH (value) + k))
+		    break;
+		  ++l;
+		}
+	      end = k;
+	      if (start != 0 || end != 0)
+		{
+		  if (j == HOST_WIDE_INT_M1U)
+		    j = i - start;
+		  else
+		    j -= start;
+		  RAW_DATA_POINTER (value) -= start;
+		  RAW_DATA_LENGTH (value) += start + end;
+		  i += end;
+		  if (start == 0)
+		    CONSTRUCTOR_ELT (ctor, j)->index = index;
+		  CONSTRUCTOR_ELT (ctor, j)->value = value;
+		  ++j;
+		  continue;
+		}
+	    }
+	  if (j != HOST_WIDE_INT_M1U)
+	    {
+	      CONSTRUCTOR_ELT (ctor, j)->index = index;
+	      CONSTRUCTOR_ELT (ctor, j)->value = value;
+	      ++j;
+	    }
+	  continue;
+	}
+
       unsigned HOST_WIDE_INT idx = i;
       if (index)
 	{
 	  if (!tree_fits_uhwi_p (index))
-	    return ctor;
+	    {
+	      check_raw_data = true;
+	      continue;
+	    }
 	  idx = tree_to_uhwi (index);
 	}
 
       /* auto_vec is limited to UINT_MAX elements.  */
       if (idx > UINT_MAX)
-	return ctor;
+	{
+	  check_raw_data = true;
+	  continue;
+	}
 
-     /* Avoid non-constant initializers.  */
-     if (!tree_fits_shwi_p (value))
-	return ctor;
+      /* Avoid non-constant initializers.  */
+      if (!tree_fits_shwi_p (value))
+	{
+	  check_raw_data = true;
+	  --i;
+	  continue;
+	}
 
       /* Skip over embedded nuls except the last one (initializer
 	 elements are in ascending order of indices).  */
@@ -9811,14 +9982,20 @@ braced_list_to_string (tree type, tree ctor, bool member)
       if (!val && i + 1 < nelts)
 	continue;
 
-      if (idx < str.length())
-	return ctor;
+      if (idx < str.length ())
+	{
+	  check_raw_data = true;
+	  continue;
+	}
 
       /* Bail if the CTOR has a block of more than 256 embedded nuls
 	 due to implicitly initialized elements.  */
       unsigned nchars = (idx - str.length ()) + 1;
       if (nchars > 256)
-	return ctor;
+	{
+	  check_raw_data = true;
+	  continue;
+	}
 
       if (nchars > 1)
 	{
@@ -9827,9 +10004,19 @@ braced_list_to_string (tree type, tree ctor, bool member)
 	}
 
       if (idx >= maxelts)
-	return ctor;
+	{
+	  check_raw_data = true;
+	  continue;
+	}
 
       str.safe_insert (idx, val);
+    }
+
+  if (check_raw_data)
+    {
+      if (j != HOST_WIDE_INT_M1U)
+	CONSTRUCTOR_ELTS (ctor)->truncate (j);
+      return ctor;
     }
 
   /* Append a nul string termination.  */
@@ -9918,6 +10105,19 @@ c_common_finalize_early_debug (void)
 	&& (cnode->has_gimple_body_p ()
 	    || !DECL_IS_UNDECLARED_BUILTIN (cnode->decl)))
       (*debug_hooks->early_global_decl) (cnode->decl);
+}
+
+/* Determine whether TYPE is an ISO C99 flexible array member type "[]".  */
+bool
+c_flexible_array_member_type_p (const_tree type)
+{
+  if (TREE_CODE (type) == ARRAY_TYPE
+      && TYPE_SIZE (type) == NULL_TREE
+      && TYPE_DOMAIN (type) != NULL_TREE
+      && TYPE_MAX_VALUE (TYPE_DOMAIN (type)) == NULL_TREE)
+    return true;
+
+  return false;
 }
 
 /* Get the LEVEL of the strict_flex_array for the ARRAY_FIELD based on the

@@ -136,6 +136,8 @@ public:
 
   /* The operands to CODE.  Only the first NUM_OPS entries are meaningful.  */
   tree ops[MAX_NUM_OPS];
+
+  bool operands_occurs_in_abnormal_phi() const;
 };
 
 inline
@@ -419,6 +421,8 @@ code_helper canonicalize_code (code_helper, tree);
 
 #ifdef GCC_OPTABS_TREE_H
 bool directly_supported_p (code_helper, tree, optab_subtype = optab_default);
+bool directly_supported_p (code_helper, tree, tree,
+			   optab_subtype = optab_default);
 #endif
 
 internal_fn get_conditional_internal_fn (code_helper, tree);

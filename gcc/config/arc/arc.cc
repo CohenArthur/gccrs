@@ -722,7 +722,7 @@ static rtx arc_legitimize_address_0 (rtx, rtx, machine_mode mode);
   arc_no_speculation_in_delay_slots_p
 
 #undef TARGET_LRA_P
-#define TARGET_LRA_P arc_lra_p
+#define TARGET_LRA_P hook_bool_void_true
 #define TARGET_REGISTER_PRIORITY arc_register_priority
 /* Stores with scaled offsets have different displacement ranges.  */
 #define TARGET_DIFFERENT_ADDR_DISPLACEMENT_P hook_bool_void_true
@@ -2353,7 +2353,8 @@ arc_setup_incoming_varargs (cumulative_args_t args_so_far,
   /* We must treat `__builtin_va_alist' as an anonymous arg.  */
 
   next_cum = *get_cumulative_args (args_so_far);
-  if (!TYPE_NO_NAMED_ARGS_STDARG_P (TREE_TYPE (current_function_decl)))
+  if (!TYPE_NO_NAMED_ARGS_STDARG_P (TREE_TYPE (current_function_decl))
+      || arg.type != NULL_TREE)
     arc_function_arg_advance (pack_cumulative_args (&next_cum), arg);
   first_anon_arg = next_cum;
 
@@ -9157,7 +9158,7 @@ arc_expand_cpymem (rtx *operands)
 
       while (piece > size)
 	piece >>= 1;
-      mode = smallest_int_mode_for_size (piece * BITS_PER_UNIT);
+      mode = smallest_int_mode_for_size (piece * BITS_PER_UNIT).require ();
       /* If we don't re-use temporaries, the scheduler gets carried away,
 	 and the register pressure gets unnecessarily high.  */
       if (0 && tmpx[i] && GET_MODE (tmpx[i]) == mode)
@@ -9674,7 +9675,7 @@ arc_delegitimize_address (rtx orig_x)
 rtx
 gen_acc1 (void)
 {
-  return gen_rtx_REG (SImode, TARGET_BIG_ENDIAN ? 56: 57);
+  return gen_rtx_REG (SImode, TARGET_BIG_ENDIAN ? 56 : 57);
 }
 
 /* Return a REG rtx for acc2.  N.B. the gcc-internal representation may
@@ -9684,7 +9685,7 @@ gen_acc1 (void)
 rtx
 gen_acc2 (void)
 {
-  return gen_rtx_REG (SImode, TARGET_BIG_ENDIAN ? 57: 56);
+  return gen_rtx_REG (SImode, TARGET_BIG_ENDIAN ? 57 : 56);
 }
 
 /* When estimating sizes during arc_reorg, when optimizing for speed, there
@@ -10154,14 +10155,6 @@ arc_eh_uses (int regno)
   if (regno == arc_tp_regno)
     return true;
   return false;
-}
-
-/* Return true if we use LRA instead of reload pass.  */
-
-bool
-arc_lra_p (void)
-{
-  return arc_lra_flag;
 }
 
 /* ??? Should we define TARGET_REGISTER_PRIORITY?  We might perfer to

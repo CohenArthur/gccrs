@@ -100,6 +100,7 @@ struct gimple;
 typedef gimple *gimple_seq;
 struct gimple_stmt_iterator;
 class code_helper;
+enum tree_index : unsigned;
 
 /* Forward declare rtx_code, so that we can use it in target hooks without
    needing to pull in rtl.h.  */
@@ -140,6 +141,12 @@ struct gomp_single;
 struct gomp_target;
 struct gomp_teams;
 
+/* Forward declaration of CFI's and DWARF's types.  */
+struct dw_cfi_node;
+using dw_cfi_ref = struct dw_cfi_node *;
+enum dw_cfi_oprnd_type: int;
+enum dwarf_call_frame_info: int;
+
 /* Subclasses of symtab_node, using indentation to show the class
    hierarchy.  */
 
@@ -162,6 +169,8 @@ class diagnostic_text_output_format;
 class pretty_printer;
 class diagnostic_event_id_t;
 typedef const char * (*diagnostic_input_charset_callback)(const char *);
+namespace pp_markup { class element; }
+typedef pp_markup::element pp_element;
 
 template<typename T> struct array_traits;
 

@@ -38,6 +38,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "constructor.h"
 #include "version.h"
 #include "parse.h"  /* For gfc_ascii_statement.  */
+#include "omp-api.h"  /* For omp_get_name_from_fr_id.  */
+#include "gomp-constants.h"  /* For GOMP_INTEROP_IFR_SEPARATOR.  */
 
 /* Keep track of indentation for symbol tree dumps.  */
 static int show_level = 0;
@@ -559,6 +561,14 @@ show_expr (gfc_expr *p)
 	{
 	case BT_INTEGER:
 	  mpz_out_str (dumpfile, 10, p->value.integer);
+
+	  if (p->ts.kind != gfc_default_integer_kind)
+	    fprintf (dumpfile, "_%d", p->ts.kind);
+	  break;
+
+	case BT_UNSIGNED:
+	  mpz_out_str (dumpfile, 10, p->value.integer);
+	  fputc('u', dumpfile);
 
 	  if (p->ts.kind != gfc_default_integer_kind)
 	    fprintf (dumpfile, "_%d", p->ts.kind);
@@ -1375,6 +1385,8 @@ show_omp_namelist (int list_type, gfc_omp_namelist *n)
 	    }
 	  ns_iter = n->u2.ns;
 	}
+      else if (list_type == OMP_LIST_INIT && n != n2)
+	fputs (") INIT(", dumpfile);
       if (list_type == OMP_LIST_ALLOCATE)
 	{
 	  if (n->u2.allocator)
@@ -1401,6 +1413,9 @@ show_omp_namelist (int list_type, gfc_omp_namelist *n)
 	    fputs (") ALLOCATE(", dumpfile);
 	  continue;
 	}
+      if ((list_type == OMP_LIST_MAP || list_type == OMP_LIST_CACHE)
+	  && n->u.map.readonly)
+	fputs ("readonly,", dumpfile);
       if (list_type == OMP_LIST_REDUCTION)
 	switch (n->u.reduction_op)
 	  {
@@ -1468,7 +1483,7 @@ show_omp_namelist (int list_type, gfc_omp_namelist *n)
 	  default: break;
 	  }
       else if (list_type == OMP_LIST_MAP)
-	switch (n->u.map_op)
+	switch (n->u.map.op)
 	  {
 	  case OMP_MAP_ALLOC: fputs ("alloc:", dumpfile); break;
 	  case OMP_MAP_TO: fputs ("to:", dumpfile); break;
@@ -1522,6 +1537,73 @@ show_omp_namelist (int list_type, gfc_omp_namelist *n)
 	  if (n->next)
 	    fputs (", ", dumpfile);
 	  continue;
+	}
+      else if (list_type == OMP_LIST_INIT)
+	{
+	  if (n->u.init.target)
+	    fputs ("target,", dumpfile);
+	  if (n->u.init.targetsync)
+	    fputs ("targetsync,", dumpfile);
+	  if (n->u2.init_interop_fr)
+	    {
+	      char *attr_str = n->u.init.attr;
+	      int idx = 0;
+	      int fr_id;
+	      fputs ("prefer_type(", dumpfile);
+	      do
+		{
+		  fr_id = n->u2.init_interop_fr[idx];
+		  fputc ('{', dumpfile);
+		  if (fr_id != GOMP_INTEROP_IFR_NONE)
+		    {
+		      fputs ("fr(", dumpfile);
+		      do
+			{
+			  const char *fr_str = omp_get_name_from_fr_id (fr_id);
+			  if (fr_str)
+			    fprintf (dumpfile, "\"%s\"", fr_str);
+			  else
+			    fprintf (dumpfile, "%d", fr_id);
+			  fr_id = n->u2.init_interop_fr[++idx];
+			  if (fr_id != GOMP_INTEROP_IFR_SEPARATOR)
+			    fputc (',', dumpfile);
+			}
+		      while (fr_id != GOMP_INTEROP_IFR_SEPARATOR);
+		      fputc (')', dumpfile);
+		      if (attr_str && (attr_str[0] != ' ' || attr_str[1] != '\0'))
+			fputc (',', dumpfile);
+		    }
+		  else
+		    fr_id = n->u2.init_interop_fr[++idx];
+		  if (attr_str && attr_str[0] == ' ' && attr_str[1] == '\0')
+		    attr_str += 2;
+		  else if (attr_str)
+		    {
+		      fputs ("attr(\"", dumpfile);
+		      do
+			{
+			  fputs ((char *) attr_str, dumpfile);
+			  fputc ('"', dumpfile);
+			  attr_str += strlen (attr_str) + 1;
+			  if (attr_str[0] == '\0')
+			    break;
+			  fputs (",\"", dumpfile);
+			}
+		      while (true);
+		      fputc (')', dumpfile);
+		    }
+		  fputc ('}', dumpfile);
+		  fr_id = n->u2.init_interop_fr[++idx];
+		  if (fr_id == GOMP_INTEROP_IFR_SEPARATOR)
+		    break;
+		  fputc (',', dumpfile);
+		  if (attr_str)
+		    ++attr_str;
+		}
+	      while (true);
+	      fputc (')', dumpfile);
+	    }
+	  fputc (':', dumpfile);
 	}
       fprintf (dumpfile, "%s", n->sym ? n->sym->name : "omp_all_memory");
       if (list_type == OMP_LIST_LINEAR && n->u.linear.op != OMP_LINEAR_DEFAULT)
@@ -1615,6 +1697,12 @@ show_omp_clauses (gfc_omp_clauses *omp_clauses)
       fputs (ifs[i], dumpfile);
       fputs (": ", dumpfile);
       show_expr (omp_clauses->if_exprs[i]);
+      fputc (')', dumpfile);
+    }
+  if (omp_clauses->self_expr)
+    {
+      fputs (" SELF(", dumpfile);
+      show_expr (omp_clauses->self_expr);
       fputc (')', dumpfile);
     }
   if (omp_clauses->final_expr)
@@ -1798,11 +1886,12 @@ show_omp_clauses (gfc_omp_clauses *omp_clauses)
     fputs (" UNTIED", dumpfile);
   if (omp_clauses->mergeable)
     fputs (" MERGEABLE", dumpfile);
+  if (omp_clauses->nowait)
+    fputs (" NOWAIT", dumpfile);
   if (omp_clauses->collapse)
     fprintf (dumpfile, " COLLAPSE(%d)", omp_clauses->collapse);
   for (list_type = 0; list_type < OMP_LIST_NUM; list_type++)
-    if (omp_clauses->lists[list_type] != NULL
-	&& list_type != OMP_LIST_COPYPRIVATE)
+    if (omp_clauses->lists[list_type] != NULL)
       {
 	const char *type = NULL;
 	switch (list_type)
@@ -1847,6 +1936,9 @@ show_omp_clauses (gfc_omp_clauses *omp_clauses)
 	  case OMP_LIST_SCAN_IN: type = "INCLUSIVE"; break;
 	  case OMP_LIST_SCAN_EX: type = "EXCLUSIVE"; break;
 	  case OMP_LIST_USES_ALLOCATORS: type = "USES_ALLOCATORS"; break;
+	  case OMP_LIST_INIT: type = "INIT"; break;
+	  case OMP_LIST_USE: type = "USE"; break;
+	  case OMP_LIST_DESTROY: type = "DESTROY"; break;
 	  default:
 	    gcc_unreachable ();
 	  }
@@ -2111,6 +2203,26 @@ show_omp_clauses (gfc_omp_clauses *omp_clauses)
     }
   if (omp_clauses->assume)
     show_omp_assumes (omp_clauses->assume);
+  if (omp_clauses->full)
+    fputs (" FULL", dumpfile);
+  if (omp_clauses->partial)
+    {
+      fputs (" PARTIAL", dumpfile);
+      if (omp_clauses->partial > 0)
+	fprintf (dumpfile, "(%d)", omp_clauses->partial);
+    }
+  if (omp_clauses->sizes_list)
+    {
+      gfc_expr_list *sizes;
+      fputs (" SIZES(", dumpfile);
+      for (sizes = omp_clauses->sizes_list; sizes; sizes = sizes->next)
+	{
+	  show_expr (sizes->expr);
+	  if (sizes->next)
+	    fputs (", ", dumpfile);
+	}
+      fputc (')', dumpfile);
+    }
 }
 
 /* Show a single OpenMP or OpenACC directive node and everything underneath it
@@ -2158,6 +2270,7 @@ show_omp_node (int level, gfc_code *c)
     case EXEC_OMP_DO_SIMD: name = "DO SIMD"; break;
     case EXEC_OMP_ERROR: name = "ERROR"; break;
     case EXEC_OMP_FLUSH: name = "FLUSH"; break;
+    case EXEC_OMP_INTEROP: name = "INTEROP"; break;
     case EXEC_OMP_LOOP: name = "LOOP"; break;
     case EXEC_OMP_MASKED: name = "MASKED"; break;
     case EXEC_OMP_MASKED_TASKLOOP: name = "MASKED TASKLOOP"; break;
@@ -2223,6 +2336,8 @@ show_omp_node (int level, gfc_code *c)
       name = "TEAMS DISTRIBUTE PARALLEL DO SIMD"; break;
     case EXEC_OMP_TEAMS_DISTRIBUTE_SIMD: name = "TEAMS DISTRIBUTE SIMD"; break;
     case EXEC_OMP_TEAMS_LOOP: name = "TEAMS LOOP"; break;
+    case EXEC_OMP_TILE: name = "TILE"; break;
+    case EXEC_OMP_UNROLL: name = "UNROLL"; break;
     case EXEC_OMP_WORKSHARE: name = "WORKSHARE"; break;
     default:
       gcc_unreachable ();
@@ -2256,6 +2371,7 @@ show_omp_node (int level, gfc_code *c)
     case EXEC_OMP_DO:
     case EXEC_OMP_DO_SIMD:
     case EXEC_OMP_ERROR:
+    case EXEC_OMP_INTEROP:
     case EXEC_OMP_LOOP:
     case EXEC_OMP_ORDERED:
     case EXEC_OMP_MASKED:
@@ -2301,6 +2417,8 @@ show_omp_node (int level, gfc_code *c)
     case EXEC_OMP_TEAMS_DISTRIBUTE_PARALLEL_DO_SIMD:
     case EXEC_OMP_TEAMS_DISTRIBUTE_SIMD:
     case EXEC_OMP_TEAMS_LOOP:
+    case EXEC_OMP_TILE:
+    case EXEC_OMP_UNROLL:
     case EXEC_OMP_WORKSHARE:
       omp_clauses = c->ext.omp_clauses;
       break;
@@ -2347,6 +2465,7 @@ show_omp_node (int level, gfc_code *c)
       || c->op == EXEC_OMP_TARGET_UPDATE || c->op == EXEC_OMP_TARGET_ENTER_DATA
       || c->op == EXEC_OMP_TARGET_EXIT_DATA || c->op == EXEC_OMP_SCAN
       || c->op == EXEC_OMP_DEPOBJ || c->op == EXEC_OMP_ERROR
+      || c->op == EXEC_OMP_INTEROP
       || (c->op == EXEC_OMP_ORDERED && c->block == NULL))
     return;
   if (c->op == EXEC_OMP_SECTIONS || c->op == EXEC_OMP_PARALLEL_SECTIONS)
@@ -2369,19 +2488,7 @@ show_omp_node (int level, gfc_code *c)
   fputc ('\n', dumpfile);
   code_indent (level, 0);
   fprintf (dumpfile, "!$%s END %s", is_oacc ? "ACC" : "OMP", name);
-  if (omp_clauses != NULL)
-    {
-      if (omp_clauses->lists[OMP_LIST_COPYPRIVATE])
-	{
-	  fputs (" COPYPRIVATE(", dumpfile);
-	  show_omp_namelist (OMP_LIST_COPYPRIVATE,
-			     omp_clauses->lists[OMP_LIST_COPYPRIVATE]);
-	  fputc (')', dumpfile);
-	}
-      else if (omp_clauses->nowait)
-	fputs (" NOWAIT", dumpfile);
-    }
-  else if (c->op == EXEC_OMP_CRITICAL && c->ext.omp_clauses)
+  if (c->op == EXEC_OMP_CRITICAL && c->ext.omp_clauses)
     fprintf (dumpfile, " (%s)", c->ext.omp_clauses->critical_name);
 }
 
@@ -2693,11 +2800,20 @@ show_code_node (int level, gfc_code *c)
 
     case EXEC_BLOCK:
       {
-	const char* blocktype;
+	const char *blocktype, *sname = NULL;
 	gfc_namespace *saved_ns;
 	gfc_association_list *alist;
 
-	if (c->ext.block.assoc)
+	if (c->ext.block.ns && c->ext.block.ns->code
+	    && c->ext.block.ns->code->op == EXEC_SELECT_TYPE)
+	  {
+	    gfc_expr *fcn = c->ext.block.ns->code->expr1;
+	    blocktype = "SELECT TYPE";
+	    /* expr1 is _loc(assoc_name->vptr)  */
+	    if (fcn && fcn->expr_type == EXPR_FUNCTION)
+	      sname = fcn->value.function.actual->expr->symtree->n.sym->name;
+	  }
+	else if (c->ext.block.assoc)
 	  blocktype = "ASSOCIATE";
 	else
 	  blocktype = "BLOCK";
@@ -2705,7 +2821,7 @@ show_code_node (int level, gfc_code *c)
 	fprintf (dumpfile, "%s ", blocktype);
 	for (alist = c->ext.block.assoc; alist; alist = alist->next)
 	  {
-	    fprintf (dumpfile, " %s = ", alist->name);
+	    fprintf (dumpfile, " %s = ", sname ? sname : alist->name);
 	    show_expr (alist->target);
 	  }
 
@@ -2736,7 +2852,7 @@ show_code_node (int level, gfc_code *c)
       if (c->op == EXEC_SELECT_RANK)
 	fputs ("SELECT RANK ", dumpfile);
       else if (c->op == EXEC_SELECT_TYPE)
-	fputs ("SELECT TYPE ", dumpfile);
+	fputs ("SELECT CASE ", dumpfile); // Preceded by SELECT TYPE construct
       else
 	fputs ("SELECT CASE ", dumpfile);
       show_expr (c->expr1);
@@ -3488,6 +3604,7 @@ show_code_node (int level, gfc_code *c)
     case EXEC_OMP_DO:
     case EXEC_OMP_DO_SIMD:
     case EXEC_OMP_ERROR:
+    case EXEC_OMP_INTEROP:
     case EXEC_OMP_FLUSH:
     case EXEC_OMP_LOOP:
     case EXEC_OMP_MASKED:
@@ -3542,6 +3659,8 @@ show_code_node (int level, gfc_code *c)
     case EXEC_OMP_TEAMS_DISTRIBUTE_PARALLEL_DO_SIMD:
     case EXEC_OMP_TEAMS_DISTRIBUTE_SIMD:
     case EXEC_OMP_TEAMS_LOOP:
+    case EXEC_OMP_TILE:
+    case EXEC_OMP_UNROLL:
     case EXEC_OMP_WORKSHARE:
       show_omp_node (level, c);
       break;
@@ -3749,7 +3868,8 @@ get_c_type_name (gfc_typespec *ts, gfc_array_spec *as, const char **pre,
   *asterisk = false;
   *post = "";
   *type_name = "<error>";
-  if (ts->type == BT_REAL || ts->type == BT_INTEGER || ts->type == BT_COMPLEX)
+  if (ts->type == BT_REAL || ts->type == BT_INTEGER || ts->type == BT_COMPLEX
+      || ts->type == BT_UNSIGNED)
     {
       if (ts->is_c_interop && ts->interop_kind)
 	ret = T_OK;
@@ -3777,7 +3897,16 @@ get_c_type_name (gfc_typespec *ts, gfc_array_spec *as, const char **pre,
 		*type_name = "__GFORTRAN_DOUBLE_COMPLEX";
 	      else if (strcmp (*type_name, "long_double_complex") == 0)
 		*type_name = "__GFORTRAN_LONG_DOUBLE_COMPLEX";
-
+	      else if (strcmp (*type_name, "unsigned") == 0)
+		*type_name = "unsigned int";
+	      else if (strcmp (*type_name, "unsigned_char") == 0)
+		*type_name = "unsigned char";
+	      else if (strcmp (*type_name, "unsigned_short") == 0)
+		*type_name = "unsigned short int";
+	      else if (strcmp (*type_name, "unsigned_long") == 0)
+		*type_name = "unsigned long int";
+	      else if (strcmp (*type_name, "unsigned_long long") == 0)
+		*type_name = "unsigned long long int";
 	      break;
 	    }
 	}

@@ -99,6 +99,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "cgraph.h"
+#include "context.h"
+#include "omp-offload.h"
 #include "gfortran.h"
 #include "trans.h"
 #include "stringpool.h"
@@ -380,7 +383,7 @@ build_equiv_decl (tree union_type, bool is_init, bool is_saved, bool is_auto)
 
   /* The source location has been lost, and doesn't really matter.
      We need to set it to something though.  */
-  gfc_set_decl_location (decl, &gfc_current_locus);
+  DECL_SOURCE_LOCATION (decl) = input_location;
 
   gfc_add_decl_to_function (decl);
 
@@ -498,6 +501,24 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	  = tree_cons (get_identifier ("omp declare target"),
 		       omp_clauses, DECL_ATTRIBUTES (decl));
 
+      if (com->omp_declare_target_link || com->omp_declare_target)
+	{
+	  /* Add to offload_vars; get_create does so for omp_declare_target,
+	     omp_declare_target_link requires manual work.  */
+	  gcc_assert (symtab_node::get (decl) == 0);
+	  symtab_node *node = symtab_node::get_create (decl);
+	  if (node != NULL && com->omp_declare_target_link)
+	    {
+	      node->offloadable = 1;
+	      if (ENABLE_OFFLOADING)
+		{
+		  g->have_offload = true;
+		  if (is_a <varpool_node *> (node))
+		    vec_safe_push (offload_vars, decl);
+		}
+	    }
+	}
+
       /* Place the back end declaration for this common block in
          GLOBAL_BINDING_LEVEL.  */
       gfc_map_of_all_commons[identifier] = pushdecl_top_level (decl);
@@ -591,8 +612,7 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
   tmp = build_range_type (gfc_array_index_type,
 			  gfc_index_zero_node, tmp);
   tmp = build_array_type (type, tmp);
-  field = build_decl (gfc_get_location (&gfc_current_locus),
-		      FIELD_DECL, NULL_TREE, tmp);
+  field = build_decl (input_location, FIELD_DECL, NULL_TREE, tmp);
 
   known_align = BIGGEST_ALIGNMENT;
 
@@ -1198,6 +1218,10 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
   current_offset = 0;
   align = 1;
   saw_equiv = false;
+
+  if (var_list->attr.omp_allocate)
+    gfc_error ("Sorry, !$OMP allocate for COMMON block variable %qs at %L "
+	       "not supported", common->name, &common->where);
 
   /* Add symbols to the segment.  */
   for (sym = var_list; sym; sym = sym->common_next)

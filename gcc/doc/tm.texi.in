@@ -947,6 +947,8 @@ applied.
 
 @hook TARGET_C_BITINT_TYPE_INFO
 
+@hook TARGET_C_MODE_FOR_FLOATING_TYPE
+
 @hook TARGET_PROMOTE_FUNCTION_MODE
 
 @defmac PARM_BOUNDARY
@@ -1351,23 +1353,6 @@ C99 type @code{_Bool} on the target machine.  If you don't define
 this, and you probably shouldn't, the default is @code{CHAR_TYPE_SIZE}.
 @end defmac
 
-@defmac FLOAT_TYPE_SIZE
-A C expression for the size in bits of the type @code{float} on the
-target machine.  If you don't define this, the default is one word.
-@end defmac
-
-@defmac DOUBLE_TYPE_SIZE
-A C expression for the size in bits of the type @code{double} on the
-target machine.  If you don't define this, the default is two
-words.
-@end defmac
-
-@defmac LONG_DOUBLE_TYPE_SIZE
-A C expression for the size in bits of the type @code{long double} on
-the target machine.  If you don't define this, the default is two
-words.
-@end defmac
-
 @defmac SHORT_FRACT_TYPE_SIZE
 A C expression for the size in bits of the type @code{short _Fract} on
 the target machine.  If you don't define this, the default is
@@ -1428,9 +1413,11 @@ the libgcc @file{config.host}.
 @defmac WIDEST_HARDWARE_FP_SIZE
 A C expression for the size in bits of the widest floating-point format
 supported by the hardware.  If you define this macro, you must specify a
-value less than or equal to the value of @code{LONG_DOUBLE_TYPE_SIZE}.
-If you do not define this macro, the value of @code{LONG_DOUBLE_TYPE_SIZE}
-is the default.
+value less than or equal to mode precision of the mode used for C type
+@code{long double} (from hook @code{targetm.c.mode_for_floating_type}
+with argument @code{TI_LONG_DOUBLE_TYPE}).  If you do not define this
+macro, mode precision of the mode used for C type @code{long double} is
+the default.
 @end defmac
 
 @defmac DEFAULT_SIGNED_CHAR
@@ -3121,7 +3108,6 @@ used in .eh_frame or .debug_frame is different from that used in other
 debug info sections.  Given a GCC hard register number, this macro
 should return the .eh_frame register number.  The default is
 @code{DEBUGGER_REGNO (@var{regno})}.
-
 @end defmac
 
 @defmac DWARF2_FRAME_REG_OUT (@var{regno}, @var{for_eh})
@@ -3190,6 +3176,14 @@ In this case, you might specify:
 
 Note that the elimination of the argument pointer with the stack pointer is
 specified first since that is the preferred elimination.
+@end defmac
+
+@defmac RELOAD_ELIMINABLE_REGS
+Like @code{ELIMINABLE_REGS}, but only used in the old reload framework where
+it takes precedence over @code{ELIMINABLE_REGS}.  This macro can be useful
+during the transition to LRA because there are cases where reload and LRA
+disagree on how eliminable registers should be represented. For an example,
+see @file{avr.h}.
 @end defmac
 
 @hook TARGET_CAN_ELIMINATE
@@ -3467,6 +3461,8 @@ stack.
 @hook TARGET_VALID_POINTER_MODE
 
 @hook TARGET_REF_MAY_ALIAS_ERRNO
+
+@hook TARGET_MODE_CAN_TRANSFER_BITS
 
 @hook TARGET_TRANSLATE_MODE_ATTRIBUTE
 
@@ -3887,6 +3883,8 @@ These machine description macros help implement varargs:
 
 @hook TARGET_STRICT_ARGUMENT_NAMING
 
+@hook TARGET_CALL_OFFSET_RETURN_LABEL
+
 @hook TARGET_START_CALL_ARGS
 
 @hook TARGET_CALL_ARGS
@@ -4300,6 +4298,8 @@ address;  but often a machine-dependent strategy can generate better code.
 @hook TARGET_VECTORIZE_RELATED_MODE
 
 @hook TARGET_VECTORIZE_GET_MASK_MODE
+
+@hook TARGET_VECTORIZE_CONDITIONAL_OPERATION_IS_EXPENSIVE
 
 @hook TARGET_VECTORIZE_EMPTY_MASK_IS_EXPENSIVE
 
@@ -6621,6 +6621,10 @@ the target supports DWARF 2 frame unwind information.
 
 @hook TARGET_DWARF_FRAME_REG_MODE
 
+@hook TARGET_OUTPUT_CFI_DIRECTIVE
+
+@hook TARGET_DW_CFI_OPRND1_DESC
+
 @hook TARGET_INIT_DWARF_REG_SIZES_EXTRA
 
 @hook TARGET_ASM_TTYPE
@@ -7222,6 +7226,8 @@ floating-point support; they are not included in this mechanism.
 @hook TARGET_CXX_USE_AEABI_ATEXIT
 
 @hook TARGET_CXX_USE_ATEXIT_FOR_CXA_ATEXIT
+
+@hook TARGET_CXX_ADJUST_CDTOR_CALLABI_FNTYPE
 
 @hook TARGET_CXX_ADJUST_CLASS_AT_DEFINITION
 
@@ -7918,6 +7924,8 @@ lists.
 @hook TARGET_GEN_CCMP_FIRST
 
 @hook TARGET_GEN_CCMP_NEXT
+
+@hook TARGET_HAVE_CCMP
 
 @hook TARGET_LOOP_UNROLL_ADJUST
 

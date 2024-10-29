@@ -24,9 +24,6 @@ UrlSuffix(gcc/SPARC-Options.html#index-mhard-quad-float)
 msoft-quad-float
 UrlSuffix(gcc/SPARC-Options.html#index-msoft-quad-float)
 
-mlra
-UrlSuffix(gcc/SPARC-Options.html#index-mlra-3)
-
 mv8plus
 UrlSuffix(gcc/SPARC-Options.html#index-mv8plus)
 
@@ -84,7 +81,7 @@ mtune=
 UrlSuffix(gcc/SPARC-Options.html#index-mtune-15)
 
 mcmodel=
-UrlSuffix(gcc/SPARC-Options.html#index-mcmodel-1)
+UrlSuffix(gcc/SPARC-Options.html#index-mcmodel_003d-6)
 
 ; skipping UrlSuffix for 'mdebug=' due to finding no URLs
 

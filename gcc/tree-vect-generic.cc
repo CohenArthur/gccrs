@@ -18,6 +18,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include "config.h"
+#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "backend.h"
@@ -45,6 +46,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple-match.h"
 #include "recog.h"		/* FIXME: for insn_data */
 #include "optabs-libfuncs.h"
+#include "cfgloop.h"
+#include "tree-vectorizer.h"
 
 
 /* Build a ternary operation and gimplify it.  Emit code before GSI.
@@ -165,7 +168,15 @@ do_unop (gimple_stmt_iterator *gsi, tree inner_type, tree a,
 	 tree b ATTRIBUTE_UNUSED, tree bitpos, tree bitsize,
 	 enum tree_code code, tree type ATTRIBUTE_UNUSED)
 {
-  a = tree_vec_extract (gsi, inner_type, a, bitsize, bitpos);
+  tree rhs_type = inner_type;
+
+  /* For ABSU_EXPR, use the signed type for the rhs if the rhs was signed. */
+  if (code == ABSU_EXPR
+      && ANY_INTEGRAL_TYPE_P (TREE_TYPE (a))
+      && !TYPE_UNSIGNED (TREE_TYPE (a)))
+    rhs_type = signed_type_for (rhs_type);
+
+  a = tree_vec_extract (gsi, rhs_type, a, bitsize, bitpos);
   return gimplify_build1 (gsi, code, inner_type, a);
 }
 
@@ -551,7 +562,6 @@ expand_vector_divmod (gimple_stmt_iterator *gsi, tree type, tree op0,
   int *shift_temps = post_shifts + nunits;
   unsigned HOST_WIDE_INT *mulc = XALLOCAVEC (unsigned HOST_WIDE_INT, nunits);
   int prec = TYPE_PRECISION (TREE_TYPE (type));
-  int dummy_int;
   unsigned int i;
   signop sign_p = TYPE_SIGN (TREE_TYPE (type));
   unsigned HOST_WIDE_INT mask = GET_MODE_MASK (TYPE_MODE (TREE_TYPE (type)));
@@ -609,11 +619,11 @@ expand_vector_divmod (gimple_stmt_iterator *gsi, tree type, tree op0,
 	      continue;
 	    }
 
-	  /* Find a suitable multiplier and right shift count
-	     instead of multiplying with D.  */
-	  mh = choose_multiplier (d, prec, prec, &ml, &post_shift, &dummy_int);
+	  /* Find a suitable multiplier and right shift count instead of
+	     directly dividing by D.  */
+	  mh = choose_multiplier (d, prec, prec, &ml, &post_shift);
 
-	  /* If the suggested multiplier is more than SIZE bits, we can
+	  /* If the suggested multiplier is more than PREC bits, we can
 	     do better for even divisors, using an initial right shift.  */
 	  if ((mh != 0 && (d & 1) == 0)
 	      || (!has_vector_shift && pre_shift != -1))
@@ -655,7 +665,7 @@ expand_vector_divmod (gimple_stmt_iterator *gsi, tree type, tree op0,
 		    }
 		  mh = choose_multiplier (d >> pre_shift, prec,
 					  prec - pre_shift,
-					  &ml, &post_shift, &dummy_int);
+					  &ml, &post_shift);
 		  gcc_assert (!mh);
 		  pre_shifts[i] = pre_shift;
 		}
@@ -699,7 +709,7 @@ expand_vector_divmod (gimple_stmt_iterator *gsi, tree type, tree op0,
 	    }
 
 	  choose_multiplier (abs_d, prec, prec - 1, &ml,
-			     &post_shift, &dummy_int);
+			     &post_shift);
 	  if (ml >= HOST_WIDE_INT_1U << (prec - 1))
 	    {
 	      this_mode = 4 + (d < 0);
@@ -1049,7 +1059,7 @@ expand_vector_condition (gimple_stmt_iterator *gsi, bitmap dce_ssa_names)
      VEC_COND_EXPR could be supported individually.  See PR109176.  */
   if (a_is_comparison
       && VECTOR_BOOLEAN_TYPE_P (TREE_TYPE (a))
-      && expand_vec_cond_expr_p (type, TREE_TYPE (a), SSA_NAME)
+      && expand_vec_cond_expr_p (type, TREE_TYPE (a))
       && expand_vec_cmp_expr_p (TREE_TYPE (a1), TREE_TYPE (a), code))
     return true;
 
@@ -1498,6 +1508,7 @@ lower_vec_perm (gimple_stmt_iterator *gsi)
   tree mask = gimple_assign_rhs3 (stmt);
   tree vec0 = gimple_assign_rhs1 (stmt);
   tree vec1 = gimple_assign_rhs2 (stmt);
+  tree res_vect_type = TREE_TYPE (gimple_assign_lhs (stmt));
   tree vect_type = TREE_TYPE (vec0);
   tree mask_type = TREE_TYPE (mask);
   tree vect_elt_type = TREE_TYPE (vect_type);
@@ -1510,7 +1521,7 @@ lower_vec_perm (gimple_stmt_iterator *gsi)
   location_t loc = gimple_location (gsi_stmt (*gsi));
   unsigned i;
 
-  if (!TYPE_VECTOR_SUBPARTS (vect_type).is_constant (&elements))
+  if (!TYPE_VECTOR_SUBPARTS (res_vect_type).is_constant (&elements))
     return;
 
   if (TREE_CODE (mask) == SSA_NAME)
@@ -1670,9 +1681,9 @@ lower_vec_perm (gimple_stmt_iterator *gsi)
     }
 
   if (constant_p)
-    constr = build_vector_from_ctor (vect_type, v);
+    constr = build_vector_from_ctor (res_vect_type, v);
   else
-    constr = build_constructor (vect_type, v);
+    constr = build_constructor (res_vect_type, v);
   gimple_assign_set_rhs_from_tree (gsi, constr);
   update_stmt (gsi_stmt (*gsi));
 }
@@ -1851,7 +1862,7 @@ expand_vector_conversion (gimple_stmt_iterator *gsi)
   tree arg = gimple_call_arg (stmt, 0);
   tree ret_type = TREE_TYPE (lhs);
   tree arg_type = TREE_TYPE (arg);
-  tree new_rhs, compute_type = TREE_TYPE (arg_type);
+  tree new_rhs, new_lhs, compute_type = TREE_TYPE (arg_type);
   enum tree_code code = NOP_EXPR;
   enum tree_code code1 = ERROR_MARK;
   enum { NARROW, NONE, WIDEN } modifier = NONE;
@@ -1871,14 +1882,29 @@ expand_vector_conversion (gimple_stmt_iterator *gsi)
   else if (ret_elt_bits > arg_elt_bits)
     modifier = WIDEN;
 
+  auto_vec<std::pair<tree, tree_code> > converts;
+  if (supportable_indirect_convert_operation (code,
+					      ret_type, arg_type,
+					      &converts,
+					      arg))
+    {
+      new_rhs = arg;
+      for (unsigned int i = 0; i < converts.length () - 1; i++)
+	{
+	  new_lhs = make_ssa_name (converts[i].first);
+	  g = gimple_build_assign (new_lhs, converts[i].second, new_rhs);
+	  new_rhs = new_lhs;
+	  gsi_insert_before (gsi, g, GSI_SAME_STMT);
+	}
+      g = gimple_build_assign (lhs,
+			       converts[converts.length() - 1].second,
+			       new_rhs);
+      gsi_replace (gsi, g, false);
+      return;
+    }
+
   if (modifier == NONE && (code == FIX_TRUNC_EXPR || code == FLOAT_EXPR))
     {
-      if (supportable_convert_operation (code, ret_type, arg_type, &code1))
-	{
-	  g = gimple_build_assign (lhs, code1, arg);
-	  gsi_replace (gsi, g, false);
-	  return;
-	}
       /* Can't use get_compute_type here, as supportable_convert_operation
 	 doesn't necessarily use an optab and needs two arguments.  */
       tree vec_compute_type
@@ -2190,10 +2216,15 @@ expand_vector_operations_1 (gimple_stmt_iterator *gsi,
 	}
     }
 
+  /* Plain moves do not need lowering.  */
+  if (code == SSA_NAME
+      || code == VIEW_CONVERT_EXPR
+      || code == PAREN_EXPR)
+    return;
+
   if (CONVERT_EXPR_CODE_P (code)
       || code == FLOAT_EXPR
-      || code == FIX_TRUNC_EXPR
-      || code == VIEW_CONVERT_EXPR)
+      || code == FIX_TRUNC_EXPR)
     return;
 
   /* The signedness is determined from input argument.  */

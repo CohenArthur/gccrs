@@ -145,7 +145,11 @@ omp_adjust_for_condition (location_t loc, enum tree_code *cond_code, tree *n2,
 
     case LE_EXPR:
       if (POINTER_TYPE_P (TREE_TYPE (*n2)))
-	*n2 = fold_build_pointer_plus_hwi_loc (loc, *n2, 1);
+	{
+	  tree unit = TYPE_SIZE_UNIT (TREE_TYPE (TREE_TYPE (v)));
+	  gcc_assert (TREE_CODE (unit) == INTEGER_CST);
+	  *n2 = fold_build_pointer_plus_loc (loc, *n2, unit);
+	}
       else
 	*n2 = fold_build2_loc (loc, PLUS_EXPR, TREE_TYPE (*n2), *n2,
 			       build_int_cst (TREE_TYPE (*n2), 1));
@@ -153,7 +157,14 @@ omp_adjust_for_condition (location_t loc, enum tree_code *cond_code, tree *n2,
       break;
     case GE_EXPR:
       if (POINTER_TYPE_P (TREE_TYPE (*n2)))
-	*n2 = fold_build_pointer_plus_hwi_loc (loc, *n2, -1);
+	{
+	  tree unit = TYPE_SIZE_UNIT (TREE_TYPE (TREE_TYPE (v)));
+	  gcc_assert (TREE_CODE (unit) == INTEGER_CST);
+	  unit = convert_to_ptrofftype_loc (loc, unit);
+	  unit = fold_build1_loc (loc, NEGATE_EXPR, TREE_TYPE (unit),
+				  unit);
+	  *n2 = fold_build_pointer_plus_loc (loc, *n2, unit);
+	}
       else
 	*n2 = fold_build2_loc (loc, MINUS_EXPR, TREE_TYPE (*n2), *n2,
 			       build_int_cst (TREE_TYPE (*n2), 1));
@@ -962,6 +973,7 @@ find_combined_omp_for (tree *tp, int *walk_subtrees, void *data)
       *walk_subtrees = 1;
       break;
     case TRY_FINALLY_EXPR:
+    case CLEANUP_POINT_EXPR:
       pdata[0] = tp;
       *walk_subtrees = 1;
       break;
@@ -1197,6 +1209,11 @@ struct omp_ts_info omp_ts_map[] =
      OMP_TRAIT_PROPERTY_NONE, true,
      NULL
    },
+   { "self_maps",
+     (1 << OMP_TRAIT_SET_IMPLEMENTATION),
+     OMP_TRAIT_PROPERTY_NONE, true,
+     NULL
+   },
    { "dynamic_allocators",
      (1 << OMP_TRAIT_SET_IMPLEMENTATION),
      OMP_TRAIT_PROPERTY_NONE, true,
@@ -1278,6 +1295,8 @@ omp_check_context_selector (location_t loc, tree ctx)
   for (tree tss = ctx; tss; tss = TREE_CHAIN (tss))
     {
       enum omp_tss_code tss_code = OMP_TSS_CODE (tss);
+      bool saw_any_prop = false;
+      bool saw_other_prop = false;
 
       /* We can parse this, but not handle it yet.  */
       if (tss_code == OMP_TRAIT_SET_TARGET_DEVICE)
@@ -1314,9 +1333,61 @@ omp_check_context_selector (location_t loc, tree ctx)
 	  else
 	    ts_seen[ts_code] = true;
 
+	  /* If trait-property "any" is specified in the "kind"
+	     trait-selector of the "device" selector set or the
+	     "target_device" selector sets, no other trait-property
+	     may be specified in the same selector set.  */
+	  if (ts_code == OMP_TRAIT_DEVICE_KIND)
+	    for (tree p = OMP_TS_PROPERTIES (ts); p; p = TREE_CHAIN (p))
+	      {
+		const char *prop = omp_context_name_list_prop (p);
+		if (!prop)
+		  continue;
+		else if (strcmp (prop, "any") == 0)
+		  saw_any_prop = true;
+		else
+		  saw_other_prop = true;
+	      }
+	  /* It seems slightly suspicious that the spec's language covers
+	     the device_num selector too, but
+	       target_device={device_num(whatever),kind(any)}
+	     is probably not terribly useful anyway.  */
+	  else if (ts_code == OMP_TRAIT_DEVICE_ARCH
+		   || ts_code == OMP_TRAIT_DEVICE_ISA
+		   || ts_code == OMP_TRAIT_DEVICE_NUM)
+	    saw_other_prop = true;
+
+	  /* Each trait-property can only be specified once in a trait-selector
+	     other than the construct selector set.  FIXME: only handles
+	     name-list properties, not clause-list properties, since the
+	     "requires" selector is not implemented yet (PR 113067).  */
+	  if (tss_code != OMP_TRAIT_SET_CONSTRUCT)
+	    for (tree p1 = OMP_TS_PROPERTIES (ts); p1; p1 = TREE_CHAIN (p1))
+	      {
+		if (OMP_TP_NAME (p1) != OMP_TP_NAMELIST_NODE)
+		  break;
+		const char *n1 = omp_context_name_list_prop (p1);
+		if (!n1)
+		  continue;
+		for (tree p2 = TREE_CHAIN (p1); p2; p2 = TREE_CHAIN (p2))
+		  {
+		    const char *n2 = omp_context_name_list_prop (p2);
+		    if (!n2)
+		      continue;
+		    if (!strcmp (n1, n2))
+		      {
+			error_at (loc,
+				  "trait-property %qs specified more "
+				  "than once in %qs selector",
+				  n1, OMP_TS_NAME (ts));
+			return error_mark_node;
+		      }
+		  }
+	      }
+
+	  /* Check for unknown properties.  */
 	  if (omp_ts_map[ts_code].valid_properties == NULL)
 	    continue;
-
 	  for (tree p = OMP_TS_PROPERTIES (ts); p; p = TREE_CHAIN (p))
 	    for (unsigned j = 0; ; j++)
 	      {
@@ -1365,6 +1436,14 @@ omp_check_context_selector (location_t loc, tree ctx)
 		  /* Identifier traits.  */
 		  break;
 	      }
+	}
+
+      if (saw_any_prop && saw_other_prop)
+	{
+	  error_at (loc,
+		    "no other trait-property may be specified "
+		    "in the same selector set with %<kind(\"any\")%>");
+	  return error_mark_node;
 	}
     }
   return ctx;
@@ -1636,6 +1715,22 @@ omp_context_selector_matches (tree ctx)
 
 		  if ((omp_requires_mask
 		       & OMP_REQUIRES_UNIFIED_SHARED_MEMORY) == 0)
+		    {
+		      if (symtab->state == PARSING)
+			ret = -1;
+		      else
+			return 0;
+		    }
+		}
+	      break;
+	    case OMP_TRAIT_IMPLEMENTATION_SELF_MAPS:
+	      if (set == OMP_TRAIT_SET_IMPLEMENTATION)
+		{
+		  if (cfun && (cfun->curr_properties & PROP_gimple_any) != 0)
+		    break;
+
+		  if ((omp_requires_mask
+		       & OMP_REQUIRES_SELF_MAPS) == 0)
 		    {
 		      if (symtab->state == PARSING)
 			ret = -1;
@@ -3250,7 +3345,10 @@ omp_runtime_api_procname (const char *name)
       "alloc",
       "calloc",
       "free",
+      "get_interop_int",
+      "get_interop_ptr",
       "get_mapped_ptr",
+      "get_num_interop_properties",
       "realloc",
       "target_alloc",
       "target_associate_ptr",
@@ -3276,9 +3374,14 @@ omp_runtime_api_procname (const char *name)
       "get_cancellation",
       "get_default_allocator",
       "get_default_device",
+      "get_device_from_uid",
       "get_device_num",
       "get_dynamic",
       "get_initial_device",
+      "get_interop_name",
+      "get_interop_rc_desc",
+      "get_interop_str",
+      "get_interop_type_desc",
       "get_level",
       "get_max_active_levels",
       "get_max_task_priority",
@@ -3321,12 +3424,13 @@ omp_runtime_api_procname (const char *name)
 	 as DECL_NAME only omp_* and omp_*_8 appear.  */
       "display_env",
       "get_ancestor_thread_num",
-      "init_allocator",
+      "get_uid_from_device",
       "get_partition_place_nums",
       "get_place_num_procs",
       "get_place_proc_ids",
       "get_schedule",
       "get_team_size",
+      "init_allocator",
       "set_default_device",
       "set_dynamic",
       "set_max_active_levels",
@@ -3366,6 +3470,35 @@ omp_runtime_api_call (const_tree fndecl)
       || !TREE_PUBLIC (fndecl))
     return false;
   return omp_runtime_api_procname (IDENTIFIER_POINTER (declname));
+}
+
+/* See "Additional Definitions for the OpenMP API Specification" document;
+   associated IDs are 1, 2, ...  */
+static const char* omp_interop_fr_str[] = {"cuda", "cuda_driver", "opencl",
+					   "sycl", "hip", "level_zero", "hsa"};
+
+/* Returns the foreign-runtime ID if found or 0 otherwise.  */
+
+int
+omp_get_fr_id_from_name (const char *str)
+{
+  static_assert (GOMP_INTEROP_IFR_LAST == ARRAY_SIZE (omp_interop_fr_str), "");
+
+  for (unsigned i = 0; i < ARRAY_SIZE (omp_interop_fr_str); ++i)
+    if (!strcmp (str, omp_interop_fr_str[i]))
+      return i + 1;
+  return 0;
+}
+
+/* Returns the string value to a foreign-runtime integer value or NULL if value
+   is not known.  */
+
+const char *
+omp_get_name_from_fr_id (int fr_id)
+{
+  if (fr_id < 1 || fr_id > (int) ARRAY_SIZE (omp_interop_fr_str))
+    return NULL;
+  return omp_interop_fr_str[fr_id-1];
 }
 
 namespace omp_addr_tokenizer {
@@ -3790,5 +3923,481 @@ debug_omp_tokenized_addr (vec<omp_addr_token *> &addr_tokens,
   fputs ("\n", stderr);
 }
 
+/* Return number of iterations of loop I in FOR_STMT.  If PSTEP is non-NULL,
+   *PSTEP will be the loop step.  */
+
+tree
+omp_loop_number_of_iterations (tree for_stmt, int i, tree *pstep)
+{
+  tree t = TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i);
+  gcc_assert (TREE_CODE (t) == MODIFY_EXPR);
+  tree decl = TREE_OPERAND (t, 0);
+  tree n1 = TREE_OPERAND (t, 1);
+  tree type = TREE_TYPE (decl);
+  tree cond = TREE_VEC_ELT (OMP_FOR_COND (for_stmt), i);
+  gcc_assert (COMPARISON_CLASS_P (cond));
+  gcc_assert (TREE_OPERAND (cond, 0) == decl);
+  tree_code cond_code = TREE_CODE (cond);
+  tree n2 = TREE_OPERAND (cond, 1);
+  t = TREE_VEC_ELT (OMP_FOR_INCR (for_stmt), i);
+  tree step = NULL_TREE;
+  switch (TREE_CODE (t))
+    {
+    case PREINCREMENT_EXPR:
+    case POSTINCREMENT_EXPR:
+      gcc_assert (!POINTER_TYPE_P (type));
+      gcc_assert (TREE_OPERAND (t, 0) == decl);
+      step = build_int_cst (type, 1);
+      break;
+    case PREDECREMENT_EXPR:
+    case POSTDECREMENT_EXPR:
+      gcc_assert (!POINTER_TYPE_P (type));
+      gcc_assert (TREE_OPERAND (t, 0) == decl);
+      step = build_int_cst (type, -1);
+      break;
+    case MODIFY_EXPR:
+      gcc_assert (TREE_OPERAND (t, 0) == decl);
+      t = TREE_OPERAND (t, 1);
+      switch (TREE_CODE (t))
+	{
+	case PLUS_EXPR:
+	  if (TREE_OPERAND (t, 1) == decl)
+	    {
+	      TREE_OPERAND (t, 1) = TREE_OPERAND (t, 0);
+	      TREE_OPERAND (t, 0) = decl;
+	    }
+	  /* FALLTHRU */
+	case POINTER_PLUS_EXPR:
+	case MINUS_EXPR:
+	  step = omp_get_for_step_from_incr (EXPR_LOCATION (t), t);
+	  break;
+	default:
+	  gcc_unreachable ();
+	}
+      break;
+    default:
+      gcc_unreachable ();
+    }
+  omp_adjust_for_condition (EXPR_LOCATION (for_stmt), &cond_code, &n2,
+			    decl, step);
+  if (pstep)
+    *pstep = step;
+  if (INTEGRAL_TYPE_P (type)
+      && TYPE_PRECISION (type) < TYPE_PRECISION (long_long_integer_type_node))
+    {
+      n1 = fold_convert (long_long_integer_type_node, n1);
+      n2 = fold_convert (long_long_integer_type_node, n2);
+      step = fold_convert (long_long_integer_type_node, step);
+    }
+  if (cond_code == LT_EXPR
+      || POINTER_TYPE_P (type)
+      || !TYPE_UNSIGNED (TREE_TYPE (n1)))
+    {
+      if (POINTER_TYPE_P (type))
+	t = fold_build2 (POINTER_DIFF_EXPR, ssizetype, n2, n1);
+      else
+	t = fold_build2 (MINUS_EXPR, TREE_TYPE (n1), n2, n1);
+      t = fold_build2 (CEIL_DIV_EXPR, TREE_TYPE (t), t, step);
+    }
+  else
+    {
+      t = fold_build2 (MINUS_EXPR, type, n1, n2);
+      t = fold_build2 (CEIL_DIV_EXPR, type, t,
+		       fold_build1 (NEGATE_EXPR, type, step));
+    }
+  return t;
+}
+
+/* Tile transformation:
+   Original loop:
+
+  #pragma omp tile sizes(16, 32)
+  for (i = 0; i < k; ++i)
+    for (j = 0; j < 128; j += 2)
+      {
+	baz (i, j);
+      }
+
+   Transformed loop:
+  #pragma omp tile sizes(16, 32)
+  for (i.0 = 0; i.0 < k; i.0 += 16)
+    for (j.0 = 0; j.0 < 128; j.0 += 64)
+      {
+	i = i.0;
+	i.1 = MIN_EXPR <i.0 + 16, k>;
+	goto <D.2783>;
+	<D.2782>:;
+	j = j.0;
+	j.1 = j.0 + 32;
+	goto <D.2786>;
+	<D.2785>:;
+	{
+	  baz (i, j);
+	}
+	j += 2;
+	<D.2786>:;
+	if (j < j.1) goto <D.2785>; else goto <D.2787>;
+	<D.2787>:;
+	++i;
+	<D.2783>:;
+	if (i < i.1) goto <D.2782>; else goto <D.2784>;
+	<D.2784>:;
+      }
+
+   where the grid loops have canonical form, but the inner
+   loops don't and so are immediately lowered.  */
+
+static void
+omp_apply_tile (tree for_stmt, tree sizes, int size)
+{
+  tree pre_body = NULL_TREE, post_body = NULL_TREE;
+  tree orig_sizes = sizes;
+  if (OMP_FOR_NON_RECTANGULAR (for_stmt))
+    {
+      error_at (EXPR_LOCATION (for_stmt), "non-rectangular %<tile%>");
+      return;
+    }
+  for (int i = 0; i < TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)); i++)
+    {
+      if (orig_sizes)
+	{
+	  size = tree_to_uhwi (TREE_VALUE (sizes));
+	  sizes = TREE_CHAIN (sizes);
+	}
+      if (size == 1)
+	continue;
+      if (OMP_FOR_ORIG_DECLS (for_stmt) == NULL_TREE)
+	{
+	  OMP_FOR_ORIG_DECLS (for_stmt)
+	    = make_tree_vec (TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)));
+	  for (int j = 0; j < TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)); j++)
+	    {
+	      gcc_assert (TREE_CODE (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), j))
+			  == MODIFY_EXPR);
+	      TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (for_stmt), j)
+		= TREE_OPERAND (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), j), 0);
+	    }
+	}
+      tree step;
+      tree iters = omp_loop_number_of_iterations (for_stmt, i, &step);
+      tree t = TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i);
+      tree decl = TREE_OPERAND (t, 0);
+      tree type = TREE_TYPE (decl);
+      tree griddecl = create_tmp_var_raw (type);
+      DECL_CONTEXT (griddecl) = current_function_decl;
+      t = build1 (DECL_EXPR, void_type_node, griddecl);
+      append_to_statement_list (t, &OMP_FOR_PRE_BODY (for_stmt));
+      TREE_OPERAND (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i), 0) = griddecl;
+      TREE_PRIVATE (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i)) = 1;
+      tree cond = TREE_VEC_ELT (OMP_FOR_COND (for_stmt), i);
+      TREE_OPERAND (cond, 0) = griddecl;
+      tree ub = save_expr (TREE_OPERAND (cond, 1));
+      TREE_OPERAND (cond, 1) = ub;
+      t = TREE_VEC_ELT (OMP_FOR_INCR (for_stmt), i);
+      if (TREE_CODE (cond) == NE_EXPR)
+	{
+	  tree_code cond_code = TREE_CODE (cond);
+	  omp_adjust_for_condition (EXPR_LOCATION (for_stmt), &cond_code,
+				    &ub, griddecl, step);
+	  TREE_SET_CODE (cond, cond_code);
+	}
+      step = save_expr (step);
+      tree gridstep = fold_build2 (MULT_EXPR, TREE_TYPE (step),
+				   step, build_int_cst (TREE_TYPE (step),
+							size));
+      if (POINTER_TYPE_P (type))
+	t = build2 (POINTER_PLUS_EXPR, type, griddecl,
+		    fold_convert (sizetype, gridstep));
+      else
+	t = build2 (PLUS_EXPR, type, griddecl, gridstep);
+      t = build2 (MODIFY_EXPR, type, griddecl, t);
+      TREE_VEC_ELT (OMP_FOR_INCR (for_stmt), i) = t;
+      t = build2 (MODIFY_EXPR, type, decl, griddecl);
+      append_to_statement_list (t, &pre_body);
+      if (POINTER_TYPE_P (type))
+	t = build2 (POINTER_PLUS_EXPR, type, griddecl,
+		    fold_convert (sizetype, gridstep));
+      else
+	t = build2 (PLUS_EXPR, type, griddecl, gridstep);
+      bool minmax_needed = true;
+      if (TREE_CODE (iters) == INTEGER_CST)
+	{
+	  wide_int witers = wi::to_wide (iters);
+	  wide_int wsize = wide_int::from (size, witers.get_precision (),
+					   TYPE_SIGN (TREE_TYPE (iters)));
+	  if (wi::multiple_of_p (witers, wsize, TYPE_SIGN (TREE_TYPE (iters))))
+	    minmax_needed = false;
+	}
+      if (minmax_needed)
+	switch (TREE_CODE (cond))
+	  {
+	  case LE_EXPR:
+	    if (POINTER_TYPE_P (type))
+	      t = build2 (MIN_EXPR, type, t,
+			  build2 (POINTER_PLUS_EXPR, type, ub, size_int (1)));
+	    else
+	      t = build2 (MIN_EXPR, type, t,
+			  build2 (PLUS_EXPR, type, ub, build_one_cst (type)));
+	    break;
+	  case LT_EXPR:
+	    t = build2 (MIN_EXPR, type, t, ub);
+	    break;
+	  case GE_EXPR:
+	    if (POINTER_TYPE_P (type))
+	      t = build2 (MAX_EXPR, type, t,
+			  build2 (POINTER_PLUS_EXPR, type, ub, size_int (-1)));
+	    else
+	      t = build2 (MAX_EXPR, type, t,
+			  build2 (PLUS_EXPR, type, ub,
+				  build_minus_one_cst (type)));
+	    break;
+	  case GT_EXPR:
+	    t = build2 (MAX_EXPR, type, t, ub);
+	    break;
+	  default:
+	    gcc_unreachable ();
+	  }
+      tree end = create_tmp_var_raw (type);
+      DECL_CONTEXT (end) = current_function_decl;
+      end = build4 (TARGET_EXPR, type, end, t, NULL_TREE, NULL_TREE);
+      TREE_SIDE_EFFECTS (end) = 1;
+      append_to_statement_list (end, &pre_body);
+      tree lab1 = create_artificial_label (UNKNOWN_LOCATION);
+      tree lab2 = create_artificial_label (UNKNOWN_LOCATION);
+      t = build1 (GOTO_EXPR, void_type_node, lab2);
+      append_to_statement_list (t, &pre_body);
+      t = build1 (LABEL_EXPR, void_type_node, lab1);
+      append_to_statement_list (t, &pre_body);
+      tree this_post_body = NULL_TREE;
+      if (POINTER_TYPE_P (type))
+	t = build2 (POINTER_PLUS_EXPR, type, decl,
+		    fold_convert (sizetype, step));
+      else
+	t = build2 (PLUS_EXPR, type, decl, step);
+      t = build2 (MODIFY_EXPR, type, decl, t);
+      append_to_statement_list (t, &this_post_body);
+      t = build1 (LABEL_EXPR, void_type_node, lab2);
+      append_to_statement_list (t, &this_post_body);
+      t = build2 ((TREE_CODE (cond) == LT_EXPR || TREE_CODE (cond) == LE_EXPR)
+		  ? LT_EXPR : GT_EXPR, boolean_type_node, decl, end);
+      if (orig_sizes == NULL_TREE)
+	{
+	  gcc_assert (i == 0);
+	  t = build3 (ANNOTATE_EXPR, TREE_TYPE (t), t,
+		      build_int_cst (integer_type_node,
+				     annot_expr_unroll_kind),
+		      build_int_cst (integer_type_node, size));
+	}
+      t = build3 (COND_EXPR, void_type_node, t,
+		  build1 (GOTO_EXPR, void_type_node, lab1), NULL_TREE);
+      append_to_statement_list (t, &this_post_body);
+      append_to_statement_list (post_body, &this_post_body);
+      post_body = this_post_body;
+    }
+  if (pre_body || post_body)
+    {
+      append_to_statement_list (OMP_FOR_BODY (for_stmt), &pre_body);
+      append_to_statement_list (post_body, &pre_body);
+      OMP_FOR_BODY (for_stmt) = pre_body;
+    }
+}
+
+/* Callback for walk_tree to find nested loop transforming construct.  */
+
+static tree
+find_nested_loop_xform (tree *tp, int *walk_subtrees, void *data)
+{
+  tree **pdata = (tree **) data;
+  *walk_subtrees = 0;
+  switch (TREE_CODE (*tp))
+    {
+    case OMP_TILE:
+    case OMP_UNROLL:
+      pdata[1] = tp;
+      return *tp;
+    case BIND_EXPR:
+      if (BIND_EXPR_VARS (*tp)
+	  || (BIND_EXPR_BLOCK (*tp)
+	      && BLOCK_VARS (BIND_EXPR_BLOCK (*tp))))
+	pdata[0] = tp;
+      *walk_subtrees = 1;
+      break;
+    case STATEMENT_LIST:
+      if (!tsi_one_before_end_p (tsi_start (*tp)))
+	pdata[0] = tp;
+      *walk_subtrees = 1;
+      break;
+    case TRY_FINALLY_EXPR:
+    case CLEANUP_POINT_EXPR:
+      pdata[0] = tp;
+      *walk_subtrees = 1;
+      break;
+    default:
+      break;
+    }
+  return NULL;
+}
+
+/* Main entry point for performing OpenMP loop transformations.  */
+
+void
+omp_maybe_apply_loop_xforms (tree *expr_p, tree for_clauses)
+{
+  tree for_stmt = *expr_p;
+
+  switch (TREE_CODE (for_stmt))
+    {
+    case OMP_TILE:
+    case OMP_UNROLL:
+      if (OMP_LOOPXFORM_LOWERED (for_stmt))
+	return;
+      break;
+    default:
+      break;
+    }
+
+  tree *inner_expr_p = expr_p;
+  tree inner_for_stmt = for_stmt;
+  for (int i = 0; i < TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)); i++)
+    {
+      /* If some loop nest needs one or more loops in canonical form
+	 from nested loop transforming constructs, first perform the
+	 loop transformation on the nested construct and then move over
+	 the corresponding loops in canonical form from the inner construct
+	 to the outer one.  */
+      if (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i) == NULL_TREE)
+	{
+	  if (inner_for_stmt == for_stmt
+	      && omp_find_clause (for_clauses ? for_clauses
+				  : OMP_FOR_CLAUSES (for_stmt),
+				  OMP_CLAUSE_ORDERED))
+	    {
+	      error_at (EXPR_LOCATION (for_stmt),
+			"%<ordered%> clause used with generated loops");
+	      *expr_p = void_node;
+	      return;
+	    }
+	  tree *data[2] = { NULL, NULL };
+	  walk_tree (&OMP_FOR_BODY (inner_for_stmt),
+		     find_nested_loop_xform, &data, NULL);
+	  gcc_assert (data[1]);
+	  if (data[0])
+	    {
+	      /* If there is a BIND_EXPR declaring some vars, or statement
+		 list with more than one stmt etc., move the intervening
+		 code around the outermost loop.  */
+	      tree t = *inner_expr_p;
+	      *inner_expr_p = OMP_FOR_BODY (inner_for_stmt);
+	      OMP_FOR_BODY (inner_for_stmt) = *data[1];
+	      *data[1] = t;
+	      inner_expr_p = data[1];
+	      data[1] = &OMP_FOR_BODY (inner_for_stmt);
+	    }
+	  inner_for_stmt = *data[1];
+
+	  omp_maybe_apply_loop_xforms (data[1], NULL_TREE);
+	  if (*data[1] != inner_for_stmt)
+	    {
+	      tree *data2[2] = { NULL, NULL };
+	      walk_tree (data[1], find_nested_loop_xform, &data2, NULL);
+	      gcc_assert (data2[1]
+			  && *data2[1] == inner_for_stmt
+			  && data2[0]);
+	      tree t = *inner_expr_p;
+	      *inner_expr_p = *data[1];
+	      *data[1] = *data2[1];
+	      *data2[1] = t;
+	      inner_expr_p = data2[1];
+	    }
+	  tree clauses = OMP_FOR_CLAUSES (inner_for_stmt);
+	  gcc_checking_assert (TREE_CODE (inner_for_stmt) != OMP_UNROLL
+			       || omp_find_clause (clauses,
+						   OMP_CLAUSE_PARTIAL));
+	  append_to_statement_list (OMP_FOR_PRE_BODY (inner_for_stmt),
+				    &OMP_FOR_PRE_BODY (for_stmt));
+	  OMP_FOR_PRE_BODY (inner_for_stmt) = NULL_TREE;
+	  if (OMP_FOR_ORIG_DECLS (for_stmt) == NULL_TREE
+	      && OMP_FOR_ORIG_DECLS (inner_for_stmt) != NULL_TREE)
+	    {
+	      OMP_FOR_ORIG_DECLS (for_stmt)
+		= make_tree_vec (TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)));
+	      for (int j = 0; j < TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt));
+		   j++)
+		{
+		  if (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), j) == NULL_TREE)
+		    continue;
+		  gcc_assert (TREE_CODE (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt),
+						       j)) == MODIFY_EXPR);
+		  TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (for_stmt), j)
+		    = TREE_OPERAND (TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), j),
+				    0);
+		}
+	    }
+	  for (int j = 0; j < TREE_VEC_LENGTH (OMP_FOR_INIT (inner_for_stmt));
+	       ++j)
+	    {
+	      if (i + j == TREE_VEC_LENGTH (OMP_FOR_INIT (for_stmt)))
+		break;
+	      if (OMP_FOR_ORIG_DECLS (for_stmt))
+		{
+		  if (OMP_FOR_ORIG_DECLS (inner_for_stmt))
+		    {
+		      TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (for_stmt), i + j)
+			= TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (inner_for_stmt),
+					j);
+		      TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (inner_for_stmt), j)
+			= NULL_TREE;
+		    }
+		  else
+		    {
+		      tree t = TREE_VEC_ELT (OMP_FOR_INIT (inner_for_stmt), j);
+		      gcc_assert (TREE_CODE (t) == MODIFY_EXPR);
+		      TREE_VEC_ELT (OMP_FOR_ORIG_DECLS (for_stmt), i + j)
+			= TREE_OPERAND (t, 0);
+		    }
+		}
+	      TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i + j)
+		= TREE_VEC_ELT (OMP_FOR_INIT (inner_for_stmt), j);
+	      TREE_VEC_ELT (OMP_FOR_COND (for_stmt), i + j)
+		= TREE_VEC_ELT (OMP_FOR_COND (inner_for_stmt), j);
+	      TREE_VEC_ELT (OMP_FOR_INCR (for_stmt), i + j)
+		= TREE_VEC_ELT (OMP_FOR_INCR (inner_for_stmt), j);
+	      TREE_VEC_ELT (OMP_FOR_INIT (inner_for_stmt), j) = NULL_TREE;
+	      TREE_VEC_ELT (OMP_FOR_COND (inner_for_stmt), j) = NULL_TREE;
+	      TREE_VEC_ELT (OMP_FOR_INCR (inner_for_stmt), j) = NULL_TREE;
+	    }
+	}
+    }
+
+  switch (TREE_CODE (for_stmt))
+    {
+    case OMP_TILE:
+      tree sizes;
+      sizes = omp_find_clause (OMP_FOR_CLAUSES (for_stmt), OMP_CLAUSE_SIZES);
+      omp_apply_tile (for_stmt, OMP_CLAUSE_SIZES_LIST (sizes), 0);
+      OMP_LOOPXFORM_LOWERED (for_stmt) = 1;
+      break;
+    case OMP_UNROLL:
+      tree partial;
+      partial = omp_find_clause (OMP_FOR_CLAUSES (for_stmt),
+				 OMP_CLAUSE_PARTIAL);
+      if (partial)
+	omp_apply_tile (for_stmt, NULL_TREE,
+			OMP_CLAUSE_PARTIAL_EXPR (partial)
+			? tree_to_shwi (OMP_CLAUSE_PARTIAL_EXPR (partial))
+			: 8);
+      else if (omp_find_clause (OMP_FOR_CLAUSES (for_stmt), OMP_CLAUSE_FULL))
+	{
+	  tree iters = omp_loop_number_of_iterations (for_stmt, 0, NULL);
+	  if (TREE_CODE (iters) != INTEGER_CST)
+	    error_at (EXPR_LOCATION (for_stmt),
+		      "non-constant iteration count of %<unroll full%> loop");
+	}
+      OMP_LOOPXFORM_LOWERED (for_stmt) = 1;
+      break;
+    default:
+      break;
+    }
+}
 
 #include "gt-omp-general.h"

@@ -42,9 +42,9 @@ see <https://www.gnu.org/licenses/>.  */
 #   undef NULL
 #   define NULL 0
 #endif
-#define _mcp5_H
 #define _mcp5_C
 
+#include "Gmcp5.h"
 #   include "GDynamicStrings.h"
 #   include "GmcError.h"
 #   include "GnameKey.h"
@@ -2501,7 +2501,7 @@ static void followNode (decl_node n)
 
 static decl_node push (decl_node n)
 {
-  return static_cast<decl_node> (mcStack_push (stk, reinterpret_cast<void *> (n)));
+  return static_cast<decl_node> (mcStack_push (stk, reinterpret_cast <void *> (n)));
   /* static analysis guarentees a RETURN statement will be used before here.  */
   __builtin_unreachable ();
 }
@@ -2525,7 +2525,7 @@ static decl_node pop (void)
 
 static decl_node replace (decl_node n)
 {
-  return static_cast<decl_node> (mcStack_replace (stk, reinterpret_cast<void *> (n)));
+  return static_cast<decl_node> (mcStack_replace (stk, reinterpret_cast <void *> (n)));
   /* static analysis guarentees a RETURN statement will be used before here.  */
   __builtin_unreachable ();
 }
@@ -2593,7 +2593,7 @@ static bool isQualident (decl_node n)
 
 static void startWith (decl_node n)
 {
-  n = static_cast<decl_node> (mcStack_push (withStk, reinterpret_cast<void *> (n)));
+  n = static_cast<decl_node> (mcStack_push (withStk, reinterpret_cast <void *> (n)));
 }
 
 
@@ -2645,7 +2645,7 @@ static decl_node lookupWithSym (nameKey_Name i)
 
 static decl_node pushStmt (decl_node n)
 {
-  return static_cast<decl_node> (mcStack_push (stmtStk, reinterpret_cast<void *> (n)));
+  return static_cast<decl_node> (mcStack_push (stmtStk, reinterpret_cast <void *> (n)));
   /* static analysis guarentees a RETURN statement will be used before here.  */
   __builtin_unreachable ();
 }
@@ -2682,7 +2682,7 @@ static decl_node peepStmt (void)
 
 static decl_node pushLoop (decl_node n)
 {
-  return static_cast<decl_node> (mcStack_push (loopStk, reinterpret_cast<void *> (n)));
+  return static_cast<decl_node> (mcStack_push (loopStk, reinterpret_cast <void *> (n)));
   /* static analysis guarentees a RETURN statement will be used before here.  */
   __builtin_unreachable ();
 }
@@ -5554,7 +5554,7 @@ static void SubDesignator (mcp5_SetOfStop0 stopset0, mcp5_SetOfStop1 stopset1, m
     {
       ErrorArray ((const char *) "no expression found", 19);
       mcError_flushErrors ();
-      return ;
+      return;
     }
   type = decl_skipType (decl_getType (n));
   if (mcLexBuf_currenttoken == mcReserved_periodtok)
@@ -8569,10 +8569,10 @@ extern "C" bool mcp5_CompilationUnit (void)
   __builtin_unreachable ();
 }
 
-extern "C" void _M2_mcp5_init (__attribute__((unused)) int argc,__attribute__((unused)) char *argv[],__attribute__((unused)) char *envp[])
+extern "C" void _M2_mcp5_init (__attribute__((unused)) int argc, __attribute__((unused)) char *argv[], __attribute__((unused)) char *envp[])
 {
 }
 
-extern "C" void _M2_mcp5_fini (__attribute__((unused)) int argc,__attribute__((unused)) char *argv[],__attribute__((unused)) char *envp[])
+extern "C" void _M2_mcp5_fini (__attribute__((unused)) int argc, __attribute__((unused)) char *argv[], __attribute__((unused)) char *envp[])
 {
 }

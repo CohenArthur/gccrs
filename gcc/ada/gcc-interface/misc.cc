@@ -29,6 +29,8 @@
 #include "coretypes.h"
 #include "target.h"
 #include "tree.h"
+#include "memmodel.h"
+#include "tm_p.h"
 #include "diagnostic.h"
 #include "opts.h"
 #include "alias.h"
@@ -306,14 +308,14 @@ internal_error_function (diagnostic_context *context, const char *msgid,
   emergency_dump_function ();
 
   /* Reset the pretty-printer.  */
-  pp_clear_output_area (context->printer);
+  pp_clear_output_area (context->m_printer);
 
   /* Format the message into the pretty-printer.  */
   text_info tinfo (msgid, ap, errno);
-  pp_format_verbatim (context->printer, &tinfo);
+  pp_format_verbatim (context->m_printer, &tinfo);
 
   /* Extract a (writable) pointer to the formatted text.  */
-  buffer = xstrdup (pp_formatted_text (context->printer));
+  buffer = xstrdup (pp_formatted_text (context->m_printer));
 
   /* Go up to the first newline.  */
   for (p = buffer; *p; p++)
@@ -761,6 +763,19 @@ gnat_type_max_size (const_tree gnu_type)
   return max_size_unit;
 }
 
+/* Return the unit size of TYPE without reusable tail padding.  */
+
+static tree
+gnat_unit_size_without_reusable_padding (tree type)
+{
+  /* The padding of justified modular types can always be reused.  */
+  if (TYPE_JUSTIFIED_MODULAR_P (type))
+    return fold_convert (sizetype,
+			 size_binop (CEIL_DIV_EXPR,
+				     TYPE_ADA_SIZE (type), bitsize_unit_node));
+  return TYPE_SIZE_UNIT (type);
+}
+
 static tree get_array_bit_stride (tree);
 
 /* Provide information in INFO for debug output about the TYPE array type.
@@ -772,7 +787,7 @@ gnat_get_array_descr_info (const_tree const_type,
 {
   tree type = const_cast<tree> (const_type);
   tree first_dimen, dimen;
-  bool is_bit_packed_array, is_array;
+  bool is_array;
   int i;
 
   /* Temporaries created in the first pass and used in the second one for thin
@@ -785,12 +800,7 @@ gnat_get_array_descr_info (const_tree const_type,
   /* If we have an implementation type for a packed array, get the original
      array type.  */
   if (TYPE_IMPL_PACKED_ARRAY_P (type) && TYPE_ORIGINAL_PACKED_ARRAY (type))
-    {
-      is_bit_packed_array = BIT_PACKED_ARRAY_TYPE_P (type);
-      type = TYPE_ORIGINAL_PACKED_ARRAY (type);
-    }
-  else
-    is_bit_packed_array = false;
+    type = TYPE_ORIGINAL_PACKED_ARRAY (type);
 
   /* First pass: gather all information about this array except everything
      related to dimensions.  */
@@ -821,6 +831,14 @@ gnat_get_array_descr_info (const_tree const_type,
       tree array_field = DECL_CHAIN (bounds_field);
       tree array_type = TREE_TYPE (array_field);
 
+      /* Replay the entire processing for array types.  */
+      if (TYPE_CAN_HAVE_DEBUG_TYPE_P (array_type)
+          && TYPE_DEBUG_TYPE (array_type))
+        array_type = TYPE_DEBUG_TYPE (array_type);
+      if (TYPE_IMPL_PACKED_ARRAY_P (array_type)
+          && TYPE_ORIGINAL_PACKED_ARRAY (array_type))
+        array_type = TYPE_ORIGINAL_PACKED_ARRAY (array_type);
+
       /* Shift back the address to get the address of the template.  */
       tree shift_amount
 	= fold_build1 (NEGATE_EXPR, sizetype, byte_position (array_field));
@@ -847,9 +865,7 @@ gnat_get_array_descr_info (const_tree const_type,
   /* If this array has fortran convention, it's arranged in column-major
      order, so our view here has reversed dimensions.  */
   const bool convention_fortran_p = TYPE_CONVENTION_FORTRAN_P (first_dimen);
-
-  if (BIT_PACKED_ARRAY_TYPE_P (first_dimen))
-    is_bit_packed_array = true;
+  const bool is_bit_packed_array = BIT_PACKED_ARRAY_TYPE_P (first_dimen);
 
   /* ??? For row major ordering, we probably want to emit nothing and
      instead specify it as the default in Dw_TAG_compile_unit.  */
@@ -955,7 +971,8 @@ gnat_get_array_descr_info (const_tree const_type,
 
       while (true)
 	{
-	  if (TYPE_DEBUG_TYPE (source_element_type))
+	  if (TYPE_CAN_HAVE_DEBUG_TYPE_P (source_element_type)
+	      && TYPE_DEBUG_TYPE (source_element_type))
 	    source_element_type = TYPE_DEBUG_TYPE (source_element_type);
 	  else if (TYPE_IS_PADDING_P (source_element_type))
 	    source_element_type
@@ -1113,6 +1130,26 @@ must_pass_by_ref (tree gnu_type)
 	  || TYPE_IS_BY_REFERENCE_P (gnu_type)
 	  || (TYPE_SIZE_UNIT (gnu_type)
 	      && TREE_CODE (TYPE_SIZE_UNIT (gnu_type)) != INTEGER_CST));
+}
+
+/* Return the default alignment of a FIELD of TYPE declared in a record or
+   union type as specified by the ABI of the target architecture.  */
+
+unsigned int
+default_field_alignment (tree ARG_UNUSED (field), tree type)
+{
+  /* This is modeled on layout_decl.  */
+  unsigned int align = TYPE_ALIGN (type);
+
+#ifdef BIGGEST_FIELD_ALIGNMENT
+  align = MIN (align, (unsigned int) BIGGEST_FIELD_ALIGNMENT);
+#endif
+
+#ifdef ADJUST_FIELD_ALIGN
+  align = ADJUST_FIELD_ALIGN (field, type, align);
+#endif
+
+  return align;
 }
 
 /* This function is called by the front-end to enumerate all the supported
@@ -1408,6 +1445,8 @@ const struct scoped_attribute_specs *const gnat_attribute_table[] =
 #define LANG_HOOKS_TYPE_FOR_SIZE	gnat_type_for_size
 #undef  LANG_HOOKS_TYPES_COMPATIBLE_P
 #define LANG_HOOKS_TYPES_COMPATIBLE_P	gnat_types_compatible_p
+#undef  LANG_HOOKS_UNIT_SIZE_WITHOUT_REUSABLE_PADDING
+#define LANG_HOOKS_UNIT_SIZE_WITHOUT_REUSABLE_PADDING gnat_unit_size_without_reusable_padding
 #undef  LANG_HOOKS_GET_ARRAY_DESCR_INFO
 #define LANG_HOOKS_GET_ARRAY_DESCR_INFO	gnat_get_array_descr_info
 #undef  LANG_HOOKS_GET_SUBRANGE_BOUNDS
@@ -1434,7 +1473,7 @@ const struct scoped_attribute_specs *const gnat_attribute_table[] =
 #define LANG_HOOKS_DEEP_UNSHARING	true
 #undef  LANG_HOOKS_CUSTOM_FUNCTION_DESCRIPTORS
 #define LANG_HOOKS_CUSTOM_FUNCTION_DESCRIPTORS true
-#undef LANG_HOOKS_GET_SARIF_SOURCE_LANGUAGE
+#undef  LANG_HOOKS_GET_SARIF_SOURCE_LANGUAGE
 #define LANG_HOOKS_GET_SARIF_SOURCE_LANGUAGE gnat_get_sarif_source_language
 
 struct lang_hooks lang_hooks = LANG_HOOKS_INITIALIZER;

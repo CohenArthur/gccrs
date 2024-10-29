@@ -1336,6 +1336,12 @@ compare_tree_sccs_1 (tree t1, tree t2, tree **map)
 		   TREE_STRING_LENGTH (t1)) != 0)
       return false;
 
+  if (code == RAW_DATA_CST)
+    if (RAW_DATA_LENGTH (t1) != RAW_DATA_LENGTH (t2)
+	|| memcmp (RAW_DATA_POINTER (t1), RAW_DATA_POINTER (t2),
+		   RAW_DATA_LENGTH (t1)) != 0)
+      return false;
+
   if (code == OMP_CLAUSE)
     {
       compare_values (OMP_CLAUSE_CODE);
@@ -2177,6 +2183,13 @@ lto_section_with_id (const char *name, unsigned HOST_WIDE_INT *id)
 
   if (strncmp (name, section_name_prefix, strlen (section_name_prefix)))
     return 0;
+
+  if (flag_ltrans)
+    {
+      *id = 0;
+      return 1;
+    }
+
   s = strrchr (name, '.');
   if (!s)
     return 0;

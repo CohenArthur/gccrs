@@ -377,6 +377,7 @@ match_data_constant (gfc_expr **result)
   gfc_expr *expr;
   match m;
   locus old_loc;
+  gfc_symtree *symtree;
 
   m = gfc_match_literal_constant (&expr, 1);
   if (m == MATCH_YES)
@@ -437,8 +438,10 @@ match_data_constant (gfc_expr **result)
   if (m != MATCH_YES)
     return m;
 
-  if (gfc_find_symbol (name, NULL, 1, &sym))
+  if (gfc_find_sym_tree (name, NULL, 1, &symtree))
     return MATCH_ERROR;
+
+  sym = symtree->n.sym;
 
   if (sym && sym->attr.generic)
     dt_sym = gfc_find_dt_in_generic (sym);
@@ -453,7 +456,7 @@ match_data_constant (gfc_expr **result)
       return MATCH_ERROR;
     }
   else if (dt_sym && gfc_fl_struct (dt_sym->attr.flavor))
-    return gfc_match_structure_constructor (dt_sym, result);
+    return gfc_match_structure_constructor (dt_sym, symtree, result);
 
   /* Check to see if the value is an initialization array expression.  */
   if (sym->value->expr_type == EXPR_ARRAY)
@@ -913,6 +916,7 @@ match_clist_expr (gfc_expr **result, gfc_typespec *ts, gfc_array_spec *as)
 
       /* Set the rank/shape to match the LHS as auto-reshape is implied. */
       expr->rank = as->rank;
+      expr->corank = as->corank;
       expr->shape = gfc_get_shape (as->rank);
       for (int i = 0; i < as->rank; ++i)
 	spec_dimen_size (as, i, &expr->shape[i]);
@@ -1573,11 +1577,11 @@ gfc_verify_c_interop_param (gfc_symbol *sym)
 	      && sym->ts.type == BT_DERIVED
 	      && gfc_has_default_initializer (sym->ts.u.derived))
 	    {
-	      gfc_error ("Default-initialized %s dummy argument %qs "
-			 "at %L is not permitted in BIND(C) procedure %qs",
-			 (sym->attr.pointer ? "pointer" : "allocatable"),
-			 sym->name, &sym->declared_at,
-			 sym->ns->proc_name->name);
+	      gfc_error ("Default-initialized dummy argument %qs with %s "
+			 "attribute at %L is not permitted in BIND(C) "
+			 "procedure %qs", sym->name,
+			 (sym->attr.pointer ? "POINTER" : "ALLOCATABLE"),
+			 &sym->declared_at, sym->ns->proc_name->name);
 	      retval = false;
 	    }
 
@@ -1714,7 +1718,7 @@ gfc_verify_c_interop_param (gfc_symbol *sym)
 /* Function called by variable_decl() that adds a name to the symbol table.  */
 
 static bool
-build_sym (const char *name, gfc_charlen *cl, bool cl_deferred,
+build_sym (const char *name, int elem, gfc_charlen *cl, bool cl_deferred,
 	   gfc_array_spec **as, locus *var_locus)
 {
   symbol_attribute attr;
@@ -1733,15 +1737,14 @@ build_sym (const char *name, gfc_charlen *cl, bool cl_deferred,
     {
       gfc_symtree *s = gfc_get_unique_symtree (gfc_current_ns);
       s->n.sym = st->n.sym;
-      sym = gfc_new_symbol (name, gfc_current_ns);
-
+      sym = gfc_new_symbol (name, gfc_current_ns, var_locus);
 
       st->n.sym = sym;
       sym->refs++;
       gfc_set_sym_referenced (sym);
     }
   /* ...Otherwise generate a new symtree and new symbol.  */
-  else if (gfc_get_symbol (name, NULL, &sym))
+  else if (gfc_get_symbol (name, NULL, &sym, var_locus))
     return false;
 
   /* Check if the name has already been defined as a type.  The
@@ -1779,7 +1782,10 @@ build_sym (const char *name, gfc_charlen *cl, bool cl_deferred,
 
   if (sym->ts.type == BT_CHARACTER)
     {
-      sym->ts.u.cl = cl;
+      if (elem > 1)
+	sym->ts.u.cl = gfc_new_charlen (sym->ns, cl);
+      else
+	sym->ts.u.cl = cl;
       sym->ts.deferred = cl_deferred;
     }
 
@@ -2275,6 +2281,7 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
 	      mpz_clear (size);
 	    }
 	  init->rank = sym->as->rank;
+	  init->corank = sym->as->corank;
 	}
 
       sym->value = init;
@@ -2629,6 +2636,7 @@ variable_decl (int elem)
      name to be '%FILL' which gives it an anonymous (inaccessible) name.  */
   m = MATCH_NO;
   gfc_gobble_whitespace ();
+  var_locus = gfc_current_locus;
   c = gfc_peek_ascii_char ();
   if (c == '%')
     {
@@ -2670,8 +2678,6 @@ variable_decl (int elem)
 	goto cleanup;
     }
 
-  var_locus = gfc_current_locus;
-
   /* Now we could see the optional array spec. or character length.  */
   m = gfc_match_array_spec (&as, true, true);
   if (m == MATCH_ERROR)
@@ -2686,6 +2692,8 @@ variable_decl (int elem)
       goto cleanup;
     }
 
+   var_locus = gfc_get_location_range (NULL, 0, &var_locus, 1,
+				       &gfc_current_locus);
   if (flag_cray_pointer)
     cp_as = gfc_copy_array_spec (as);
 
@@ -2877,9 +2885,9 @@ variable_decl (int elem)
       if (sym != NULL && (sym->attr.dummy || sym->attr.result))
 	{
 	  m = MATCH_ERROR;
-	  gfc_error ("%qs at %C is a redefinition of the declaration "
+	  gfc_error ("%qs at %L is a redefinition of the declaration "
 		     "in the corresponding interface for MODULE "
-		     "PROCEDURE %qs", sym->name,
+		     "PROCEDURE %qs", sym->name, &var_locus,
 		     gfc_current_ns->proc_name->name);
 	  goto cleanup;
 	}
@@ -2888,7 +2896,8 @@ variable_decl (int elem)
   /* %FILL components may not have initializers.  */
   if (startswith (name, "%FILL") && gfc_match_eos () != MATCH_YES)
     {
-      gfc_error ("%qs entity cannot have an initializer at %C", "%FILL");
+      gfc_error ("%qs entity cannot have an initializer at %L", "%FILL",
+		 &var_locus);
       m = MATCH_ERROR;
       goto cleanup;
     }
@@ -2913,7 +2922,7 @@ variable_decl (int elem)
 	    {
 	      if (sym->as != NULL)
 		{
-		  gfc_error ("Duplicate array spec for Cray pointee at %C");
+		  gfc_error ("Duplicate array spec for Cray pointee at %L", &var_locus);
 		  gfc_free_array_spec (cp_as);
 		  m = MATCH_ERROR;
 		  goto cleanup;
@@ -2961,7 +2970,7 @@ variable_decl (int elem)
      create a symbol for those yet.  If we fail to create the symbol,
      bail out.  */
   if (!gfc_comp_struct (gfc_current_state ())
-      && !build_sym (name, cl, cl_deferred, &as, &var_locus))
+      && !build_sym (name, elem, cl, cl_deferred, &as, &var_locus))
     {
       m = MATCH_ERROR;
       goto cleanup;
@@ -4338,6 +4347,17 @@ gfc_match_decl_type_spec (gfc_typespec *ts, int implicit_flag)
       ts->type = BT_INTEGER;
       ts->kind = gfc_default_integer_kind;
       goto get_kind;
+    }
+
+  if (flag_unsigned)
+    {
+      if ((matched_type && strcmp ("unsigned", name) == 0)
+	  || (!matched_type && gfc_match (" unsigned") == MATCH_YES))
+	{
+	  ts->type = BT_UNSIGNED;
+	  ts->kind = gfc_default_integer_kind;
+	  goto get_kind;
+	}
     }
 
   if ((matched_type && strcmp ("character", name) == 0)
@@ -6681,6 +6701,7 @@ gfc_match_formal_arglist (gfc_symbol *progname, int st_flag,
 
   for (;;)
     {
+      gfc_gobble_whitespace ();
       if (gfc_match_char ('*') == MATCH_YES)
 	{
 	  sym = NULL;
@@ -6695,6 +6716,7 @@ gfc_match_formal_arglist (gfc_symbol *progname, int st_flag,
 	}
       else
 	{
+	  locus loc = gfc_current_locus;
 	  m = gfc_match_name (name);
 	  if (m != MATCH_YES)
 	    {
@@ -6702,11 +6724,12 @@ gfc_match_formal_arglist (gfc_symbol *progname, int st_flag,
 		gfc_error_now ("A parameter name is required at %C");
 	      goto cleanup;
 	    }
+	  loc = gfc_get_location_range (NULL, 0, &loc, 1, &gfc_current_locus);
 
-	  if (!typeparam && gfc_get_symbol (name, NULL, &sym))
+	  if (!typeparam && gfc_get_symbol (name, NULL, &sym, &loc))
 	    goto cleanup;
 	  else if (typeparam
-		   && gfc_get_symbol (name, progname->f2k_derived, &sym))
+		   && gfc_get_symbol (name, progname->f2k_derived, &sym, &loc))
 	    goto cleanup;
 	}
 
@@ -8022,6 +8045,7 @@ gfc_match_subroutine (void)
   if (m != MATCH_YES)
     return m;
 
+  loc = gfc_current_locus;
   m = gfc_match ("subroutine% %n", name);
   if (m != MATCH_YES)
     return m;
@@ -8031,7 +8055,8 @@ gfc_match_subroutine (void)
 
   /* Set declared_at as it might point to, e.g., a PUBLIC statement, if
      the symbol existed before.  */
-  sym->declared_at = gfc_current_locus;
+  sym->declared_at = gfc_get_location_range (NULL, 0, &loc, 1,
+					     &gfc_current_locus);
 
   if (current_attr.module_procedure)
     sym->attr.module_procedure = 1;
@@ -10939,7 +10964,7 @@ enumerator_decl (void)
   /* OK, we've successfully matched the declaration.  Now put the
      symbol in the current namespace. If we fail to create the symbol,
      bail out.  */
-  if (!build_sym (name, NULL, false, &as, &var_locus))
+  if (!build_sym (name, 1, NULL, false, &as, &var_locus))
     {
       m = MATCH_ERROR;
       goto cleanup;

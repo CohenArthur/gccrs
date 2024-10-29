@@ -55,6 +55,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define TARGET_APX_PUSH2POP2 (ix86_apx_features & apx_push2pop2)
 #define TARGET_APX_NDD (ix86_apx_features & apx_ndd)
 #define TARGET_APX_PPX (ix86_apx_features & apx_ppx)
+#define TARGET_APX_NF (ix86_apx_features & apx_nf)
+#define TARGET_APX_CCMP (ix86_apx_features & apx_ccmp)
+#define TARGET_APX_ZU (ix86_apx_features & apx_zu)
 
 #include "config/vxworks-dummy.h"
 
@@ -235,7 +238,7 @@ extern const struct processor_costs *ix86_cost;
 extern const struct processor_costs ix86_size_cost;
 
 #define ix86_cur_cost() \
-  (optimize_insn_for_size_p () ? &ix86_size_cost: ix86_cost)
+  (optimize_insn_for_size_p () ? &ix86_size_cost : ix86_cost)
 
 /* Macros used in the machine description to test the flags.  */
 
@@ -306,8 +309,10 @@ extern unsigned char ix86_tune_features[X86_TUNE_LAST];
 #define TARGET_ZERO_EXTEND_WITH_AND \
 	ix86_tune_features[X86_TUNE_ZERO_EXTEND_WITH_AND]
 #define TARGET_UNROLL_STRLEN	ix86_tune_features[X86_TUNE_UNROLL_STRLEN]
-#define TARGET_BRANCH_PREDICTION_HINTS \
-	ix86_tune_features[X86_TUNE_BRANCH_PREDICTION_HINTS]
+#define TARGET_BRANCH_PREDICTION_HINTS_NOT_TAKEN \
+	ix86_tune_features[X86_TUNE_BRANCH_PREDICTION_HINTS_NOT_TAKEN]
+#define TARGET_BRANCH_PREDICTION_HINTS_TAKEN \
+	ix86_tune_features[X86_TUNE_BRANCH_PREDICTION_HINTS_TAKEN]
 #define TARGET_DOUBLE_WITH_ADD	ix86_tune_features[X86_TUNE_DOUBLE_WITH_ADD]
 #define TARGET_USE_SAHF		ix86_tune_features[X86_TUNE_USE_SAHF]
 #define TARGET_MOVX		ix86_tune_features[X86_TUNE_MOVX]
@@ -425,6 +430,8 @@ extern unsigned char ix86_tune_features[X86_TUNE_LAST];
 	ix86_tune_features[X86_TUNE_FUSE_CMP_AND_BRANCH_SOFLAGS]
 #define TARGET_FUSE_ALU_AND_BRANCH \
 	ix86_tune_features[X86_TUNE_FUSE_ALU_AND_BRANCH]
+#define TARGET_FUSE_MOV_AND_ALU \
+	ix86_tune_features[X86_TUNE_FUSE_MOV_AND_ALU]
 #define TARGET_OPT_AGU ix86_tune_features[X86_TUNE_OPT_AGU]
 #define TARGET_AVOID_LEA_FOR_ADDR \
 	ix86_tune_features[X86_TUNE_AVOID_LEA_FOR_ADDR]
@@ -432,6 +439,8 @@ extern unsigned char ix86_tune_features[X86_TUNE_LAST];
 	ix86_tune_features[X86_TUNE_SOFTWARE_PREFETCHING_BENEFICIAL]
 #define TARGET_AVX256_SPLIT_REGS \
 	ix86_tune_features[X86_TUNE_AVX256_SPLIT_REGS]
+#define TARGET_AVX256_AVOID_VEC_PERM \
+	ix86_tune_features[X86_TUNE_AVX256_AVOID_VEC_PERM]
 #define TARGET_AVX512_SPLIT_REGS \
 	ix86_tune_features[X86_TUNE_AVX512_SPLIT_REGS]
 #define TARGET_GENERAL_REGS_SSE_SPILL \
@@ -447,8 +456,6 @@ extern unsigned char ix86_tune_features[X86_TUNE_LAST];
 #define TARGET_ONE_IF_CONV_INSN \
 	ix86_tune_features[X86_TUNE_ONE_IF_CONV_INSN]
 #define TARGET_AVOID_MFENCE ix86_tune_features[X86_TUNE_AVOID_MFENCE]
-#define TARGET_EMIT_VZEROUPPER \
-	ix86_tune_features[X86_TUNE_EMIT_VZEROUPPER]
 #define TARGET_EXPAND_ABS \
 	ix86_tune_features[X86_TUNE_EXPAND_ABS]
 #define TARGET_V2DF_REDUCTION_PREFER_HADDPD \
@@ -457,6 +464,8 @@ extern unsigned char ix86_tune_features[X86_TUNE_LAST];
 	ix86_tune_features[X86_TUNE_DEST_FALSE_DEP_FOR_GLC]
 #define TARGET_SLOW_STC ix86_tune_features[X86_TUNE_SLOW_STC]
 #define TARGET_USE_RCR ix86_tune_features[X86_TUNE_USE_RCR]
+#define TARGET_SSE_MOVCC_USE_BLENDV \
+	ix86_tune_features[X86_TUNE_SSE_MOVCC_USE_BLENDV]
 
 /* Feature tests against the various architecture variations.  */
 enum ix86_arch_indices {
@@ -677,10 +686,6 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
 #define LONG_TYPE_SIZE (TARGET_X32 ? 32 : BITS_PER_WORD)
 #define POINTER_SIZE (TARGET_X32 ? 32 : BITS_PER_WORD)
 #define LONG_LONG_TYPE_SIZE 64
-#define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 64
-#define LONG_DOUBLE_TYPE_SIZE \
-  (TARGET_LONG_DOUBLE_64 ? 64 : (TARGET_LONG_DOUBLE_128 ? 128 : 80))
 
 #define WIDEST_HARDWARE_FP_SIZE 80
 
@@ -898,7 +903,10 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
    and give entire struct the alignment of an int.  */
 /* Required on the 386 since it doesn't have bit-field insns.  */
 #define PCC_BITFIELD_TYPE_MATTERS 1
-
+
+#define VECTOR_STORE_FLAG_VALUE(MODE) \
+  (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT ? constm1_rtx : NULL_RTX)
+
 /* Standard register usage.  */
 
 /* This processor has special stack-like registers.  See reg-stack.cc
@@ -2090,9 +2098,9 @@ do {							\
 #define DEBUGGER_REGNO(N) \
   (TARGET_64BIT ? debugger64_register_map[(N)] : debugger_register_map[(N)])
 
-extern int const debugger_register_map[FIRST_PSEUDO_REGISTER];
-extern int const debugger64_register_map[FIRST_PSEUDO_REGISTER];
-extern int const svr4_debugger_register_map[FIRST_PSEUDO_REGISTER];
+extern unsigned int const debugger_register_map[FIRST_PSEUDO_REGISTER];
+extern unsigned int const debugger64_register_map[FIRST_PSEUDO_REGISTER];
+extern unsigned int const svr4_debugger_register_map[FIRST_PSEUDO_REGISTER];
 
 /* Before the prologue, RA is at 0(%esp).  */
 #define INCOMING_RETURN_ADDR_RTX \
@@ -2262,6 +2270,8 @@ extern int const svr4_debugger_register_map[FIRST_PSEUDO_REGISTER];
 /* Which processor to tune code generation for.  These must be in sync
    with processor_cost_table in i386-options.cc.  */
 
+#define GOT_ALIAS_SET ix86_GOT_alias_set ()
+
 enum processor_type
 {
   PROCESSOR_GENERIC = 0,
@@ -2284,8 +2294,6 @@ enum processor_type
   PROCESSOR_SIERRAFOREST,
   PROCESSOR_GRANDRIDGE,
   PROCESSOR_CLEARWATERFOREST,
-  PROCESSOR_KNL,
-  PROCESSOR_KNM,
   PROCESSOR_SKYLAKE,
   PROCESSOR_SKYLAKE_AVX512,
   PROCESSOR_CANNONLAKE,
@@ -2305,6 +2313,7 @@ enum processor_type
   PROCESSOR_INTEL,
   PROCESSOR_LUJIAZUI,
   PROCESSOR_YONGFENG,
+  PROCESSOR_SHIJIDADAO,
   PROCESSOR_GEODE,
   PROCESSOR_K6,
   PROCESSOR_ATHLON,
@@ -2320,6 +2329,7 @@ enum processor_type
   PROCESSOR_ZNVER2,
   PROCESSOR_ZNVER3,
   PROCESSOR_ZNVER4,
+  PROCESSOR_ZNVER5,
   PROCESSOR_max
 };
 
@@ -2394,8 +2404,6 @@ constexpr wide_int_bitmask PTA_SAPPHIRERAPIDS = PTA_ICELAKE_SERVER | PTA_MOVDIRI
   | PTA_MOVDIR64B | PTA_ENQCMD | PTA_CLDEMOTE | PTA_PTWRITE | PTA_WAITPKG
   | PTA_SERIALIZE | PTA_TSXLDTRK | PTA_AMX_TILE | PTA_AMX_INT8 | PTA_AMX_BF16
   | PTA_UINTR | PTA_AVXVNNI | PTA_AVX512FP16 | PTA_AVX512BF16;
-constexpr wide_int_bitmask PTA_KNL = PTA_BROADWELL | PTA_AVX512PF
-  | PTA_AVX512ER | PTA_AVX512F | PTA_AVX512CD | PTA_PREFETCHWT1;
 constexpr wide_int_bitmask PTA_BONNELL = PTA_CORE2 | PTA_MOVBE;
 constexpr wide_int_bitmask PTA_SILVERMONT = PTA_WESTMERE | PTA_MOVBE
   | PTA_RDRND | PTA_PRFCHW;
@@ -2425,8 +2433,18 @@ constexpr wide_int_bitmask PTA_CLEARWATERFOREST = PTA_SIERRAFOREST
   | PTA_AVXVNNIINT16 | PTA_SHA512 | PTA_SM3 | PTA_SM4 | PTA_USER_MSR
   | PTA_PREFETCHI;
 constexpr wide_int_bitmask PTA_PANTHERLAKE = PTA_ARROWLAKE_S | PTA_PREFETCHI;
-constexpr wide_int_bitmask PTA_KNM = PTA_KNL | PTA_AVX5124VNNIW
-  | PTA_AVX5124FMAPS | PTA_AVX512VPOPCNTDQ;
+
+constexpr wide_int_bitmask PTA_BDVER1 = PTA_64BIT | PTA_MMX | PTA_SSE
+  | PTA_SSE2 | PTA_SSE3 | PTA_SSE4A | PTA_CX16 | PTA_ABM | PTA_SSSE3
+  | PTA_SSE4_1 | PTA_SSE4_2 | PTA_AES | PTA_PCLMUL | PTA_AVX | PTA_FMA4
+  | PTA_XOP | PTA_LWP | PTA_PRFCHW | PTA_FXSR | PTA_XSAVE;
+constexpr wide_int_bitmask PTA_BDVER2 = PTA_BDVER1 | PTA_BMI | PTA_TBM
+  | PTA_F16C | PTA_FMA;
+constexpr wide_int_bitmask PTA_BDVER3 = PTA_BDVER2 | PTA_XSAVEOPT
+  | PTA_FSGSBASE;
+constexpr wide_int_bitmask PTA_BDVER4 = PTA_BDVER3 | PTA_AVX2 | PTA_BMI2
+  | PTA_RDRND | PTA_MOVBE | PTA_MWAITX;
+
 constexpr wide_int_bitmask PTA_ZNVER1 = PTA_64BIT | PTA_MMX | PTA_SSE | PTA_SSE2
   | PTA_SSE3 | PTA_SSE4A | PTA_CX16 | PTA_ABM | PTA_SSSE3 | PTA_SSE4_1
   | PTA_SSE4_2 | PTA_AES | PTA_PCLMUL | PTA_AVX | PTA_AVX2 | PTA_BMI | PTA_BMI2
@@ -2442,14 +2460,23 @@ constexpr wide_int_bitmask PTA_ZNVER4 = PTA_ZNVER3 | PTA_AVX512F | PTA_AVX512DQ
   | PTA_AVX512IFMA | PTA_AVX512CD | PTA_AVX512BW | PTA_AVX512VL
   | PTA_AVX512BF16 | PTA_AVX512VBMI | PTA_AVX512VBMI2 | PTA_GFNI
   | PTA_AVX512VNNI | PTA_AVX512BITALG | PTA_AVX512VPOPCNTDQ | PTA_EVEX512;
+constexpr wide_int_bitmask PTA_ZNVER5 = PTA_ZNVER4 | PTA_AVXVNNI
+  | PTA_MOVDIRI | PTA_MOVDIR64B | PTA_AVX512VP2INTERSECT | PTA_PREFETCHI;
 
-constexpr wide_int_bitmask PTA_LUJIAZUI = PTA_64BIT | PTA_MMX | PTA_SSE | PTA_SSE2
-  | PTA_SSE3 | PTA_CX16 | PTA_ABM | PTA_SSSE3 | PTA_SSE4_1 | PTA_SSE4_2 | PTA_AES
-  | PTA_PCLMUL | PTA_BMI | PTA_BMI2 | PTA_PRFCHW | PTA_FXSR | PTA_XSAVE | PTA_XSAVEOPT
-  | PTA_FSGSBASE | PTA_RDRND | PTA_MOVBE | PTA_ADX | PTA_RDSEED | PTA_POPCNT;
+constexpr wide_int_bitmask PTA_BTVER1 = PTA_64BIT | PTA_MMX | PTA_SSE
+  | PTA_SSE2 | PTA_SSE3 | PTA_SSSE3 | PTA_SSE4A | PTA_ABM | PTA_CX16
+  | PTA_PRFCHW | PTA_FXSR | PTA_XSAVE;
+constexpr wide_int_bitmask PTA_BTVER2 = PTA_BTVER1 | PTA_SSE4_1 | PTA_SSE4_2
+  | PTA_AES | PTA_PCLMUL | PTA_AVX | PTA_BMI | PTA_F16C | PTA_MOVBE
+  | PTA_XSAVEOPT;
 
-constexpr wide_int_bitmask PTA_YONGFENG = PTA_LUJIAZUI | PTA_AVX | PTA_AVX2 | PTA_F16C
-  | PTA_FMA | PTA_SHA | PTA_LZCNT;
+constexpr wide_int_bitmask PTA_LUJIAZUI = PTA_64BIT | PTA_MMX | PTA_SSE
+  | PTA_SSE2 | PTA_SSE3 | PTA_CX16 | PTA_ABM | PTA_SSSE3 | PTA_SSE4_1
+  | PTA_SSE4_2 | PTA_AES | PTA_PCLMUL | PTA_BMI | PTA_BMI2 | PTA_PRFCHW
+  | PTA_FXSR | PTA_XSAVE | PTA_XSAVEOPT | PTA_FSGSBASE | PTA_RDRND | PTA_MOVBE
+  | PTA_ADX | PTA_RDSEED | PTA_POPCNT;
+constexpr wide_int_bitmask PTA_YONGFENG = PTA_LUJIAZUI | PTA_AVX | PTA_AVX2
+  | PTA_F16C | PTA_FMA | PTA_SHA | PTA_LZCNT;
 
 #ifndef GENERATOR_FILE
 
@@ -2696,6 +2723,10 @@ struct GTY(()) machine_frame_state
      the frame pointer should be used for offsets <= sp_realigned_fp_last.
      The flags realigned and sp_realigned are mutually exclusive.  */
   BOOL_BITFIELD sp_realigned : 1;
+
+  /* When APX_PPX used in prologue, force epilogue to emit
+  popp instead of move and leave.  */
+  BOOL_BITFIELD apx_ppx_used : 1;
 
   /* If sp_realigned is set, this is the last valid offset from the CFA
      that can be used for access with the frame pointer.  */

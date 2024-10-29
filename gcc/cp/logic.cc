@@ -70,7 +70,7 @@ struct clause
     m_current = m_terms.begin ();
   }
 
-  /* Create a copy of the current term. The current
+  /* Create a copy of the current term.  The current
      iterator is set to point to the same position in the
      copied list of terms.  */
 
@@ -97,7 +97,7 @@ struct clause
 
   /* Replaces the current term at position ITER with T.  If
      T is an atomic constraint that already appears in the
-     clause, remove but do not replace ITER. Returns a pair
+     clause, remove but do not replace ITER.  Returns a pair
      containing an iterator to the replace object or past
      the erased object and a boolean value which is true if
      an object was erased.  */
@@ -114,24 +114,23 @@ struct clause
     return std::make_pair (iter, false);
   }
 
-  /* Inserts T before ITER in the list of terms.  If T has 
-     already is an atomic constraint that already appears in
-     the clause, no action is taken, and the current iterator
-     is returned. Returns a pair of an iterator to the inserted
-     object or ITER if no insertion occurred and a boolean
+  /* Inserts T before ITER in the list of terms.  If T is an atomic
+     constraint that already appears in the clause, no action is taken,
+     and the current iterator is returned.  Returns a pair of an iterator
+     to the inserted object or ITER if no insertion occurred and a boolean
      value which is true if an object was inserted.  */
 
   std::pair<iterator, bool> insert (iterator iter, tree t)
   {
     if (TREE_CODE (t) == ATOMIC_CONSTR)
-    {
-      if (m_set.add (t))
-	return std::make_pair (iter, false);
-    }
+      {
+	if (m_set.add (t))
+	  return std::make_pair (iter, false);
+      }
     return std::make_pair (m_terms.insert (iter, t), true);
   }
 
-  /* Replaces the current term with T. In the case where the
+  /* Replaces the current term with T.  In the case where the
      current term is erased (because T is redundant), update
      the position of the current term to the next term.  */
 
@@ -144,7 +143,7 @@ struct clause
 
   void replace (tree t1, tree t2)
   {
-    /* Replace the current term with t1. Ensure that iter points
+    /* Replace the current term with t1.  Ensure that iter points
        to the term before which t2 will be inserted.  Update the
        current term as needed.  */
     std::pair<iterator, bool> rep = replace (m_current, t1);
@@ -153,7 +152,7 @@ struct clause
     else
       ++rep.first;
 
-    /* Insert the t2. Make this the current term if we erased
+    /* Insert the t2.  Make this the current term if we erased
        the prior term.  */
     std::pair<iterator, bool> ins = insert (rep.first, t2);
     if (rep.second && ins.second)
@@ -211,8 +210,8 @@ struct clause
 
 
 /* A proof state owns a list of goals and tracks the
-   current sub-goal. The class also provides facilities
-   for managing subgoals and constructing term lists. */
+   current sub-goal.  The class also provides facilities
+   for managing subgoals and constructing term lists.  */
 
 struct formula
 {
@@ -241,7 +240,7 @@ struct formula
     ++m_current;
   }
 
-  /* Insert a copy of clause into the formula. This corresponds
+  /* Insert a copy of clause into the formula.  This corresponds
      to a distribution of one logical operation over the other.  */
 
   clause& branch ()
@@ -300,14 +299,14 @@ struct formula
 void
 debug (clause& c)
 {
-  for (clause::iterator i = c.begin(); i != c.end(); ++i)
+  for (clause::iterator i = c.begin (); i != c.end (); ++i)
     verbatim ("  # %E", *i);
 }
 
 void
 debug (formula& f)
 {
-  for (formula::iterator i = f.begin(); i != f.end(); ++i)
+  for (formula::iterator i = f.begin (); i != f.end (); ++i)
     {
       /* Format punctuators via %s to avoid -Wformat-diag.  */
       verbatim ("%s", "(((");
@@ -316,7 +315,7 @@ debug (formula& f)
     }
 }
 
-/* The logical rules used to analyze a logical formula. The
+/* The logical rules used to analyze a logical formula.  The
    "left" and "right" refer to the position of formula in a
    sequent (as in sequent calculus).  */
 
@@ -346,9 +345,9 @@ atomic_p (tree t)
 }
 
 /* Recursively count the number of clauses produced when converting T
-   to DNF. Returns a pair containing the number of clauses and a bool
+   to DNF.  Returns a pair containing the number of clauses and a bool
    value signifying that the tree would be rewritten as a result of
-   distributing. In general, a conjunction for which this flag is set
+   distributing.  In general, a conjunction for which this flag is set
    is considered a disjunction for the purpose of counting.  */
 
 static std::pair<int, bool>
@@ -369,10 +368,10 @@ dnf_size_r (tree t)
 
   if (disjunction_p (t))
     {
-      /* Matches constraints of the form P \/ Q. Disjunctions contribute
+      /* Matches constraints of the form P \/ Q.  Disjunctions contribute
 	 linearly to the number of constraints.  When both P and Q are
-	 disjunctions, clauses are added. When only one of P and Q
-	 is a disjunction, an additional clause is produced. When neither
+	 disjunctions, clauses are added.  When only one of P and Q
+	 is a disjunction, an additional clause is produced.  When neither
 	 P nor Q are disjunctions, two clauses are produced.  */
       if (disjunction_p (lhs))
 	{
@@ -411,10 +410,10 @@ dnf_size_r (tree t)
   else /* conjunction_p (t)  */
     {
       /* Matches constraints of the form P /\ Q, possibly resulting
-         in the distribution of one side over the other. When both
+	 in the distribution of one side over the other.  When both
          P and Q are disjunctions, the number of clauses are multiplied.
 	 When only one of P and Q is a disjunction, the number of
-         clauses are added. Otherwise, neither side is a disjunction and
+	 clauses are added.  Otherwise, neither side is a disjunction and
          no clauses are created.  */
       if (disjunction_p (lhs))
 	{
@@ -454,9 +453,9 @@ dnf_size_r (tree t)
 }
 
 /* Recursively count the number of clauses produced when converting T
-   to CNF. Returns a pair containing the number of clauses and a bool
+   to CNF.  Returns a pair containing the number of clauses and a bool
    value signifying that the tree would be rewritten as a result of
-   distributing. In general, a disjunction for which this flag is set
+   distributing.  In general, a disjunction for which this flag is set
    is considered a conjunction for the purpose of counting.  */
 
 static std::pair<int, bool>
@@ -478,10 +477,10 @@ cnf_size_r (tree t)
   if (disjunction_p (t))
     {
       /* Matches constraints of the form P \/ Q, possibly resulting
-         in the distribution of one side over the other. When both
+	 in the distribution of one side over the other.  When both
          P and Q are conjunctions, the number of clauses are multiplied.
 	 When only one of P and Q is a conjunction, the number of
-         clauses are added. Otherwise, neither side is a conjunction and
+	 clauses are added.  Otherwise, neither side is a conjunction and
          no clauses are created.  */
       if (disjunction_p (lhs))
 	{
@@ -518,10 +517,10 @@ cnf_size_r (tree t)
     }
   else /* conjunction_p (t)  */
     {
-      /* Matches constraints of the form P /\ Q. Conjunctions contribute
+      /* Matches constraints of the form P /\ Q.  Conjunctions contribute
 	 linearly to the number of constraints.  When both P and Q are
-	 conjunctions, clauses are added. When only one of P and Q
-	 is a conjunction, an additional clause is produced. When neither
+	 conjunctions, clauses are added.  When only one of P and Q
+	 is a conjunction, an additional clause is produced.  When neither
 	 P nor Q are conjunctions, two clauses are produced.  */
       if (disjunction_p (lhs))
 	{
@@ -560,7 +559,7 @@ cnf_size_r (tree t)
 }
 
 /* Count the number conjunctive clauses that would be created
-   when rewriting T to DNF. */
+   when rewriting T to DNF.  */
 
 static int
 dnf_size (tree t)
@@ -571,7 +570,7 @@ dnf_size (tree t)
 
 
 /* Count the number disjunctive clauses that would be created
-   when rewriting T to CNF. */
+   when rewriting T to CNF.  */
 
 static int
 cnf_size (tree t)
@@ -592,7 +591,7 @@ replace_term (clause& c, tree t)
 }
 
 /* Create a new clause in the formula by copying the current
-   clause. In the current clause, the term at CI is replaced
+   clause.  In the current clause, the term at CI is replaced
    by the first operand, and in the new clause, it is replaced
    by the second.  */
 
@@ -636,19 +635,19 @@ decompose_atom (clause& c)
 }
 
 /* Decompose a term of clause C (in formula F) according to the
-   logical rules R. */
+   logical rules R.  */
 
 void
 decompose_term (formula& f, clause& c, tree t, rules r)
 {
   switch (TREE_CODE (t))
     {
-      case CONJ_CONSTR:
-        return decompose_conjuntion (f, c, t, r);
-      case DISJ_CONSTR:
-	return decompose_disjunction (f, c, t, r);
-      default:
-	return decompose_atom (c);
+    case CONJ_CONSTR:
+      return decompose_conjuntion (f, c, t, r);
+    case DISJ_CONSTR:
+      return decompose_disjunction (f, c, t, r);
+    default:
+      return decompose_atom (c);
     }
 }
 
@@ -715,7 +714,7 @@ derive_proof (clause& c, tree t, rules r)
   }
 }
 
-/* Key/value pair for caching subsumption results. This associates a pair of
+/* Key/value pair for caching subsumption results.  This associates a pair of
    constraints with a boolean value indicating the result.  */
 
 struct GTY((for_user)) subsumption_entry
@@ -747,11 +746,11 @@ struct subsumption_hasher : ggc_ptr_hash<subsumption_entry>
   }
 };
 
-/* Caches the results of subsumes_non_null(t1, t1).  */
+/* Caches the results of subsumes_constraints_nonnull (t1, t1).  */
 
 static GTY ((deletable)) hash_table<subsumption_hasher> *subsumption_cache;
 
-/* Search for a previously cached subsumption result. */
+/* Search for a previously cached subsumption result.  */
 
 static bool*
 lookup_subsumption (tree t1, tree t2)
@@ -766,13 +765,13 @@ lookup_subsumption (tree t1, tree t2)
     return 0;
 }
 
-/* Save a subsumption result. */
+/* Save a subsumption result.  */
 
 static bool
 save_subsumption (tree t1, tree t2, bool result)
 {
   if (!subsumption_cache)
-    subsumption_cache = hash_table<subsumption_hasher>::create_ggc(31);
+    subsumption_cache = hash_table<subsumption_hasher>::create_ggc (31);
   subsumption_entry elt = {t1, t2, result};
   subsumption_entry** slot = subsumption_cache->find_slot (&elt, INSERT);
   subsumption_entry* entry = ggc_alloc<subsumption_entry> ();
@@ -791,7 +790,7 @@ subsumes_constraints_nonnull (tree lhs, tree rhs)
 {
   auto_timevar time (TV_CONSTRAINT_SUB);
 
-  if (bool *b = lookup_subsumption(lhs, rhs))
+  if (bool *b = lookup_subsumption (lhs, rhs))
     return *b;
 
   tree x, y;

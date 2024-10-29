@@ -26,6 +26,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "opts.h"
 #include "options.h"
 #include "diagnostic.h"
+#include "opts-diagnostic.h"
 #include "spellcheck.h"
 #include "opts-jobserver.h"
 
@@ -39,7 +40,7 @@ static void prune_options (struct cl_decoded_option **, unsigned int *);
    example, we want -gno-statement-frontiers to be taken as a negation
    of -gstatement-frontiers, but without catching the gno- prefix and
    signaling it's to be used for option remapping, it would end up
-   backtracked to g with no-statemnet-frontiers as the debug level.  */
+   backtracked to g with no-statement-frontiers as the debug level.  */
 
 static bool
 remapping_prefix_p (const struct cl_option *opt)
@@ -525,6 +526,7 @@ add_misspelling_candidates (auto_vec<char *> *candidates,
   for (unsigned i = 0; i < ARRAY_SIZE (option_map); i++)
     {
       const char *opt0 = option_map[i].opt0;
+      const char *opt1 = option_map[i].opt1;
       const char *new_prefix = option_map[i].new_prefix;
       size_t new_prefix_len = strlen (new_prefix);
 
@@ -533,8 +535,9 @@ add_misspelling_candidates (auto_vec<char *> *candidates,
 
       if (strncmp (opt_text, new_prefix, new_prefix_len) == 0)
 	{
-	  char *alternative = concat (opt0 + 1, opt_text + new_prefix_len,
-				      NULL);
+	  char *alternative
+	    = concat (opt0 + 1, opt1 ? " " : "", opt1 ? opt1 : "",
+		      opt_text + new_prefix_len, NULL);
 	  candidates->safe_push (alternative);
 	}
     }
@@ -1091,7 +1094,10 @@ decode_cmdline_options_to_array (unsigned int argc, const char **argv,
 	    "-fdiagnostics-color=never",
 	    "-fdiagnostics-urls=never",
 	    "-fdiagnostics-path-format=separate-events",
-	    "-fdiagnostics-text-art-charset=none"
+	    "-fdiagnostics-text-art-charset=none",
+	    "-fno-diagnostics-show-event-links"
+	    /* We don't put "-fno-diagnostics-show-highlight-colors" here
+	       as -fdiagnostics-color=never makes it redundant.  */
 	  };
 	  const int num_expanded = ARRAY_SIZE (expanded_args);
 	  opt_array_len += num_expanded - 1;
@@ -1153,6 +1159,7 @@ prune_options (struct cl_decoded_option **decoded_options,
   unsigned int options_to_prepend = 0;
   unsigned int Wcomplain_wrong_lang_idx = 0;
   unsigned int fdiagnostics_color_idx = 0;
+  unsigned int fdiagnostics_urls_idx = 0;
 
   /* Remove arguments which are negated by others after them.  */
   new_decoded_options_count = 0;
@@ -1185,6 +1192,12 @@ prune_options (struct cl_decoded_option **decoded_options,
 	  if (fdiagnostics_color_idx == 0)
 	    ++options_to_prepend;
 	  fdiagnostics_color_idx = i;
+	  continue;
+	case OPT_fdiagnostics_urls_:
+	  gcc_checking_assert (i != 0);
+	  if (fdiagnostics_urls_idx == 0)
+	    ++options_to_prepend;
+	  fdiagnostics_urls_idx = i;
 	  continue;
 
 	default:
@@ -1247,6 +1260,12 @@ keep:
 	{
 	  new_decoded_options[argv_0 + options_prepended++]
 	    = old_decoded_options[fdiagnostics_color_idx];
+	  new_decoded_options_count++;
+	}
+      if (fdiagnostics_urls_idx != 0)
+	{
+	  new_decoded_options[argv_0 + options_prepended++]
+	    = old_decoded_options[fdiagnostics_urls_idx];
 	  new_decoded_options_count++;
 	}
       gcc_checking_assert (options_to_prepend == options_prepended);
@@ -1852,6 +1871,13 @@ option_enabled (int opt_idx, unsigned lang_mask, void *opts)
   return -1;
 }
 
+int
+compiler_diagnostic_option_manager::
+option_enabled_p (diagnostic_option_id opt_id) const
+{
+  return option_enabled (opt_id.m_idx, m_lang_mask, m_opts);
+}
+
 /* Fill STATE with the current state of option OPTION in OPTS.  Return
    true if there is some state to store.  */
 
@@ -2131,7 +2157,8 @@ jobserver_info::disconnect ()
 {
   if (!pipe_path.empty ())
     {
-      gcc_assert (close (pipefd) == 0);
+      int res = close (pipefd);
+      gcc_assert (res == 0);
       pipefd = -1;
     }
 }
@@ -2156,5 +2183,6 @@ jobserver_info::return_token ()
 {
   int fd = pipe_path.empty () ? wfd : pipefd;
   char c = 'G';
-  gcc_assert (write (fd, &c, 1) == 1);
+  int res = write (fd, &c, 1);
+  gcc_assert (res == 1);
 }

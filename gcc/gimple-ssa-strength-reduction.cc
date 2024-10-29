@@ -57,6 +57,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-affine.h"
 #include "tree-eh.h"
 #include "builtins.h"
+#include "tree-ssa-dce.h"
 
 /* Information about a strength reduction candidate.  Each statement
    in the candidate table represents an expression of one of the
@@ -474,7 +475,8 @@ get_alternative_base (tree base)
       aff.offset = 0;
       expr = aff_combination_to_tree (&aff);
 
-      gcc_assert (!alt_base_map->put (base, base == expr ? NULL : expr));
+      bool existed = alt_base_map->put (base, base == expr ? NULL : expr);
+      gcc_assert (!existed);
 
       return expr == base ? NULL : expr;
     }
@@ -792,7 +794,8 @@ base_cand_from_table (tree base_in)
 static void
 add_cand_for_stmt (gimple *gs, slsr_cand_t c)
 {
-  gcc_assert (!stmt_cand_map->put (gs, c));
+  bool existed = stmt_cand_map->put (gs, c);
+  gcc_assert (!existed);
 }
 
 /* Given PHI which contains a phi statement, determine whether it
@@ -2127,7 +2130,8 @@ cand_already_replaced (slsr_cand_t c)
    replace_conditional_candidate.  */
 
 static void
-replace_mult_candidate (slsr_cand_t c, tree basis_name, offset_int bump)
+replace_mult_candidate (slsr_cand_t c, tree basis_name, offset_int bump,
+			auto_bitmap &sdce_worklist)
 {
   tree target_type = TREE_TYPE (gimple_assign_lhs (c->cand_stmt));
   enum tree_code cand_code = gimple_assign_rhs_code (c->cand_stmt);
@@ -2194,6 +2198,11 @@ replace_mult_candidate (slsr_cand_t c, tree basis_name, offset_int bump)
       if (cand_code != NEGATE_EXPR) {
 	rhs1 = gimple_assign_rhs1 (c->cand_stmt);
 	rhs2 = gimple_assign_rhs2 (c->cand_stmt);
+	/* Mark the 2 original rhs for maybe DCEing.  */
+	if (TREE_CODE (rhs1) == SSA_NAME)
+	  bitmap_set_bit (sdce_worklist, SSA_NAME_VERSION (rhs1));
+	if (TREE_CODE (rhs2) == SSA_NAME)
+	  bitmap_set_bit (sdce_worklist, SSA_NAME_VERSION (rhs2));
       }
       if (cand_code != NEGATE_EXPR
 	  && ((operand_equal_p (rhs1, basis_name, 0)
@@ -2238,7 +2247,7 @@ replace_mult_candidate (slsr_cand_t c, tree basis_name, offset_int bump)
    folded value ((i - i') * S) is referred to here as the "bump."  */
 
 static void
-replace_unconditional_candidate (slsr_cand_t c)
+replace_unconditional_candidate (slsr_cand_t c, auto_bitmap &sdce_worklist)
 {
   slsr_cand_t basis;
 
@@ -2248,7 +2257,8 @@ replace_unconditional_candidate (slsr_cand_t c)
   basis = lookup_cand (c->basis);
   offset_int bump = cand_increment (c) * wi::to_offset (c->stride);
 
-  replace_mult_candidate (c, gimple_assign_lhs (basis->cand_stmt), bump);
+  replace_mult_candidate (c, gimple_assign_lhs (basis->cand_stmt), bump,
+			  sdce_worklist);
 }
 
 /* Return the index in the increment vector of the given INCREMENT,
@@ -2508,7 +2518,8 @@ create_phi_basis (slsr_cand_t c, gimple *from_phi, tree basis_name,
    basis.  */
 
 static void
-replace_conditional_candidate (slsr_cand_t c)
+replace_conditional_candidate (slsr_cand_t c, auto_bitmap &sdce_worklist)
+
 {
   tree basis_name, name;
   slsr_cand_t basis;
@@ -2528,7 +2539,7 @@ replace_conditional_candidate (slsr_cand_t c)
   /* Replace C with an add of the new basis phi and a constant.  */
   offset_int bump = c->index * wi::to_offset (c->stride);
 
-  replace_mult_candidate (c, name, bump);
+  replace_mult_candidate (c, name, bump, sdce_worklist);
 }
 
 /* Recursive helper function for phi_add_costs.  SPREAD is a measure of
@@ -2609,7 +2620,8 @@ phi_add_costs (gimple *phi, slsr_cand_t c, int one_add_cost)
    so, replace the candidate and introduce the compensation code.  */
 
 static void
-replace_uncond_cands_and_profitable_phis (slsr_cand_t c)
+replace_uncond_cands_and_profitable_phis (slsr_cand_t c,
+					  auto_bitmap &sdce_worklist)
 {
   if (phi_dependent_cand_p (c))
     {
@@ -2644,17 +2656,19 @@ replace_uncond_cands_and_profitable_phis (slsr_cand_t c)
 	    }
 
 	  if (cost <= COST_NEUTRAL)
-	    replace_conditional_candidate (c);
+	    replace_conditional_candidate (c, sdce_worklist);
 	}
     }
   else
-    replace_unconditional_candidate (c);
+    replace_unconditional_candidate (c, sdce_worklist);
 
   if (c->sibling)
-    replace_uncond_cands_and_profitable_phis (lookup_cand (c->sibling));
+    replace_uncond_cands_and_profitable_phis (lookup_cand (c->sibling),
+					      sdce_worklist);
 
   if (c->dependent)
-    replace_uncond_cands_and_profitable_phis (lookup_cand (c->dependent));
+    replace_uncond_cands_and_profitable_phis (lookup_cand (c->dependent),
+					      sdce_worklist);
 }
 
 /* Count the number of candidates in the tree rooted at C that have
@@ -3676,7 +3690,8 @@ replace_rhs_if_not_dup (enum tree_code new_code, tree new_rhs1, tree new_rhs2,
    is the rhs1 to use in creating the add/subtract.  */
 
 static void
-replace_one_candidate (slsr_cand_t c, unsigned i, tree basis_name)
+replace_one_candidate (slsr_cand_t c, unsigned i, tree basis_name,
+		       auto_bitmap &sdce_worklist)
 {
   gimple *stmt_to_print = NULL;
   tree orig_rhs1, orig_rhs2;
@@ -3693,6 +3708,12 @@ replace_one_candidate (slsr_cand_t c, unsigned i, tree basis_name)
      a copy statement under another interpretation.  */
   if (!orig_rhs2)
     return;
+
+  /* Mark the 2 original rhs for maybe DCEing.  */
+  if (TREE_CODE (orig_rhs1) == SSA_NAME)
+    bitmap_set_bit (sdce_worklist, SSA_NAME_VERSION (orig_rhs1));
+  if (TREE_CODE (orig_rhs2) == SSA_NAME)
+   bitmap_set_bit (sdce_worklist, SSA_NAME_VERSION (orig_rhs2));
 
   if (dump_file && (dump_flags & TDF_DETAILS))
     {
@@ -3836,7 +3857,7 @@ replace_one_candidate (slsr_cand_t c, unsigned i, tree basis_name)
    an increment if such has been shown to be profitable.  */
 
 static void
-replace_profitable_candidates (slsr_cand_t c)
+replace_profitable_candidates (slsr_cand_t c, auto_bitmap &sdce_worklist)
 {
   if (!cand_already_replaced (c))
     {
@@ -3873,23 +3894,23 @@ replace_profitable_candidates (slsr_cand_t c)
 
 		  /* Replace C with an add of the new basis phi and the
 		     increment.  */
-		  replace_one_candidate (c, i, name);
+		  replace_one_candidate (c, i, name, sdce_worklist);
 		}
 	    }
 	  else
 	    {
 	      slsr_cand_t basis = lookup_cand (c->basis);
 	      tree basis_name = gimple_assign_lhs (basis->cand_stmt);
-	      replace_one_candidate (c, i, basis_name);
+	      replace_one_candidate (c, i, basis_name, sdce_worklist);
 	    }
 	}
     }
 
   if (c->sibling)
-    replace_profitable_candidates (lookup_cand (c->sibling));
+    replace_profitable_candidates (lookup_cand (c->sibling), sdce_worklist);
 
   if (c->dependent)
-    replace_profitable_candidates (lookup_cand (c->dependent));
+    replace_profitable_candidates (lookup_cand (c->dependent), sdce_worklist);
 }
 
 /* Analyze costs of related candidates in the candidate vector,
@@ -3900,6 +3921,7 @@ analyze_candidates_and_replace (void)
 {
   unsigned i;
   slsr_cand_t c;
+  auto_bitmap simple_dce_worklist;
 
   /* Each candidate that has a null basis and a non-null
      dependent is the root of a tree of related statements.
@@ -3933,7 +3955,8 @@ analyze_candidates_and_replace (void)
 	 compensation code it requires is offset by the strength
 	 reduction savings.  */
       else if (TREE_CODE (c->stride) == INTEGER_CST)
-	replace_uncond_cands_and_profitable_phis (first_dep);
+	replace_uncond_cands_and_profitable_phis (first_dep,
+						  simple_dce_worklist);
 
       /* When the stride is an SSA name, it may still be profitable
 	 to replace some or all of the dependent candidates, depending
@@ -3970,7 +3993,7 @@ analyze_candidates_and_replace (void)
 	  dump_incr_vec ();
 
 	  /* Perform the replacements.  */
-	  replace_profitable_candidates (first_dep);
+	  replace_profitable_candidates (first_dep, simple_dce_worklist);
 	  free (incr_vec);
 	}
     }
@@ -3978,6 +4001,8 @@ analyze_candidates_and_replace (void)
   /* For conditional candidates, we may have uncommitted insertions
      on edges to clean up.  */
   gsi_commit_edge_inserts ();
+
+  simple_dce_from_worklist (simple_dce_worklist);
 }
 
 namespace {

@@ -76,7 +76,8 @@ add_stmt_to_eh_lp_fn (struct function *ifun, gimple *t, int num)
   if (!get_eh_throw_stmt_table (ifun))
     set_eh_throw_stmt_table (ifun, hash_map<gimple *, int>::create_ggc (31));
 
-  gcc_assert (!get_eh_throw_stmt_table (ifun)->put (t, num));
+  bool existed = get_eh_throw_stmt_table (ifun)->put (t, num);
+  gcc_assert (!existed);
 }
 
 /* Add statement T in the current function (cfun) to EH landing pad NUM.  */
@@ -950,7 +951,7 @@ static inline geh_else *
 get_eh_else (gimple_seq finally)
 {
   gimple *x = gimple_seq_first_stmt (finally);
-  if (gimple_code (x) == GIMPLE_EH_ELSE)
+  if (x && gimple_code (x) == GIMPLE_EH_ELSE)
     {
       gcc_assert (gimple_seq_singleton_p (finally));
       return as_a <geh_else *> (x);
@@ -2531,6 +2532,8 @@ operation_could_trap_helper_p (enum tree_code op,
 
     case COMPLEX_EXPR:
     case CONSTRUCTOR:
+    case VEC_DUPLICATE_EXPR:
+    case PAREN_EXPR:
       /* Constructing an object cannot trap.  */
       return false;
 

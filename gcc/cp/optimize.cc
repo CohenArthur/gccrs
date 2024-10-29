@@ -24,6 +24,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "target.h"
 #include "cp-tree.h"
+#include "decl.h"
 #include "stringpool.h"
 #include "cgraph.h"
 #include "debug.h"
@@ -221,10 +222,8 @@ can_alias_cdtor (tree fn)
   gcc_assert (DECL_MAYBE_IN_CHARGE_CDTOR_P (fn));
   /* Don't use aliases for weak/linkonce definitions unless we can put both
      symbols in the same COMDAT group.  */
-  return (DECL_INTERFACE_KNOWN (fn)
-	  && (SUPPORTS_ONE_ONLY || !DECL_WEAK (fn))
-	  && (!DECL_ONE_ONLY (fn)
-	      || (HAVE_COMDAT_GROUP && DECL_WEAK (fn))));
+  return (DECL_WEAK (fn) ? (HAVE_COMDAT_GROUP && DECL_ONE_ONLY (fn))
+			 : (DECL_INTERFACE_KNOWN (fn) && !DECL_ONE_ONLY (fn)));
 }
 
 /* FN is a [cd]tor, fns is a pointer to an array of length 3.  Fill fns
@@ -289,6 +288,11 @@ maybe_thunk_body (tree fn, bool force)
   /* Don't use thunks if the base clone omits inherited parameters.  */
   if (ctor_omit_inherited_parms (fns[0]))
     return 0;
+
+  /* Don't diagnose deprecated or unavailable cdtors just because they
+     have thunks emitted for them.  */
+  auto du = make_temp_override (deprecated_state,
+				UNAVAILABLE_DEPRECATED_SUPPRESS);
 
   DECL_ABSTRACT_P (fn) = false;
   if (!DECL_WEAK (fn))
@@ -713,7 +717,7 @@ maybe_clone_body (tree fn)
 	  if (expand_or_defer_fn_1 (clone))
 	    emit_associated_thunks (clone);
 	  /* We didn't generate a body, so remove the empty one.  */
-	  DECL_SAVED_TREE (clone) = NULL_TREE;
+	  DECL_SAVED_TREE (clone) = void_node;
 	}
       else
 	expand_or_defer_fn (clone);

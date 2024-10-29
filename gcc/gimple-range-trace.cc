@@ -153,7 +153,7 @@ debug_seed_ranger (gimple_ranger &ranger)
 
 	if (tree type = gimple_range_type (stmt))
 	  {
-	    Value_Range r (type);
+	    value_range r (type);
 	    ranger.range_of_stmt (r, stmt);
 	  }
       }

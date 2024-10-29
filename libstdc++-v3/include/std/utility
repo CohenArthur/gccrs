@@ -55,7 +55,9 @@
 #ifndef _GLIBCXX_UTILITY
 #define _GLIBCXX_UTILITY 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 /**
  * @defgroup utilities Utilities
@@ -93,6 +95,7 @@
 #define __glibcxx_want_tuples_by_type
 #define __glibcxx_want_unreachable
 #define __glibcxx_want_tuple_like
+#define __glibcxx_want_constrained_equality
 #include <bits/version.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)

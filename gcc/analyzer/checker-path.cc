@@ -20,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
@@ -62,6 +63,14 @@ along with GCC; see the file COPYING3.  If not see
 
 namespace ana {
 
+bool
+checker_path::same_function_p (int event_idx_a,
+			       int event_idx_b) const
+{
+  return (m_events[event_idx_a]->get_fndecl ()
+	  == m_events[event_idx_b]->get_fndecl ());
+}
+
 /* Print a single-line representation of this path to PP.  */
 
 void
@@ -75,8 +84,9 @@ checker_path::dump (pretty_printer *pp) const
     {
       if (i > 0)
 	pp_string (pp, ", ");
-      label_text event_desc (e->get_desc (false));
-      pp_printf (pp, "\"%s\"", event_desc.get ());
+      pp_character (pp, '"');
+      e->print_desc (*pp);
+      pp_character (pp, '"');
     }
   pp_character (pp, ']');
 }
@@ -126,7 +136,7 @@ checker_path::debug () const
   int i;
   FOR_EACH_VEC_ELT (m_events, i, e)
     {
-      label_text event_desc (e->get_desc (false));
+      label_text event_desc (e->get_desc ());
       fprintf (stderr,
 	       "[%i]: %s \"%s\"\n",
 	       i,

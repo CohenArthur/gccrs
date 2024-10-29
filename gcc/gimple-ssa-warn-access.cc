@@ -56,6 +56,7 @@
 #include "demangle.h"
 #include "attr-fnspec.h"
 #include "pointer-query.h"
+#include "pretty-print-markup.h"
 
 /* Return true if tree node X has an associated location.  */
 
@@ -331,7 +332,7 @@ check_nul_terminated_array (GimpleOrTree expr, tree src, tree bound)
   wide_int bndrng[2];
   if (bound)
     {
-      Value_Range r (TREE_TYPE (bound));
+      int_range_max r (TREE_TYPE (bound));
 
       get_range_query (cfun)->range_of_expr (r, bound);
 
@@ -607,7 +608,8 @@ maybe_warn_nonstring_arg (tree fndecl, GimpleOrTree exp)
 	{
 	  if (tree arrbnd = TYPE_DOMAIN (type))
 	    {
-	      if ((arrbnd = TYPE_MAX_VALUE (arrbnd)))
+	      if ((arrbnd = TYPE_MAX_VALUE (arrbnd))
+		  && TREE_CODE (arrbnd) == INTEGER_CST)
 		{
 		  asize = wi::to_offset (arrbnd) + 1;
 		  known_size = true;
@@ -1763,7 +1765,7 @@ new_delete_mismatch_p (tree new_decl, tree delete_decl)
   void *np = NULL, *dp = NULL;
   demangle_component *ndc = cplus_demangle_v3_components (new_str, 0, &np);
   demangle_component *ddc = cplus_demangle_v3_components (del_str, 0, &dp);
-  bool mismatch = new_delete_mismatch_p (*ndc, *ddc);
+  bool mismatch = ndc && ddc && new_delete_mismatch_p (*ndc, *ddc);
   free (np);
   free (dp);
   return mismatch;
@@ -2817,7 +2819,7 @@ memmodel_to_uhwi (tree ord, gimple *stmt, unsigned HOST_WIDE_INT *cstval)
     {
       /* Use the range query to determine constant values in the absence
 	 of constant propagation (such as at -O0).  */
-      Value_Range rng (TREE_TYPE (ord));
+      int_range_max rng (TREE_TYPE (ord));
       if (!get_range_query (cfun)->range_of_expr (rng, ord, stmt)
 	  || !rng.singleton_p (&ord))
 	return false;
@@ -2943,15 +2945,14 @@ pass_waccess::maybe_warn_memmodel (gimple *stmt, tree ord_sucs,
 	return false;
 
       /* Print a note with the valid memory models.  */
-      pretty_printer pp;
-      pp_show_color (&pp) = pp_show_color (global_dc->printer);
+      auto_vec<const char *> strings;
       for (unsigned i = 0; valid[i] != UCHAR_MAX; ++i)
 	{
 	  const char *modname = memory_models[valid[i]].modname;
-	  pp_printf (&pp, "%s%qs", i ? ", " : "", modname);
+	  strings.safe_push (modname);
 	}
-
-      inform (loc, "valid models are %s", pp_formatted_text (&pp));
+      pp_markup::comma_separated_quoted_strings e (strings);
+      inform (loc, "valid models are %e", &e);
       return true;
     }
 
@@ -2993,19 +2994,16 @@ pass_waccess::maybe_warn_memmodel (gimple *stmt, tree ord_sucs,
 
 	/* Print a note with the valid failure memory models which are
 	   those with a value less than or equal to the success mode.  */
-	char buf[120];
-	*buf = '\0';
+	auto_vec<const char *> strings;
 	for (unsigned i = 0;
 	     memory_models[i].modval <= memmodel_base (sucs); ++i)
 	  {
-	    if (*buf)
-	      strcat (buf, ", ");
-
 	    const char *modname = memory_models[valid[i]].modname;
-	    sprintf (buf + strlen (buf), "'%s'", modname);
+	    strings.safe_push (modname);
 	  }
+	pp_markup::comma_separated_quoted_strings e (strings);
 
-	inform (loc, "valid models are %s", buf);
+	inform (loc, "valid models are %e", &e);
 	return true;
       }
 
@@ -4214,7 +4212,7 @@ pass_waccess::check_pointer_uses (gimple *stmt, tree ptr,
 		 where the realloc call is known to have failed are valid.
 		 Ignore pointers that nothing is known about.  Those could
 		 have escaped along with their nullness.  */
-	      value_range vr;
+	      prange vr;
 	      if (m_ptr_qry.rvals->range_of_expr (vr, realloc_lhs, use_stmt))
 		{
 		  if (vr.zero_p ())
