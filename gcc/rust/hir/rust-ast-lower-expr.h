@@ -127,9 +127,6 @@ public:
   // Extra visitor for FormatArgs nodes
   void visit (AST::FormatArgs &fmt) override;
 
-  // Extra visitor for FormatArgs nodes
-  void visit (AST::FormatArgs &fmt) override;
-
 private:
   ASTLoweringExpr ();
 
