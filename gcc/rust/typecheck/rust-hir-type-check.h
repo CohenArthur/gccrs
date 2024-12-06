@@ -386,7 +386,11 @@ private:
     /** Only to be used by the guard. */
     void push_binder () { binder_size_stack.push (0); }
     /** Only to be used by the guard. */
-    void pop_binder () { binder_size_stack.pop (); }
+    void pop_binder ()
+    {
+      rust_assert (!binder_empty ());
+      binder_size_stack.pop ();
+    }
 
     bool binder_empty () { return binder_size_stack.empty (); }
 
