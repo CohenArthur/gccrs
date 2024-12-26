@@ -4286,7 +4286,7 @@ BlockExpr::normalize_tail_expr ()
 
 	  if (!stmt.is_semicolon_followed ())
 	    {
-	      expr = std::move (stmt.take_expr ());
+	      expr = stmt.take_expr ();
 	      statements.pop_back ();
 	    }
 	}
