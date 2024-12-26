@@ -3172,7 +3172,7 @@ class TraitImpl : public Impl
 {
   bool has_unsafe;
   bool has_exclam;
-  std::unique_ptr<Path> trait_path;
+  TypePath trait_path;
 
   // bool has_impl_items;
   std::vector<std::unique_ptr<AssociatedItem>> impl_items;
@@ -3184,7 +3184,7 @@ public:
   bool has_impl_items () const { return !impl_items.empty (); }
 
   // Mega-constructor
-  TraitImpl (std::unique_ptr<Path> trait_path, bool is_unsafe, bool has_exclam,
+  TraitImpl (TypePath trait_path, bool is_unsafe, bool has_exclam,
 	     std::vector<std::unique_ptr<AssociatedItem>> impl_items,
 	     std::vector<std::unique_ptr<GenericParam>> generic_params,
 	     std::unique_ptr<Type> trait_type, WhereClause where_clause,
@@ -3194,28 +3194,14 @@ public:
 	    std::move (where_clause), std::move (vis), std::move (inner_attrs),
 	    std::move (outer_attrs), locus),
       has_unsafe (is_unsafe), has_exclam (has_exclam),
-      trait_path (std::move (trait_path)), impl_items (std::move (impl_items))
-  {}
-
-  // Delegating constructor for TypePath
-  TraitImpl (TypePath trait_path, bool is_unsafe, bool has_exclam,
-	     std::vector<std::unique_ptr<AssociatedItem>> impl_items,
-	     std::vector<std::unique_ptr<GenericParam>> generic_params,
-	     std::unique_ptr<Type> trait_type, WhereClause where_clause,
-	     Visibility vis, std::vector<Attribute> inner_attrs,
-	     std::vector<Attribute> outer_attrs, location_t locus)
-    : TraitImpl (std::unique_ptr<Path> (new TypePath (trait_path)), is_unsafe,
-		 has_exclam, std::move (impl_items), std::move (generic_params),
-		 std::move (trait_type), std::move (where_clause),
-		 std::move (vis), std::move (inner_attrs),
-		 std::move (outer_attrs), locus)
+      trait_path (trait_path), impl_items (std::move (impl_items))
   {}
 
   // Copy constructor with vector clone
   TraitImpl (TraitImpl const &other)
     : Impl (other), has_unsafe (other.has_unsafe),
       has_exclam (other.has_exclam),
-      trait_path (other.trait_path->clone_path ())
+      trait_path (other.trait_path)
   {
     impl_items.reserve (other.impl_items.size ());
     for (const auto &e : other.impl_items)
@@ -3226,7 +3212,7 @@ public:
   TraitImpl &operator= (TraitImpl const &other)
   {
     Impl::operator= (other);
-    trait_path = other.trait_path->clone_path ();
+    trait_path = other.trait_path;
     has_unsafe = other.has_unsafe;
     has_exclam = other.has_exclam;
 
@@ -3257,17 +3243,10 @@ public:
   }
 
   // TODO: is this better? Or is a "vis_block" better?
-  Path &get_trait_path ()
+  TypePath &get_trait_path ()
   {
     // TODO: assert that trait path is not empty?
-    return *trait_path;
-  }
-
-  Type &get_trait_path_type ()
-  {
-    rust_assert (trait_path->get_path_kind () == Path::Kind::Type);
-
-    return (AST::Type &) static_cast<AST::TypePath &> (*trait_path);
+    return trait_path;
   }
 
 protected:
