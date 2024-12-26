@@ -32,7 +32,7 @@ namespace AST {
 class CollectLangItems : public DefaultASTVisitor
 {
 public:
-  CollectLangItems () : mappings (Analysis::Mappings::get ()){};
+  CollectLangItems () : mappings (Analysis::Mappings::get ()) {};
 
   void go (AST::Crate &crate) { DefaultASTVisitor::visit (crate); }
 
@@ -47,6 +47,7 @@ public:
 
   void visit (AST::Trait &item) override;
   void visit (AST::TraitItemType &item) override;
+  void visit (AST::StructStruct &item) override;
 
 private:
   template <typename T> void maybe_add_lang_item (const T &item);
