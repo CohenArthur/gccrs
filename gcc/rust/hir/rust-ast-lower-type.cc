@@ -85,10 +85,6 @@ ASTLowerTypePath::visit (AST::TypePathSegmentGeneric &segment)
 {
   std::vector<HIR::GenericArgsBinding> binding_args; // TODO
 
-  std::string segment_name = segment.get_ident_segment ().as_string ();
-  bool has_separating_scope_resolution
-    = segment.get_separating_scope_resolution ();
-
   auto generic_args = lower_generic_args (segment.get_generic_args ());
 
   auto crate_num = mappings.get_current_crate ();
@@ -96,10 +92,24 @@ ASTLowerTypePath::visit (AST::TypePathSegmentGeneric &segment)
   Analysis::NodeMapping mapping (crate_num, segment.get_node_id (), hirid,
 				 UNKNOWN_LOCAL_DEFID);
 
-  translated_segment
-    = new HIR::TypePathSegmentGeneric (std::move (mapping), segment_name,
-				       has_separating_scope_resolution,
-				       generic_args, segment.get_locus ());
+  if (segment.is_lang_item ())
+    {
+      translated_segment
+	= new HIR::TypePathSegmentGeneric (std::move (mapping),
+					   segment.get_lang_item (),
+					   generic_args, segment.get_locus ());
+    }
+  else
+    {
+      std::string segment_name = segment.get_ident_segment ().as_string ();
+      bool has_separating_scope_resolution
+	= segment.get_separating_scope_resolution ();
+
+      translated_segment
+	= new HIR::TypePathSegmentGeneric (std::move (mapping), segment_name,
+					   has_separating_scope_resolution,
+					   generic_args, segment.get_locus ());
+    }
 }
 
 void

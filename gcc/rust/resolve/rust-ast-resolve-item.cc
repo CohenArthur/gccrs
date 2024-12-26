@@ -682,7 +682,6 @@ ResolveItem::visit (AST::TraitImpl &impl_block)
 
   // setup paths
   CanonicalPath canonical_trait_type = CanonicalPath::create_empty ();
-  rust_assert (!impl_block.get_trait_path ().is_lang_item ());
   //  if (impl_block.get_trait_path ().get_path_kind ()
   //      == AST::Path::Kind::LangItem)
   //    {

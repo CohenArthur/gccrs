@@ -18,6 +18,7 @@
 
 #include "rust-ast-resolve-type.h"
 #include "rust-ast-resolve-expr.h"
+#include "rust-hir-map.h"
 
 namespace Rust {
 namespace Resolver {
@@ -91,6 +92,15 @@ ResolveRelativeTypePath::go (AST::TypePath &path, NodeId &resolved_node_id)
   for (size_t i = 0; i < path.get_segments ().size (); i++)
     {
       auto &segment = path.get_segments ().at (i);
+
+      if (segment->is_lang_item ())
+	{
+	  resolved_node_id = Analysis::Mappings::get ().get_lang_item_node (
+	    segment->get_lang_item ());
+
+	  continue;
+	}
+
       const AST::PathIdentSegment &ident_seg = segment->get_ident_segment ();
       bool is_first_segment = i == 0;
       resolved_node_id = UNKNOWN_NODEID;

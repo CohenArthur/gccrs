@@ -21,6 +21,7 @@
 /* "Path" (identifier within namespaces, essentially) handling. Required include
  * for virtually all AST-related functionality. */
 
+#include "optional.h"
 #include "rust-ast.h"
 #include "rust-hir-map.h"
 #include "rust-mapping-common.h"
@@ -788,27 +789,30 @@ public:
 
   TypePathSegment (PathIdentSegment ident_segment,
 		   bool has_separating_scope_resolution, location_t locus)
-    : ident_segment (std::move (ident_segment)), locus (locus),
+    : lang_item (tl::nullopt), ident_segment (std::move (ident_segment)),
+      locus (locus),
       has_separating_scope_resolution (has_separating_scope_resolution),
       node_id (Analysis::Mappings::get ().get_next_node_id ())
   {}
 
   TypePathSegment (LangItem::Kind lang_item, location_t locus)
-    : lang_item (lang_item), locus (locus),
+    : lang_item (lang_item), ident_segment (tl::nullopt), locus (locus),
       has_separating_scope_resolution (false),
       node_id (Analysis::Mappings::get ().get_next_node_id ())
   {}
 
   TypePathSegment (std::string segment_name,
 		   bool has_separating_scope_resolution, location_t locus)
-    : ident_segment (PathIdentSegment (std::move (segment_name), locus)),
+    : lang_item (tl::nullopt),
+      ident_segment (PathIdentSegment (std::move (segment_name), locus)),
       locus (locus),
       has_separating_scope_resolution (has_separating_scope_resolution),
       node_id (Analysis::Mappings::get ().get_next_node_id ())
   {}
 
   TypePathSegment (TypePathSegment const &other)
-    : ident_segment (other.ident_segment), locus (other.locus),
+    : lang_item (other.lang_item), ident_segment (other.ident_segment),
+      locus (other.locus),
       has_separating_scope_resolution (other.has_separating_scope_resolution),
       node_id (other.node_id)
   {}
@@ -844,6 +848,8 @@ public:
   /* Returns whether segment is identifier only (as opposed to generic args or
    * function). Overridden in derived classes with other segments. */
   virtual bool is_ident_only () const { return true; }
+
+  bool is_lang_item () const { return lang_item.has_value (); }
 
   location_t get_locus () const { return locus; }
 

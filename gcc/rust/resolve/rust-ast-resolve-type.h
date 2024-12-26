@@ -114,8 +114,6 @@ public:
 
   void visit (AST::TypePath &path) override
   {
-    rust_assert (!path.is_lang_item ());
-
     ResolveRelativeTypePath::go (path, resolved_node);
   }
 
