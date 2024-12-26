@@ -30,7 +30,7 @@ template <typename T>
 std::vector<std::unique_ptr<T>>
 vec (std::unique_ptr<T> &&t)
 {
-  auto v = std::vector<std::unique_ptr<T>>();
+  auto v = std::vector<std::unique_ptr<T>> ();
 
   v.emplace_back (std::move (t));
 
@@ -39,9 +39,9 @@ vec (std::unique_ptr<T> &&t)
 
 template <typename T>
 std::vector<std::unique_ptr<T>>
-vec (std::unique_ptr<T> &&t1, std::unique_ptr<T>&& t2)
+vec (std::unique_ptr<T> &&t1, std::unique_ptr<T> &&t2)
 {
-  auto v = std::vector<std::unique_ptr<T>>();
+  auto v = std::vector<std::unique_ptr<T>> ();
 
   v.emplace_back (std::move (t1));
   v.emplace_back (std::move (t2));
@@ -106,16 +106,27 @@ public:
 
   /* And similarly for type path segments */
   std::unique_ptr<TypePathSegment> type_path_segment (std::string seg) const;
+  std::unique_ptr<TypePathSegment>
+  type_path_segment (LangItem::Kind lang_item) const;
 
   std::unique_ptr<TypePathSegment>
-  generic_type_path_segment (std::string seg, GenericArgs args) const;
+  type_path_segment_generic (std::string seg, GenericArgs args) const;
+  std::unique_ptr<TypePathSegment>
+  type_path_segment_generic (LangItem::Kind lang_item, GenericArgs args) const;
 
   /* Create a Type from a single string - the most basic kind of type in our AST
    */
   std::unique_ptr<Type> single_type_path (std::string type) const;
+  std::unique_ptr<Type> single_type_path (LangItem::Kind lang_item) const;
 
   std::unique_ptr<Type> single_generic_type_path (std::string type,
 						  GenericArgs args) const;
+  std::unique_ptr<Type> single_generic_type_path (LangItem::Kind lang_item,
+						  GenericArgs args) const;
+
+  TypePath type_path (std::unique_ptr<TypePathSegment> &&segment) const;
+  TypePath type_path (std::string type) const;
+  TypePath type_path (LangItem::Kind lang_item) const;
 
   /**
    * Create a path in expression from multiple segments (`Clone::clone`). You

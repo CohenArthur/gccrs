@@ -22,6 +22,7 @@
 #include "rust-common.h"
 #include "rust-expr.h"
 #include "rust-item.h"
+#include "rust-path.h"
 #include "rust-token.h"
 #include "rust-make-unique.h"
 
@@ -85,10 +86,25 @@ Builder::type_path_segment (std::string seg) const
 }
 
 std::unique_ptr<TypePathSegment>
-Builder::generic_type_path_segment (std::string seg, GenericArgs args) const
+Builder::type_path_segment (LangItem::Kind lang_item) const
+{
+  return std::unique_ptr<TypePathSegment> (
+    new TypePathSegment (lang_item, loc));
+}
+
+std::unique_ptr<TypePathSegment>
+Builder::type_path_segment_generic (std::string seg, GenericArgs args) const
 {
   return std::unique_ptr<TypePathSegment> (
     new TypePathSegmentGeneric (PathIdentSegment (seg, loc), false, args, loc));
+}
+
+std::unique_ptr<TypePathSegment>
+Builder::type_path_segment_generic (LangItem::Kind lang_item,
+				    GenericArgs args) const
+{
+  return std::unique_ptr<TypePathSegment> (
+    new TypePathSegmentGeneric (lang_item, args, loc));
 }
 
 std::unique_ptr<Type>
@@ -101,12 +117,49 @@ Builder::single_type_path (std::string type) const
 }
 
 std::unique_ptr<Type>
+Builder::single_type_path (LangItem::Kind lang_item) const
+{
+  return std::unique_ptr<Type> (new TypePath (lang_item, {}, loc));
+}
+
+std::unique_ptr<Type>
 Builder::single_generic_type_path (std::string type, GenericArgs args) const
 {
   auto segments = std::vector<std::unique_ptr<TypePathSegment>> ();
-  segments.emplace_back (generic_type_path_segment (type, args));
+  segments.emplace_back (type_path_segment_generic (type, args));
 
   return std::unique_ptr<Type> (new TypePath (std::move (segments), loc));
+}
+
+std::unique_ptr<Type>
+Builder::single_generic_type_path (LangItem::Kind lang_item,
+				   GenericArgs args) const
+{
+  auto segments = std::vector<std::unique_ptr<TypePathSegment>> ();
+  segments.emplace_back (type_path_segment_generic (lang_item, args));
+
+  return std::unique_ptr<Type> (new TypePath (std::move (segments), loc));
+}
+
+TypePath
+Builder::type_path (std::unique_ptr<TypePathSegment> &&segment) const
+{
+  auto segments = std::vector<std::unique_ptr<TypePathSegment>> ();
+  segments.emplace_back (std::move (segment));
+
+  return TypePath (std::move (segments), loc);
+}
+
+TypePath
+Builder::type_path (std::string type) const
+{
+  return type_path (type_path_segment (type));
+}
+
+TypePath
+Builder::type_path (LangItem::Kind lang_item) const
+{
+  return type_path (type_path_segment (lang_item));
 }
 
 PathInExpression
@@ -153,9 +206,9 @@ Builder::deref (std::unique_ptr<Expr> &&of) const
 }
 
 std::unique_ptr<Stmt>
-  Builder::struct_struct (std::string struct_name,
-		   std::vector<std::unique_ptr<GenericParam>> &&generics,
-		   std::vector<StructField> &&fields)
+Builder::struct_struct (std::string struct_name,
+			std::vector<std::unique_ptr<GenericParam>> &&generics,
+			std::vector<StructField> &&fields)
 {
   auto is_unit = fields.empty ();
 
