@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-hir-map.h"
+#include "input.h"
 #include "optional.h"
 #include "rust-ast-full.h"
 #include "rust-diagnostics.h"
@@ -1297,6 +1298,16 @@ Mappings::lookup_lang_item_node (LangItem::Kind item_type)
     return tl::nullopt;
 
   return it->second;
+}
+
+NodeId
+Mappings::get_lang_item_node (LangItem::Kind item_type)
+{
+  if (auto lookup = lookup_lang_item_node (item_type))
+    return *lookup;
+
+  rust_fatal_error (UNKNOWN_LOCATION, "failed to find lang item %s",
+		    LangItem::ToString (item_type).c_str ());
 }
 
 } // namespace Analysis
