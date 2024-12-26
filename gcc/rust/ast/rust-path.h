@@ -757,7 +757,8 @@ public:
   };
 
 private:
-  PathIdentSegment ident_segment;
+  tl::optional<LangItem::Kind> lang_item;
+  tl::optional<PathIdentSegment> ident_segment;
   location_t locus;
 
 protected:
@@ -792,6 +793,12 @@ public:
       node_id (Analysis::Mappings::get ().get_next_node_id ())
   {}
 
+  TypePathSegment (LangItem::Kind lang_item, location_t locus)
+    : lang_item (lang_item), locus (locus),
+      has_separating_scope_resolution (false),
+      node_id (Analysis::Mappings::get ().get_next_node_id ())
+  {}
+
   TypePathSegment (std::string segment_name,
 		   bool has_separating_scope_resolution, location_t locus)
     : ident_segment (PathIdentSegment (std::move (segment_name), locus)),
@@ -809,6 +816,7 @@ public:
   TypePathSegment &operator= (TypePathSegment const &other)
   {
     ident_segment = other.ident_segment;
+    lang_item = other.lang_item;
     locus = other.locus;
     has_separating_scope_resolution = other.has_separating_scope_resolution;
     node_id = other.node_id;
@@ -819,11 +827,19 @@ public:
   TypePathSegment (TypePathSegment &&other) = default;
   TypePathSegment &operator= (TypePathSegment &&other) = default;
 
-  virtual std::string as_string () const { return ident_segment.as_string (); }
+  virtual std::string as_string () const
+  {
+    rust_assert (ident_segment);
+    return ident_segment->as_string ();
+  }
 
   /* Returns whether the type path segment is in an error state. May be
    * virtual in future. */
-  bool is_error () const { return ident_segment.is_error (); }
+  bool is_error () const
+  {
+    rust_assert (ident_segment);
+    return ident_segment->is_error ();
+  }
 
   /* Returns whether segment is identifier only (as opposed to generic args or
    * function). Overridden in derived classes with other segments. */
@@ -839,8 +855,23 @@ public:
     return has_separating_scope_resolution;
   }
 
-  PathIdentSegment &get_ident_segment () { return ident_segment; };
-  const PathIdentSegment &get_ident_segment () const { return ident_segment; };
+  PathIdentSegment &get_ident_segment ()
+  {
+    rust_assert (ident_segment);
+    return *ident_segment;
+  };
+
+  const PathIdentSegment &get_ident_segment () const
+  {
+    rust_assert (ident_segment);
+    return *ident_segment;
+  };
+
+  LangItem::Kind get_lang_item () const
+  {
+    rust_assert (lang_item);
+    return *lang_item;
+  }
 
   NodeId get_node_id () const { return node_id; }
 
@@ -880,6 +911,12 @@ public:
 			  GenericArgs generic_args, location_t locus)
     : TypePathSegment (std::move (ident_segment),
 		       has_separating_scope_resolution, locus),
+      generic_args (std::move (generic_args))
+  {}
+
+  TypePathSegmentGeneric (LangItem::Kind lang_item, GenericArgs generic_args,
+			  location_t locus)
+    : TypePathSegment (lang_item, locus),
       generic_args (std::move (generic_args))
   {}
 
@@ -1093,13 +1130,6 @@ class TypePath : public TypeNoBounds
   std::vector<std::unique_ptr<TypePathSegment> > segments;
   location_t locus;
 
-  // A typepath can be a lang item plus some generics. In which case we are
-  // interested in the lang item, and all of the segments as possible generics
-  // or sub-items of that lang item path. For example, if we have something like
-  // PhantomData<i32>, the lang item is `PhantomData` and the only segment is
-  // `<i32>`
-  tl::optional<LangItem::Kind> lang_item;
-
 protected:
   /* Use covariance to implement clone function as returning this object
    * rather than base */
@@ -1119,8 +1149,6 @@ public:
   // Returns whether the TypePath is in an invalid state.
   bool is_error () const { return segments.empty (); }
 
-  bool is_lang_item () const { return lang_item.has_value (); }
-
   // Creates an error state TypePath.
   static TypePath create_error ()
   {
@@ -1133,7 +1161,7 @@ public:
 	    location_t locus, bool has_opening_scope_resolution = false)
     : TypeNoBounds (),
       has_opening_scope_resolution (has_opening_scope_resolution),
-      segments (std::move (segments)), locus (locus), lang_item (tl::nullopt)
+      segments (std::move (segments)), locus (locus)
   {}
 
   TypePath (LangItem::Kind lang_item,
@@ -1141,13 +1169,13 @@ public:
 	    location_t locus, bool has_opening_scope_resolution = false)
     : TypeNoBounds (),
       has_opening_scope_resolution (has_opening_scope_resolution),
-      segments (std::move (segments)), locus (locus), lang_item (lang_item)
+      segments (std::move (segments)), locus (locus)
   {}
 
   // Copy constructor with vector clone
   TypePath (TypePath const &other)
     : has_opening_scope_resolution (other.has_opening_scope_resolution),
-      locus (other.locus), lang_item (other.lang_item)
+      locus (other.locus)
   {
     node_id = other.node_id;
     segments.reserve (other.segments.size ());
@@ -1161,7 +1189,6 @@ public:
     node_id = other.node_id;
     has_opening_scope_resolution = other.has_opening_scope_resolution;
     locus = other.locus;
-    lang_item = other.lang_item;
 
     segments.reserve (other.segments.size ());
     for (const auto &e : other.segments)
