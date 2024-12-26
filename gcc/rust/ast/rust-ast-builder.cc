@@ -18,8 +18,10 @@
 
 #include "rust-ast-builder.h"
 #include "rust-ast-builder-type.h"
+#include "rust-ast.h"
 #include "rust-common.h"
 #include "rust-expr.h"
+#include "rust-item.h"
 #include "rust-token.h"
 #include "rust-make-unique.h"
 
@@ -148,6 +150,19 @@ std::unique_ptr<Expr>
 Builder::deref (std::unique_ptr<Expr> &&of) const
 {
   return std::unique_ptr<Expr> (new DereferenceExpr (std::move (of), {}, loc));
+}
+
+std::unique_ptr<Stmt>
+  Builder::struct_struct (std::string struct_name,
+		   std::vector<std::unique_ptr<GenericParam>> &&generics,
+		   std::vector<StructField> &&fields)
+{
+  auto is_unit = fields.empty ();
+
+  return std::unique_ptr<Stmt> (
+    new StructStruct (std::move (fields), struct_name, std::move (generics),
+		      WhereClause::create_empty (), is_unit,
+		      Visibility::create_private (), {}, loc));
 }
 
 std::unique_ptr<Expr>
