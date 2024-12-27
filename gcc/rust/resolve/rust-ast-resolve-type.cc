@@ -87,6 +87,8 @@ ResolveRelativeTypePath::go (AST::TypePath &path, NodeId &resolved_node_id)
   auto resolver = Resolver::get ();
   auto &mappings = Analysis::Mappings::get ();
 
+  // FIXME: :sob: so is it actually the typepath that can be a lang item??? :((
+
   NodeId module_scope_id = resolver->peek_current_module_scope ();
   NodeId previous_resolved_node_id = module_scope_id;
   for (size_t i = 0; i < path.get_segments ().size (); i++)
