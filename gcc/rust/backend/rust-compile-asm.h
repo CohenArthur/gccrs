@@ -27,9 +27,15 @@ namespace Compile {
 
 class CompileAsm : private HIRCompileBase
 {
-private:
   // RELEVANT MEMBER FUNCTIONS
 
+  tree asm_construct_string_tree (HIR::InlineAsm &);
+  tree asm_construct_outputs (HIR::InlineAsm &);
+  tree asm_construct_inputs (HIR::InlineAsm &);
+  tree asm_construct_clobber_tree (HIR::InlineAsm &);
+  tree asm_construct_label_tree (HIR::InlineAsm &);
+
+public:
   // The limit is 5 because it stands for the 5 things that the C version of
   //  build_asm_expr accepts: string, output, input, clobber and label.
   // The function signature is
@@ -41,13 +47,6 @@ private:
   tree asm_build_stmt (location_t,
 		       const std::array<tree, ASM_TREE_ARRAY_LENGTH> &);
 
-  tree asm_construct_string_tree (HIR::InlineAsm &);
-  tree asm_construct_outputs (HIR::InlineAsm &);
-  tree asm_construct_inputs (HIR::InlineAsm &);
-  tree asm_construct_clobber_tree (HIR::InlineAsm &);
-  tree asm_construct_label_tree (HIR::InlineAsm &);
-
-public:
   // WE WILL OPEN THIS UP WHEN WE WANT TO ADD A DEDICATED PASS OF HIR'S ASM
   // translation.
   // static tree Compile (HIR::Expr *expr, Context *ctx);

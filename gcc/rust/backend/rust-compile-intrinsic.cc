@@ -15,6 +15,9 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-intrinsic.h"
+#include "input.h"
+#include "rust-backend.h"
+#include "rust-compile-asm.h"
 #include "rust-compile-context.h"
 #include "rust-compile-type.h"
 #include "rust-compile-expr.h"
@@ -25,6 +28,7 @@
 #include "rust-constexpr.h"
 #include "rust-session-manager.h"
 #include "rust-tree.h"
+#include "rust-tyty.h"
 #include "tree-core.h"
 #include "rust-gcc.h"
 #include "print-tree.h"
@@ -34,6 +38,7 @@
 #include "rust-constexpr.h"
 
 #include "print-tree.h"
+#include "tree.h"
 
 // declaration taken from "stringpool.h"
 // the get_identifier macro causes compilation issues
@@ -206,6 +211,9 @@ try_handler (bool is_new_api)
   };
 }
 
+static tree
+black_box_handler (Context *ctx, TyTy::FnType *fntype);
+
 inline tree
 sorry_handler (Context *ctx, TyTy::FnType *fntype)
 {
@@ -255,6 +263,7 @@ static const std::map<std::string,
     {"assume", assume_handler},
     {"try", try_handler (false)},
     {"catch_unwind", try_handler (true)},
+    {"black_box", black_box_handler},
 };
 
 Intrinsics::Intrinsics (Context *ctx) : ctx (ctx) {}
@@ -1370,6 +1379,54 @@ try_handler_inner (Context *ctx, TyTy::FnType *fntype, bool is_new_api)
 					    NULL_TREE, BUILTINS_LOCATION);
   ctx->add_statement (eh_construct);
   // BUILTIN try_handler FN BODY END
+  finalize_intrinsic_block (ctx, fndecl);
+
+  return fndecl;
+}
+
+static tree
+black_box_handler (Context *ctx, TyTy::FnType *fntype)
+{
+  rust_assert (fntype->get_params ().size () == 1);
+  rust_assert (fntype->get_num_substitutions () == 1);
+
+  tree lookup = NULL_TREE;
+  if (check_for_cached_intrinsic (ctx, fntype, &lookup))
+    return lookup;
+  auto fndecl = compile_intrinsic_function (ctx, fntype);
+
+  enter_intrinsic_block (ctx, fndecl);
+
+  std::vector<Bvariable *> param_vars;
+  compile_fn_params (ctx, fntype, fndecl, &param_vars);
+  if (!Backend::function_set_parameters (fndecl, param_vars))
+    return error_mark_node;
+
+  auto &param_mapping = fntype->get_substs ().at (0);
+  const TyTy::ParamType *param_tyty = param_mapping.get_param_ty ();
+  TyTy::BaseType *resolved_tyty = param_tyty->resolve ();
+  // tree template_parameter_type
+  //   = TyTyResolveCompile::compile (ctx, resolved_tyty);
+
+  auto dummy = Backend::var_expression (param_vars[0], UNDEF_LOCATION);
+
+  auto input
+    = build_tree_list (build_tree_list (NULL_TREE, build_string (2, "r")),
+		       dummy);
+
+  auto clobber = build_string_literal ("memory");
+  auto compile_asm = CompileAsm (ctx);
+  auto stmt = compile_asm.asm_build_stmt (UNKNOWN_LOCATION,
+					  {NULL_TREE, NULL_TREE, input, clobber,
+					   NULL_TREE});
+
+  ASM_VOLATILE_P (stmt) = true;
+
+  auto ret = Backend::return_statement (fndecl, dummy, UNKNOWN_LOCATION);
+
+  ctx->add_statement (stmt);
+  ctx->add_statement (ret);
+
   finalize_intrinsic_block (ctx, fndecl);
 
   return fndecl;
