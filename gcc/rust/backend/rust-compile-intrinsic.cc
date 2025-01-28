@@ -1410,11 +1410,14 @@ black_box_handler (Context *ctx, TyTy::FnType *fntype)
 
   auto dummy = Backend::var_expression (param_vars[0], UNDEF_LOCATION);
 
+  // FIXME: We need to add an extra store here to store the `dummy` into the
+  // result/return variable
+
   auto input
     = build_tree_list (build_tree_list (NULL_TREE, build_string (2, "r")),
 		       dummy);
 
-  auto clobber = build_string_literal ("memory");
+  auto clobber = build_string (7, "memory");
   auto compile_asm = CompileAsm (ctx);
   auto stmt = compile_asm.asm_build_stmt (UNKNOWN_LOCATION,
 					  {NULL_TREE, NULL_TREE, input, clobber,
