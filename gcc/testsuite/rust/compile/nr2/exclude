@@ -152,4 +152,5 @@ traits12.rs
 try-trait.rs
 issue-3174.rs
 derive-debug1.rs
+derive-default1.rs
 # please don't delete the trailing newline
