@@ -24,6 +24,7 @@
 #include "rust-path.h"
 #include "rust-item.h"
 #include "rust-path.h"
+#include "rust-pattern.h"
 #include "rust-system.h"
 #include "rust-token.h"
 #include <memory>
@@ -37,6 +38,16 @@ Builder::literal_string (std::string &&content) const
   return std::unique_ptr<Expr> (
     new AST::LiteralExpr (std::move (content), Literal::LitType::STRING,
 			  PrimitiveCoreType::CORETYPE_STR, {}, loc));
+}
+
+std::unique_ptr<Expr>
+Builder::literal_bool (bool b) const
+{
+  auto str = b ? "true" : "false";
+
+  return std::unique_ptr<Expr> (
+    new AST::LiteralExpr (std::move (str), Literal::LitType::BOOL,
+			  PrimitiveCoreType::CORETYPE_BOOL, {}, loc));
 }
 
 std::unique_ptr<Expr>
@@ -279,6 +290,14 @@ Builder::path_in_expression (LangItem::Kind lang_item) const
   return PathInExpression (lang_item, {}, loc);
 }
 
+PathInExpression
+Builder::variant_path (const std::string &enum_path,
+		       const std::string &variant) const
+{
+  return PathInExpression ({path_segment (enum_path), path_segment (variant)},
+			   {}, loc, false);
+}
+
 std::unique_ptr<BlockExpr>
 Builder::block (tl::optional<std::unique_ptr<Stmt>> &&stmt,
 		std::unique_ptr<Expr> &&tail_expr) const
@@ -329,6 +348,24 @@ std::unique_ptr<Expr>
 Builder::deref (std::unique_ptr<Expr> &&of) const
 {
   return std::unique_ptr<Expr> (new DereferenceExpr (std::move (of), {}, loc));
+}
+
+std::unique_ptr<Expr>
+Builder::comparison_expr (std::unique_ptr<Expr> &&lhs,
+			  std::unique_ptr<Expr> &&rhs,
+			  ComparisonOperator op) const
+{
+  return std::make_unique<ComparisonExpr> (std::move (lhs), std::move (rhs), op,
+					   loc);
+}
+
+std::unique_ptr<Expr>
+Builder::boolean_operation (std::unique_ptr<Expr> &&lhs,
+			    std::unique_ptr<Expr> &&rhs,
+			    LazyBooleanOperator op) const
+{
+  return std::make_unique<LazyBooleanExpr> (std::move (lhs), std::move (rhs),
+					    op, loc);
 }
 
 std::unique_ptr<Stmt>
@@ -388,6 +425,13 @@ std::unique_ptr<Pattern>
 Builder::wildcard () const
 {
   return std::unique_ptr<Pattern> (new WildcardPattern (loc));
+}
+
+std::unique_ptr<Pattern>
+Builder::ref_pattern (std::unique_ptr<Pattern> &&inner) const
+{
+  return std::make_unique<ReferencePattern> (std::move (inner), false, false,
+					     loc);
 }
 
 std::unique_ptr<Path>
