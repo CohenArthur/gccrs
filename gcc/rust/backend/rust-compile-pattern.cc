@@ -17,11 +17,15 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-pattern.h"
+#include "rust-backend.h"
 #include "rust-compile-expr.h"
 #include "rust-compile-resolve-path.h"
 #include "rust-constexpr.h"
 #include "rust-compile-type.h"
 #include "print-tree.h"
+#include "rust-gcc.h"
+#include "rust-hir-pattern.h"
+#include "tree.h"
 
 namespace Rust {
 namespace Compile {
@@ -546,8 +550,57 @@ CompilePatternBindings::visit (HIR::StructPattern &pattern)
 	  break;
 
 	  case HIR::StructPatternField::ItemType::IDENT_PAT: {
-	    // TODO
-	    rust_unreachable ();
+	    auto &ident_pat
+	      = static_cast<HIR::StructPatternFieldIdentPat &> (*field.get ());
+
+	    size_t offs = 0;
+	    ok
+	      = variant->lookup_field (ident_pat.get_identifier ().as_string (),
+				       nullptr, &offs);
+	    rust_assert (ok);
+
+	    tree binding = error_mark_node;
+	    if (adt->is_enum ())
+	      {
+		tree payload_accessor_union
+		  = Backend::struct_field_expression (match_scrutinee_expr, 1,
+						      ident_pat.get_locus ());
+
+		tree variant_accessor
+		  = Backend::struct_field_expression (payload_accessor_union,
+						      variant_index,
+						      ident_pat.get_locus ());
+
+		tree field_value
+		  = Backend::struct_field_expression (variant_accessor, offs,
+						      ident_pat.get_locus ());
+
+		auto new_binding
+		  = Backend::local_variable (ctx->peek_fn ().fndecl, "new_a",
+					     TREE_TYPE (field_value), nullptr,
+					     ident_pat.get_locus ());
+
+		auto init = Backend::init_statement (ctx->peek_fn ().fndecl,
+						     new_binding, field_value);
+
+		ctx->add_statement (init);
+
+		binding = new_binding->get_tree (ident_pat.get_locus ());
+
+		// binding
+		//   = Backend::assignment_statement (new_binding, field_value,
+		// 				   ident_pat.get_locus ());
+	      }
+	    else
+	      {
+		tree variant_accessor = match_scrutinee_expr;
+		binding
+		  = Backend::struct_field_expression (variant_accessor, offs,
+						      ident_pat.get_locus ());
+	      }
+
+	    ctx->insert_pattern_binding (ident_pat.get_mappings ().get_hirid (),
+					 binding);
 	  }
 	  break;
 

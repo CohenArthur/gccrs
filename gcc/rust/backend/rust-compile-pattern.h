@@ -75,6 +75,10 @@ public:
 		       Context *ctx)
   {
     CompilePatternBindings compiler (ctx, match_scrutinee_expr);
+
+    rust_debug ("[ARTHUR] pattern being debugged: %s",
+		pattern.as_string ().c_str ());
+
     pattern.accept_vis (compiler);
   }
 
