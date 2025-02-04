@@ -204,6 +204,7 @@ GRS_OBJS = \
     rust/rust-hir-pattern-analysis.o \
     rust/rust-compile-intrinsic.o \
     rust/rust-compile-pattern.o \
+    rust/rust-compile-pattern-var-decl.o \
     rust/rust-compile-fnparam.o \
     rust/rust-compile-proc-macro.o \
     rust/rust-base62.o \

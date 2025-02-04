@@ -21,7 +21,7 @@
 #include "rust-compile-stmt.h"
 #include "rust-compile-expr.h"
 #include "rust-compile-fnparam.h"
-#include "rust-compile-var-decl.h"
+#include "rust-compile-pattern-var-decl.h"
 #include "rust-compile-type.h"
 #include "rust-constexpr.h"
 #include "rust-diagnostics.h"

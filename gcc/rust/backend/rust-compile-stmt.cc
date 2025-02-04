@@ -20,7 +20,7 @@
 #include "rust-compile-stmt.h"
 #include "rust-compile-expr.h"
 #include "rust-compile-type.h"
-#include "rust-compile-var-decl.h"
+#include "rust-compile-pattern-var-decl.h"
 
 namespace Rust {
 namespace Compile {
@@ -62,7 +62,7 @@ CompileStmt::visit (HIR::LetStmt &stmt)
   fncontext fnctx = ctx->peek_fn ();
   tree fndecl = fnctx.fndecl;
   tree translated_type = TyTyResolveCompile::compile (ctx, ty);
-  CompileVarDecl::compile (fndecl, translated_type, &stmt_pattern, ctx);
+  CompilePatternVarDecl::compile (fndecl, translated_type, &stmt_pattern, ctx);
 
   // nothing to do
   if (!stmt.has_init_expr ())
