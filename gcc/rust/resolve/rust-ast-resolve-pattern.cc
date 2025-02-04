@@ -17,7 +17,12 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-ast-resolve-pattern.h"
+#include "rust-ast-resolve-item.h"
 #include "rust-ast-resolve-path.h"
+#include "rust-canonical-path.h"
+#include "rust-common.h"
+#include "rust-mapping-common.h"
+#include "rust-pattern.h"
 
 namespace Rust {
 namespace Resolver {
@@ -134,6 +139,49 @@ PatternDeclaration::visit (AST::StructPattern &pattern)
 	  case AST::StructPatternField::ItemType::IDENT_PAT: {
 	    AST::StructPatternFieldIdentPat &ident
 	      = static_cast<AST::StructPatternFieldIdentPat &> (*field);
+
+	    if (ident.get_ident_pattern ().get_pattern_kind ()
+		== AST::Pattern::Kind::Identifier)
+	      {
+		auto rebind = static_cast<AST::IdentifierPattern &> (
+		  ident.get_ident_pattern ());
+
+		NodeId resolved = UNKNOWN_NODEID;
+		auto resolved_to_const = false;
+
+		// If the rebind actually resolves to a const, it's not a
+		// rebind - just a regular pattern match
+		if (resolver->get_name_scope ().lookup (
+		      CanonicalPath::new_seg (rebind.get_node_id (),
+					      rebind.get_ident ().as_string ()),
+		      &resolved))
+		  {
+		    rust_debug ("[ARTHUR] resolved %s to potentially a const?",
+				rebind.get_ident ().as_string ().c_str ());
+
+		    // FIXME: This isn't working because we call
+		    // `insert_ast_item` in the lowering, so much after this
+		    // :'(
+		    if (auto item = mappings.lookup_ast_item (resolved))
+		      if (item.value ()->get_item_kind ()
+			  == AST::Item::Kind::ConstantItem)
+			{
+			  rust_debug (
+			    "[ARTHUR] found a const! %s",
+			    rebind.get_ident ().as_string ().c_str ());
+			  resolved_to_const = true;
+			}
+		  }
+
+		// if (!resolved_to_const)
+		//   add_new_binding (rebind.get_ident (), rebind.get_node_id
+		//   (),
+		// 		   BindingTypeInfo (rebind.get_is_mut ()
+		// 				      ? Mutability::Mut
+		// 				      : Mutability::Imm,
+		// 				    rebind.get_is_ref (),
+		// 				    ident.get_locus ()));
+	      }
 
 	    ident.get_ident_pattern ().accept_vis (*this);
 	  }
