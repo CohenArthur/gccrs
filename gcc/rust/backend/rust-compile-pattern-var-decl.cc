@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-pattern-var-decl.h"
+#include "rust-hir-pattern.h"
 
 namespace Rust {
 namespace Compile {
@@ -90,6 +91,38 @@ CompilePatternVarDecl::visit (HIR::TuplePattern &pattern)
       break;
     }
 }
+
+// void
+// CompilePatternVarDecl::visit (HIR::TupleStructPattern &pattern)
+// {
+//   switch (pattern.get_items ().get_item_type ())
+//     {
+//       case HIR::TuplePatternItems::ItemType::MULTIPLE: {
+// 	rust_assert (TREE_CODE (translated_type) == RECORD_TYPE);
+// 	auto &items
+// 	  = static_cast<HIR::TupleStructItemsNoRange &> (pattern.get_items ());
+
+// 	size_t offs = 0;
+// 	for (auto &sub : items.get_patterns ())
+// 	  {
+// 	    tree sub_ty = error_mark_node;
+// 	    tree field = TYPE_FIELDS (translated_type);
+// 	    for (size_t i = 0; i < offs; i++)
+// 	      {
+// 		field = DECL_CHAIN (field);
+// 		gcc_assert (field != NULL_TREE);
+// 	      }
+// 	    sub_ty = TREE_TYPE (field);
+// 	    CompilePatternVarDecl::compile (fndecl, sub_ty, sub.get (), ctx);
+// 	    offs++;
+// 	  }
+//       }
+//       break;
+
+//     default:
+//       break;
+//     }
+// }
 
 } // namespace Compile
 } // namespace Rust
