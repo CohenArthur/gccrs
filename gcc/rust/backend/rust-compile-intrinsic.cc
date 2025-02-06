@@ -15,6 +15,8 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-intrinsic.h"
+#include "input.h"
+#include "rust-backend.h"
 #include "rust-compile-context.h"
 #include "rust-compile-type.h"
 #include "rust-compile-expr.h"
@@ -25,6 +27,7 @@
 #include "rust-constexpr.h"
 #include "rust-session-manager.h"
 #include "rust-tree.h"
+#include "rust-tyty.h"
 #include "tree-core.h"
 #include "rust-gcc.h"
 #include "print-tree.h"
@@ -215,6 +218,9 @@ sorry_handler (Context *ctx, TyTy::FnType *fntype)
   return error_mark_node;
 }
 
+tree
+discriminant_value_handler (Context *ctx, TyTy::FnType *fntype);
+
 static const std::map<std::string,
 		      std::function<tree (Context *, TyTy::FnType *)>>
   generic_intrinsics = {
@@ -255,6 +261,7 @@ static const std::map<std::string,
     {"assume", assume_handler},
     {"try", try_handler (false)},
     {"catch_unwind", try_handler (true)},
+    {"discriminant_value", discriminant_value_handler},
 };
 
 Intrinsics::Intrinsics (Context *ctx) : ctx (ctx) {}
@@ -1370,6 +1377,51 @@ try_handler_inner (Context *ctx, TyTy::FnType *fntype, bool is_new_api)
 					    NULL_TREE, BUILTINS_LOCATION);
   ctx->add_statement (eh_construct);
   // BUILTIN try_handler FN BODY END
+  finalize_intrinsic_block (ctx, fndecl);
+
+  return fndecl;
+}
+
+tree
+discriminant_value_handler (Context *ctx, TyTy::FnType *fntype)
+{
+  rust_assert (fntype->get_num_params () == 1);
+  rust_assert (fntype->get_num_substitutions () == 1);
+
+  tree lookup = NULL_TREE;
+  if (check_for_cached_intrinsic (ctx, fntype, &lookup))
+    return lookup;
+  auto fndecl = compile_intrinsic_function (ctx, fntype);
+
+  // auto &param_mapping = fntype->get_substs ().at (0);
+  // const TyTy::ParamType *param_tyty = param_mapping.get_param_ty ();
+  // TyTy::BaseType *resolved_tyty = param_tyty->resolve ();
+  // tree template_parameter_type
+  //   = TyTyResolveCompile::compile (ctx, resolved_tyty);
+
+  enter_intrinsic_block (ctx, fndecl);
+
+  std::vector<Bvariable *> param_vars;
+  compile_fn_params (ctx, fntype, fndecl, &param_vars);
+  if (!Backend::function_set_parameters (fndecl, param_vars))
+    return error_mark_node;
+
+  tree enum_value = Backend::var_expression (param_vars[0], UNDEF_LOCATION);
+
+  tree deref_enum_value = build_fold_indirect_ref (enum_value);
+
+  tree discriminant
+    = Backend::struct_field_expression (deref_enum_value, 0, UNDEF_LOCATION);
+
+  TREE_TYPE (discriminant) = uint64_type_node;
+
+  // FIXME: We need to coerce this to the proper return value of the intrinsic
+
+  auto return_discriminant
+    = Backend::return_statement (fndecl, discriminant, UNKNOWN_LOCATION);
+
+  ctx->add_statement (return_discriminant);
+
   finalize_intrinsic_block (ctx, fndecl);
 
   return fndecl;
