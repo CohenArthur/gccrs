@@ -27,7 +27,6 @@
 #include "rust-parse.h"
 #include "rust-cfg-strip.h"
 #include "rust-early-name-resolver.h"
-#include "rust-session-manager.h"
 #include "rust-proc-macro.h"
 
 namespace Rust {
