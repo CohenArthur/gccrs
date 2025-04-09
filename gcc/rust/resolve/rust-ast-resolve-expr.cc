@@ -347,7 +347,8 @@ translate_operand (AST::InlineAsm &expr, const CanonicalPath &prefix,
 	  }
 	  case RegisterType::Const: {
 	    auto anon_const = operand.get_const ().anon_const;
-	    ResolveExpr::go (*anon_const.expr, prefix, canonical_prefix);
+	    ResolveExpr::go (anon_const.get_inner_expr (), prefix,
+			     canonical_prefix);
 	    break;
 	  }
 	  case RegisterType::Sym: {
