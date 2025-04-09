@@ -555,6 +555,19 @@ Builder::new_lifetime_param (LifetimeParam &param)
 }
 
 std::unique_ptr<GenericParam>
+Builder::new_const_param (ConstGenericParam &param) const
+{
+  auto default_value = param.has_default_value () ? param.get_default_value ()
+						  : GenericArg::create_error ();
+
+  return std::make_unique<ConstGenericParam> (param.get_name (),
+					      param.get_type ().clone_type (),
+					      default_value,
+					      param.get_outer_attrs (),
+					      param.get_locus ());
+}
+
+std::unique_ptr<GenericParam>
 Builder::new_type_param (
   TypeParam &param, std::vector<std::unique_ptr<TypeParamBound>> extra_bounds)
 {
