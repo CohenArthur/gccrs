@@ -41,16 +41,18 @@ DeriveOrd::go (Item &item)
 
 std::unique_ptr<Item>
 DeriveOrd::cmp_impl (
-  std::unique_ptr<AssociatedItem> &&cmp_fn, Identifier type_name,
+  std::unique_ptr<BlockExpr> &&fn_block, Identifier type_name,
   const std::vector<std::unique_ptr<GenericParam>> &type_generics)
 {
+  auto fn = cmp_fn (std::move (fn_block), type_name);
+
   auto trait = ordering == Ordering::Partial ? "PartialOrd" : "Ord";
   auto trait_path = builder.type_path ({"core", "cmp", trait}, true);
 
   auto trait_bound
     = builder.trait_bound (builder.type_path ({"core", "cmp", trait}, true));
 
-  auto trait_items = vec (std::move (cmp_fn));
+  auto trait_items = vec (std::move (fn));
 
   auto cmp_generics
     = setup_impl_generics (type_name.as_string (), type_generics,
@@ -64,9 +66,6 @@ DeriveOrd::cmp_impl (
 std::unique_ptr<AssociatedItem>
 DeriveOrd::cmp_fn (std::unique_ptr<BlockExpr> &&block, Identifier type_name)
 {
-  // auto return_ty = ordering == Ordering::Total
-  // ? builder.type_path_segment_generic ({"core", "option", "Option"}, true)
-
   // Ordering
   auto return_type = builder.type_path ({"core", "cmp", "Ordering"}, true);
 
@@ -98,26 +97,64 @@ DeriveOrd::cmp_fn (std::unique_ptr<BlockExpr> &&block, Identifier type_name)
   return builder.function (function_name, std::move (params),
 			   ptrify (return_type), std::move (block));
 }
-
 std::unique_ptr<Expr>
 recursive_match ()
 {
   return nullptr;
 }
 
+// we need to do a recursive match expression for all of the fields used in a
+// struct so for something like struct Foo { a: i32, b: i32, c: i32 } we must
+// first compare each `a` field, then `b`, then `c`, like this:
+//
+// match cmp_fn(self.<field>, other.<field>) {
+//     Ordering::Equal => <recurse>,
+//     cmp => cmp,
+// }
+//
+// and the recurse will be the exact same expression, on the next field. so that
+// our result looks like this:
+//
+// match cmp_fn(self.a, other.a) {
+//     Ordering::Equal => match cmp_fn(self.b, other.b) {
+//         Ordering::Equal =>cmp_fn(self.c, other.c),
+//         cmp => cmp,
+//     }
+//     cmp => cmp,
+// }
+//
+// the last field comparison needs not to be a match but just the function call.
+// this is going to be annoying lol
 void
 DeriveOrd::visit_struct (StructStruct &item)
 {
   // FIXME: Put cmp_fn call inside cmp_impl, pass a block to cmp_impl instead -
   // this avoids repeating the same parameter twice (the type name)
-  expanded = cmp_impl (cmp_fn (builder.block (), item.get_identifier ()),
-		       item.get_identifier (), item.get_generic_params ());
+  expanded = cmp_impl (builder.block (), item.get_identifier (),
+		       item.get_generic_params ());
 }
 
+// same as structs, but for each field index instead of each field name -
+// straightforward once we have `visit_struct` working
 void
 DeriveOrd::visit_tuple (TupleStruct &item)
 {}
 
+// for enums, we need to generate a match for each of the enum's variant that
+// contains data and then do the same thing as visit_struct or visit_enum. if
+// the two aren't the same variant, then compare the two discriminant values for
+// all the dataless enum variants and in the general case.
+//
+// so for enum Foo { A(i32, i32), B, C } we need to do the following
+//
+// match (self, other) {
+//     (A(self_0, self_1), A(other_0, other_1)) => {
+//         match cmp_fn(self_0, other_0) {
+//             Ordering::Equal => cmp_fn(self_1, other_1),
+//             cmp => cmp,
+//         },
+//     _ => cmp_fn(discr_value(self), discr_value(other))
+// }
 void
 DeriveOrd::visit_enum (Enum &item)
 {}
@@ -125,11 +162,10 @@ DeriveOrd::visit_enum (Enum &item)
 void
 DeriveOrd::visit_union (Union &item)
 {
-  if (ordering == Ordering::Total)
-    rust_error_at (item.get_locus (), "derive(Ord) cannot be used on unions");
-  else
-    rust_error_at (item.get_locus (),
-		   "derive(PartialOrd) cannot be used on unions");
+  auto trait_name = ordering == Ordering::Total ? "Ord" : "PartialOrd";
+
+  rust_error_at (item.get_locus (), "derive(%s) cannot be used on unions",
+		 trait_name);
 }
 
 } // namespace AST

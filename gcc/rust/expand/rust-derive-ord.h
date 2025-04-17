@@ -57,7 +57,7 @@ private:
   std::unique_ptr<Expr> recursive_match ();
 
   std::unique_ptr<Item>
-  cmp_impl (std::unique_ptr<AssociatedItem> &&cmp_fn, Identifier type_name,
+  cmp_impl (std::unique_ptr<BlockExpr> &&fn_block, Identifier type_name,
 	    const std::vector<std::unique_ptr<GenericParam>> &type_generics);
   std::unique_ptr<AssociatedItem> cmp_fn (std::unique_ptr<BlockExpr> &&block,
 					  Identifier type_name);
