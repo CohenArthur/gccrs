@@ -1527,6 +1527,13 @@ public:
     return std::unique_ptr<Type> (clone_type_impl ());
   }
 
+  // Similar to `clone_type`, but generates a new instance of the node with a
+  // different NodeId
+  std::unique_ptr<Type> reconstruct_type () const
+  {
+    return reconstruct (this, &Type::reconstruct_type_impl);
+  }
+
   // virtual destructor
   virtual ~Type () {}
 
@@ -1548,9 +1555,11 @@ public:
 
 protected:
   Type () : node_id (Analysis::Mappings::get ().get_next_node_id ()) {}
+  Type (NodeId node_id) : node_id (node_id) {}
 
-  // Clone function implementation as pure virtual method
+  // Clone and reconstruct function implementations as pure virtual methods
   virtual Type *clone_type_impl () const = 0;
+  virtual Type *reconstruct_type_impl () const = 0;
 
   NodeId node_id;
 };
@@ -1564,10 +1573,15 @@ public:
   {
     return std::unique_ptr<TypeNoBounds> (clone_type_no_bounds_impl ());
   }
+  std::unique_ptr<TypeNoBounds> reconstruct_type_no_bounds () const
+  {
+    return reconstruct (this, &TypeNoBounds::reconstruct_type_no_bounds_impl);
+  }
 
 protected:
   // Clone function implementation as pure virtual method
   virtual TypeNoBounds *clone_type_no_bounds_impl () const = 0;
+  virtual TypeNoBounds *reconstruct_type_no_bounds_impl () const = 0;
 
   /* Save having to specify two clone methods in derived classes by making
    * type clone return typenobounds clone. Hopefully won't affect performance
@@ -1575,6 +1589,11 @@ protected:
   TypeNoBounds *clone_type_impl () const final override
   {
     return clone_type_no_bounds_impl ();
+  }
+
+  TypeNoBounds *reconstruct_type_impl () const final override
+  {
+    return reconstruct_type_no_bounds_impl ();
   }
 
   TypeNoBounds () : Type () {}
@@ -1598,6 +1617,11 @@ public:
   {
     return std::unique_ptr<TypeParamBound> (clone_type_param_bound_impl ());
   }
+  std::unique_ptr<TypeParamBound> reconstruct_type_param_bound () const
+  {
+    return reconstruct (this,
+			&TypeParamBound::reconstruct_type_param_bound_impl);
+  }
 
   virtual std::string as_string () const = 0;
 
@@ -1610,7 +1634,10 @@ public:
 protected:
   // Clone function implementation as pure virtual method
   virtual TypeParamBound *clone_type_param_bound_impl () const = 0;
+  virtual TypeParamBound *reconstruct_type_param_bound_impl () const = 0;
 
+  TypeParamBound () : node_id (Analysis::Mappings::get ().get_next_node_id ())
+  {}
   TypeParamBound (NodeId node_id) : node_id (node_id) {}
 
   NodeId node_id;
@@ -1671,6 +1698,10 @@ protected:
   Lifetime *clone_type_param_bound_impl () const override
   {
     return new Lifetime (node_id, lifetime_type, lifetime_name, locus);
+  }
+  Lifetime *reconstruct_type_param_bound_impl () const override
+  {
+    return new Lifetime (lifetime_type, lifetime_name, locus);
   }
 };
 

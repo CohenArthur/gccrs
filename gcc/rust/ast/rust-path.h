@@ -377,6 +377,12 @@ public:
     return *type;
   }
 
+  tl::optional<GenericArg> &get_default_value () { return default_value; }
+  const tl::optional<GenericArg> &get_default_value () const
+  {
+    return default_value;
+  }
+
   GenericArg &get_default_value_unchecked ()
   {
     rust_assert (has_default_value ());
@@ -779,6 +785,11 @@ public:
   {
     return new TypePathSegment (*this);
   }
+  virtual TypePathSegment *reconstruct_type_path_segment_impl () const
+  {
+    return new TypePathSegment (lang_item, ident_segment,
+				has_separating_scope_resolution, locus);
+  }
 
 public:
   virtual ~TypePathSegment () {}
@@ -789,6 +800,12 @@ public:
   std::unique_ptr<TypePathSegment> clone_type_path_segment () const
   {
     return std::unique_ptr<TypePathSegment> (clone_type_path_segment_impl ());
+  }
+  // Unique pointer custom reconstruct function
+  std::unique_ptr<TypePathSegment> reconstruct_type_path_segment () const
+  {
+    return std::unique_ptr<TypePathSegment> (
+      reconstruct_type_path_segment_impl ());
   }
 
   TypePathSegment (PathIdentSegment ident_segment,
@@ -810,6 +827,15 @@ public:
     : lang_item (tl::nullopt),
       ident_segment (PathIdentSegment (std::move (segment_name), locus)),
       locus (locus),
+      has_separating_scope_resolution (has_separating_scope_resolution),
+      node_id (Analysis::Mappings::get ().get_next_node_id ())
+  {}
+
+  // General constructor
+  TypePathSegment (tl::optional<LangItem::Kind> lang_item,
+		   tl::optional<PathIdentSegment> ident_segment,
+		   bool has_separating_scope_resolution, location_t locus)
+    : lang_item (lang_item), ident_segment (ident_segment), locus (locus),
       has_separating_scope_resolution (has_separating_scope_resolution),
       node_id (Analysis::Mappings::get ().get_next_node_id ())
   {}
@@ -1145,6 +1171,13 @@ protected:
   {
     return new TypePath (*this);
   }
+  TypePath *reconstruct_type_no_bounds_impl () const override
+  {
+    return new TypePath (
+      reconstruct_vec (segments,
+		       &TypePathSegment::reconstruct_type_path_segment),
+      locus, has_opening_scope_resolution);
+  }
 
 public:
   /* Returns whether the TypePath has an opening scope resolution operator
@@ -1435,6 +1468,14 @@ protected:
   QualifiedPathInType *clone_type_no_bounds_impl () const override
   {
     return new QualifiedPathInType (*this);
+  }
+  QualifiedPathInType *reconstruct_type_no_bounds_impl () const override
+  {
+    return new QualifiedPathInType (
+      path_type, associated_segment->reconstruct_type_path_segment (),
+      reconstruct_vec (segments,
+		       &TypePathSegment::reconstruct_type_path_segment),
+      locus);
   }
 
 public:
