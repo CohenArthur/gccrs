@@ -82,6 +82,54 @@ public:
   virtual void accept_vis (ASTVisitor &vis) = 0;
 };
 
+/**
+ * Base function for reconstructing and asserting that the new NodeId is
+ * different from the old NodeId.
+ *
+ * This code uses the pointer to member operator to allow calling methods on an
+ * instance. It's a bit complicated, and very ugly to look at, but it allows us
+ * to avoid repetition when writing all of our base `reconstruct_*` methods.
+ * Instead of always repeating the assertion and the wrapping into a smart
+ * pointer, we can just call this base function with our `reconstruct_*_impl`
+ * method passed as an argument, like so:
+ *
+ * reconstruct(this, &Class::reconstruct_class_impl)
+ *
+ * This function then takes care of asserting that the old NodeId is different
+ * from the new one, and wraps the given pointer into a unique pointer and
+ * returns it.
+ */
+template <typename T, typename F>
+std::unique_ptr<T>
+reconstruct (const T *instance, F method)
+{
+  auto *reconstructed = (instance->*method) ();
+
+  rust_assert (reconstructed->get_node_id () != instance->get_node_id ());
+
+  return std::unique_ptr<T> (reconstructed);
+}
+
+/**
+ * Reconstruct multiple items in a vector
+ */
+template <typename T, typename F>
+std::vector<std::unique_ptr<T>>
+reconstruct_vec (const std::vector<std::unique_ptr<T>> &to_reconstruct,
+		 F method)
+{
+  std::vector<std::unique_ptr<T>> reconstructed;
+
+  for (const auto &elt : to_reconstruct)
+    {
+      auto new_elt = (elt.get ()->*method) ();
+
+      reconstructed.emplace_back (std::move (new_elt));
+    }
+
+  return std::move (reconstructed);
+}
+
 // Delimiter types - used in macros and whatever.
 enum DelimType
 {
