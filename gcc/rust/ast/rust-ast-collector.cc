@@ -1569,7 +1569,7 @@ TokenCollector::visit (InlineAsm &expr)
 	    break;
 	  }
 	  case RegisterType::Const: {
-	    visit (operand.get_const ().anon_const.expr);
+	    visit (operand.get_const ().anon_const.get_inner_expr ());
 	    break;
 	  }
 	  case RegisterType::Sym: {
