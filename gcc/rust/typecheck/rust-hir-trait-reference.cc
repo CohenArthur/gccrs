@@ -387,7 +387,7 @@ TraitReference::get_super_traits () const
 bool
 TraitReference::is_object_safe (bool emit_error, location_t locus) const
 {
-  // https: // doc.rust-lang.org/reference/items/traits.html#object-safety
+  // https://doc.rust-lang.org/reference/items/traits.html#object-safety
   std::vector<const TraitReference *> non_object_super_traits;
   for (auto &super_trait : super_traits)
     {
