@@ -118,6 +118,10 @@ public:
 
   static constexpr auto &RUSTC_CONVERSION_SUGGESTION
     = "rustc_conversion_suggestion";
+  static constexpr auto &SIMD_TEST = "simd_test";
+
+  static constexpr auto &RUSTC_LEGACY_CONST_GENERICS
+    = "rustc_legacy_const_generics";
 };
 } // namespace Values
 } // namespace Rust

@@ -99,7 +99,11 @@ static const BuiltinAttrDefinition __definitions[]
      {Attrs::RUSTC_ALLOCATOR, CODE_GENERATION},
      {Attrs::RUSTC_ALLOCATOR_NOUNWIND, CODE_GENERATION},
      {Attrs::GLOBAL_ALLOCATOR, CODE_GENERATION},
-     {Attrs::RUSTC_CONVERSION_SUGGESTION, TYPE_CHECK}};
+     {Attrs::RUSTC_CONVERSION_SUGGESTION, TYPE_CHECK},
+     {Attrs::SIMD_TEST, CODE_GENERATION},
+
+     {Attrs::LINK_NAME, CODE_GENERATION},
+     {Attrs::RUSTC_LEGACY_CONST_GENERICS, TYPE_CHECK}};
 
 static const std::set<std::string> __outer_attributes
   = {Attrs::INLINE,
