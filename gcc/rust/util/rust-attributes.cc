@@ -93,7 +93,11 @@ static const BuiltinAttrDefinition __definitions[]
      {Attrs::FUNDAMENTAL, TYPE_CHECK},
      {Attrs::NON_EXHAUSTIVE, TYPE_CHECK},
      {Attrs::RUSTFMT, EXTERNAL},
-     {Attrs::TEST, CODE_GENERATION}};
+     {Attrs::TEST, CODE_GENERATION},
+     {Attrs::SIMD_TEST, CODE_GENERATION},
+
+     {Attrs::LINK_NAME, CODE_GENERATION},
+     {Attrs::RUSTC_LEGACY_CONST_GENERICS, TYPE_CHECK}};
 
 static const std::set<std::string> __outer_attributes
   = {Attrs::INLINE,
