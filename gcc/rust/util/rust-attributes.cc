@@ -98,7 +98,10 @@ static const BuiltinAttrDefinition __definitions[]
      {Attrs::RUSTFMT, EXTERNAL},
 
      {Attrs::TEST, CODE_GENERATION},
-     {Attrs::SIMD_TEST, CODE_GENERATION}};
+     {Attrs::SIMD_TEST, CODE_GENERATION},
+
+     {Attrs::LINK_NAME, CODE_GENERATION},
+     {Attrs::RUSTC_LEGACY_CONST_GENERICS, TYPE_CHECK}};
 
 BuiltinAttributeMappings *
 BuiltinAttributeMappings::get ()

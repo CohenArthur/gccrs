@@ -89,6 +89,11 @@ public:
   static constexpr auto &TEST = "test";
 
   static constexpr auto &SIMD_TEST = "simd_test";
+
+  static constexpr auto &LINK_NAME = "link_name";
+
+  static constexpr auto &RUSTC_LEGACY_CONST_GENERICS
+    = "rustc_legacy_const_generics";
 };
 } // namespace Values
 } // namespace Rust
