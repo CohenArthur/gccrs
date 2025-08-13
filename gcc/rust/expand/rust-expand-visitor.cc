@@ -18,6 +18,7 @@
 
 #include "rust-expand-visitor.h"
 #include "rust-ast-fragment.h"
+#include "rust-item.h"
 #include "rust-proc-macro.h"
 #include "rust-attributes.h"
 #include "rust-ast.h"
@@ -62,7 +63,7 @@ derive_item (AST::Item &item, AST::SimplePath &to_derive,
 	{
 	  switch (node.get_kind ())
 	    {
-	    case AST::SingleASTNode::ITEM:
+	    case AST::SingleASTNode::Kind::Item:
 	      result.push_back (node.take_item ());
 	      break;
 	    default:
@@ -85,7 +86,7 @@ expand_item_attribute (AST::Item &item, AST::SimplePath &name,
 	{
 	  switch (node.get_kind ())
 	    {
-	    case AST::SingleASTNode::ITEM:
+	    case AST::SingleASTNode::Kind::Item:
 	      result.push_back (node.take_item ());
 	      break;
 	    default:
@@ -114,7 +115,7 @@ expand_stmt_attribute (T &statement, AST::SimplePath &attribute,
 	{
 	  switch (node.get_kind ())
 	    {
-	    case AST::SingleASTNode::STMT:
+	    case AST::SingleASTNode::Kind::Stmt:
 	      result.push_back (node.take_stmt ());
 	      break;
 	    default:
@@ -352,6 +353,19 @@ ExpandVisitor::maybe_expand_type (std::unique_ptr<AST::Type> &type)
   expander.pop_context ();
 }
 
+void
+ExpandVisitor::maybe_expand_pattern (std::unique_ptr<AST::Pattern> &pattern)
+{
+  expander.push_context (MacroExpander::ContextType::PATTERN);
+
+  pattern->accept_vis (*this);
+  auto final_fragment = expander.take_expanded_fragment ();
+  if (final_fragment.should_expand () && final_fragment.is_pattern_fragment ())
+    pattern = final_fragment.take_pattern_fragment ();
+
+  expander.pop_context ();
+}
+
 // FIXME: Can this be refactored into a `scoped` method? Which takes a
 // ContextType as parameter and a lambda? And maybe just an std::vector<T>&?
 void
@@ -424,6 +438,8 @@ ExpandVisitor::expand_closure_params (std::vector<AST::ClosureParam> &params)
 {
   for (auto &param : params)
     {
+      maybe_expand_pattern (param.get_pattern_ptr ());
+
       if (param.has_type_given ())
 	maybe_expand_type (param.get_type_ptr ());
     }
@@ -686,13 +702,20 @@ ExpandVisitor::visit (AST::MatchExpr &expr)
       auto &arm = match_case.get_arm ();
 
       for (auto &pattern : arm.get_patterns ())
-	visit (pattern);
+	maybe_expand_pattern (pattern);
 
       if (arm.has_match_arm_guard ())
 	maybe_expand_expr (arm.get_guard_expr_ptr ());
 
       maybe_expand_expr (match_case.get_expr_ptr ());
     }
+}
+
+void
+ExpandVisitor::visit (AST::TupleExpr &expr)
+{
+  for (auto &sub : expr.get_tuple_elems ())
+    maybe_expand_expr (sub);
 }
 
 void
@@ -970,13 +993,70 @@ ExpandVisitor::visit (AST::StructPatternFieldIdent &field)
 void
 ExpandVisitor::visit (AST::GroupedPattern &pattern)
 {
-  visit (pattern.get_pattern_in_parens ());
+  maybe_expand_pattern (pattern.get_pattern_in_parens_ptr ());
+}
+
+void
+ExpandVisitor::visit (AST::SlicePatternItemsNoRest &items)
+{
+  for (auto &sub : items.get_patterns ())
+    maybe_expand_pattern (sub);
+}
+
+void
+ExpandVisitor::visit (AST::SlicePatternItemsHasRest &items)
+{
+  for (auto &sub : items.get_lower_patterns ())
+    maybe_expand_pattern (sub);
+  for (auto &sub : items.get_upper_patterns ())
+    maybe_expand_pattern (sub);
+}
+
+void
+ExpandVisitor::visit (AST::AltPattern &pattern)
+{
+  for (auto &alt : pattern.get_alts ())
+    maybe_expand_pattern (alt);
+}
+
+void
+ExpandVisitor::visit (AST::TupleStructItemsNoRange &tuple_items)
+{
+  for (auto &sub : tuple_items.get_patterns ())
+    maybe_expand_pattern (sub);
+}
+
+void
+ExpandVisitor::visit (AST::TupleStructItemsRange &tuple_items)
+{
+  for (auto &sub : tuple_items.get_lower_patterns ())
+    maybe_expand_pattern (sub);
+
+  for (auto &sub : tuple_items.get_upper_patterns ())
+    maybe_expand_pattern (sub);
+}
+
+void
+ExpandVisitor::visit (AST::TuplePatternItemsMultiple &tuple_items)
+{
+  for (auto &sub : tuple_items.get_patterns ())
+    maybe_expand_pattern (sub);
+}
+
+void
+ExpandVisitor::visit (AST::TuplePatternItemsRanged &tuple_items)
+{
+  for (auto &sub : tuple_items.get_lower_patterns ())
+    maybe_expand_pattern (sub);
+
+  for (auto &sub : tuple_items.get_upper_patterns ())
+    maybe_expand_pattern (sub);
 }
 
 void
 ExpandVisitor::visit (AST::LetStmt &stmt)
 {
-  visit (stmt.get_pattern ());
+  maybe_expand_pattern (stmt.get_pattern_ptr ());
 
   if (stmt.has_type ())
     maybe_expand_type (stmt.get_type_ptr ());
@@ -1006,7 +1086,15 @@ ExpandVisitor::visit (AST::BareFunctionType &type)
 void
 ExpandVisitor::visit (AST::FunctionParam &param)
 {
+  maybe_expand_pattern (param.get_pattern_ptr ());
   maybe_expand_type (param.get_type_ptr ());
+}
+
+void
+ExpandVisitor::visit (AST::VariadicParam &param)
+{
+  if (param.has_pattern ())
+    maybe_expand_pattern (param.get_pattern_ptr ());
 }
 
 void

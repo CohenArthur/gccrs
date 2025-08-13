@@ -1965,6 +1965,7 @@ public:
     Extern,
     Assoc,
     Type,
+    Pattern,
   };
 
 private:
@@ -1977,6 +1978,7 @@ private:
   std::unique_ptr<ExternalItem> external_item;
   std::unique_ptr<AssociatedItem> assoc_item;
   std::unique_ptr<Type> type;
+  std::unique_ptr<Pattern> pattern;
 
 public:
   SingleASTNode (std::unique_ptr<Expr> expr)
@@ -2001,6 +2003,10 @@ public:
 
   SingleASTNode (std::unique_ptr<Type> type)
     : kind (Kind::Type), type (std::move (type))
+  {}
+
+  SingleASTNode (std::unique_ptr<Pattern> pattern)
+    : kind (Kind::Pattern), pattern (std::move (pattern))
   {}
 
   SingleASTNode (SingleASTNode const &other);
@@ -2069,6 +2075,12 @@ public:
   {
     rust_assert (!is_error ());
     return std::move (type);
+  }
+
+  std::unique_ptr<Pattern> take_pattern ()
+  {
+    rust_assert (!is_error ());
+    return std::move (pattern);
   }
 
   void accept_vis (ASTVisitor &vis) override;
