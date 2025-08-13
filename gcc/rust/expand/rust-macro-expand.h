@@ -23,6 +23,7 @@
 #include "rust-ast-fragment.h"
 #include "rust-buffered-queue.h"
 #include "rust-parse.h"
+#include "rust-stacked-contexts.h"
 #include "rust-token.h"
 #include "rust-ast.h"
 #include "rust-macro.h"
@@ -378,19 +379,9 @@ struct MacroExpander
 			AST::MacroMatchRepetition &rep, size_t &match_amount,
 			size_t lo_bound = 0, size_t hi_bound = 0);
 
-  void push_context (ContextType t) { context.push_back (t); }
-
-  ContextType pop_context ()
-  {
-    rust_assert (!context.empty ());
-
-    ContextType t = context.back ();
-    context.pop_back ();
-
-    return t;
-  }
-
-  ContextType peek_context () { return context.back (); }
+  void push_context (ContextType t) { context.enter (t); }
+  ContextType pop_context () { return context.exit (); }
+  ContextType peek_context () { return context.peek (); }
 
   void set_expanded_fragment (AST::Fragment &&fragment)
   {
@@ -506,7 +497,7 @@ private:
   AST::Crate &crate;
   Session &session;
   SubstitutionScope sub_stack;
-  std::vector<ContextType> context;
+  StackedContexts<ContextType> context;
   AST::Fragment expanded_fragment;
   bool has_changed_flag;
 
