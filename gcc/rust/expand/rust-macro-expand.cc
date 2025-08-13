@@ -125,7 +125,7 @@ MacroExpander::expand_decl_macro (location_t invoc_locus,
     matched_fragments_ptr.emplace (ent.first, ent.second.get ());
 
   return transcribe_rule (rules_def, *matched_rule, invoc_token_tree,
-			  matched_fragments_ptr, semicolon, peek_context ());
+			  matched_fragments_ptr, semicolon, context.peek ());
 }
 
 void
@@ -257,9 +257,9 @@ MacroExpander::expand_invoc (AST::MacroInvocation &invoc,
   if (invoc.get_kind () == AST::MacroInvocation::InvocKind::Builtin)
     {
       // Eager expansions are always expressions
-      push_context (ContextType::EXPR);
+      context.enter (ContextType::Expr);
       expand_eager_invocations (invoc);
-      pop_context ();
+      context.exit ();
     }
 
   AST::MacroInvocData &invoc_data = invoc.get_invoc_data ();
@@ -344,7 +344,7 @@ MacroExpander::expand_crate ()
   // TODO: does cfg apply for inner attributes? research.
   // the apparent answer (from playground test) is yes
 
-  push_context (ContextType::ITEM);
+  context.enter (ContextType::Item);
 
   // expand attributes recursively and strip items if required
   //  AttrVisitor attr_visitor (*this);
@@ -370,7 +370,7 @@ MacroExpander::expand_crate ()
 	it++;
     }
 
-  pop_context ();
+  context.exit ();
 
   // TODO: should recursive attribute and macro expansion be done in the same
   // transversal? Or in separate ones like currently?
@@ -1045,29 +1045,29 @@ transcribe_context (MacroExpander::ContextType ctx,
 
   switch (ctx)
     {
-    case MacroExpander::ContextType::ITEM:
+    case MacroExpander::ContextType::Item:
       return transcribe_many_items (parser, last_token_id);
       break;
-    case MacroExpander::ContextType::TRAIT:
+    case MacroExpander::ContextType::Trait:
       return transcribe_many_trait_items (parser, last_token_id);
       break;
-    case MacroExpander::ContextType::IMPL:
+    case MacroExpander::ContextType::Impl:
       return transcribe_many_impl_items (parser, last_token_id);
       break;
-    case MacroExpander::ContextType::TRAIT_IMPL:
+    case MacroExpander::ContextType::TraitImpl:
       return transcribe_many_trait_impl_items (parser, last_token_id);
       break;
-    case MacroExpander::ContextType::EXTERN:
+    case MacroExpander::ContextType::Extern:
       return transcribe_many_ext (parser, last_token_id);
       break;
-    case MacroExpander::ContextType::TYPE:
+    case MacroExpander::ContextType::Type:
       return transcribe_type (parser);
-    case MacroExpander::ContextType::PATTERN:
+    case MacroExpander::ContextType::Pattern:
       return transcribe_pattern (parser);
       break;
-    case MacroExpander::ContextType::STMT:
+    case MacroExpander::ContextType::Stmt:
       return transcribe_many_stmts (parser, last_token_id, semicolon);
-    case MacroExpander::ContextType::EXPR:
+    case MacroExpander::ContextType::Expr:
       return transcribe_expression (parser);
     default:
       rust_unreachable ();
@@ -1182,9 +1182,9 @@ MacroExpander::parse_proc_macro_output (ProcMacro::TokenStream ts)
   Parser<ProcMacroInvocLexer> parser (lex);
 
   std::vector<AST::SingleASTNode> nodes;
-  switch (peek_context ())
+  switch (context.peek ())
     {
-    case ContextType::ITEM:
+    case ContextType::Item:
       while (lex.peek_token ()->get_id () != END_OF_FILE)
 	{
 	  auto result = parser.parse_item (false);
@@ -1193,7 +1193,7 @@ MacroExpander::parse_proc_macro_output (ProcMacro::TokenStream ts)
 	  nodes.emplace_back (std::move (result));
 	}
       break;
-    case ContextType::STMT:
+    case ContextType::Stmt:
       while (lex.peek_token ()->get_id () != END_OF_FILE)
 	{
 	  auto result = parser.parse_stmt ();
@@ -1202,12 +1202,12 @@ MacroExpander::parse_proc_macro_output (ProcMacro::TokenStream ts)
 	  nodes.emplace_back (std::move (result));
 	}
       break;
-    case ContextType::TRAIT:
-    case ContextType::IMPL:
-    case ContextType::TRAIT_IMPL:
-    case ContextType::EXTERN:
-    case ContextType::TYPE:
-    case ContextType::EXPR:
+    case ContextType::Trait:
+    case ContextType::Impl:
+    case ContextType::TraitImpl:
+    case ContextType::Extern:
+    case ContextType::Type:
+    case ContextType::Expr:
     default:
       rust_unreachable ();
     }

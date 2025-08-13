@@ -284,15 +284,15 @@ struct MacroExpander
 {
   enum class ContextType
   {
-    ITEM,
-    STMT,
-    EXPR,
-    EXTERN,
-    TYPE,
-    TRAIT,
-    IMPL,
-    TRAIT_IMPL,
-    PATTERN,
+    Item,
+    Stmt,
+    Expr,
+    Extern,
+    Type,
+    Trait,
+    Impl,
+    TraitImpl,
+    Pattern,
   };
 
   ExpansionCfg cfg;
@@ -378,10 +378,6 @@ struct MacroExpander
   bool match_n_matches (Parser<MacroInvocLexer> &parser,
 			AST::MacroMatchRepetition &rep, size_t &match_amount,
 			size_t lo_bound = 0, size_t hi_bound = 0);
-
-  void push_context (ContextType t) { context.enter (t); }
-  ContextType pop_context () { return context.exit (); }
-  ContextType peek_context () { return context.peek (); }
 
   void set_expanded_fragment (AST::Fragment &&fragment)
   {
@@ -497,7 +493,6 @@ private:
   AST::Crate &crate;
   Session &session;
   SubstitutionScope sub_stack;
-  StackedContexts<ContextType> context;
   AST::Fragment expanded_fragment;
   bool has_changed_flag;
 
@@ -505,6 +500,7 @@ private:
   tl::optional<AST::MacroInvocation &> last_invoc;
 
 public:
+  StackedContexts<ContextType> context;
   Resolver::Resolver *resolver;
   Analysis::Mappings &mappings;
 };

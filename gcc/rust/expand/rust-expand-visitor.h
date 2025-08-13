@@ -105,11 +105,11 @@ public:
   void expand_macro_children (MacroExpander::ContextType ctx, T &values,
 			      U (AST::SingleASTNode::*extractor) (void))
   {
-    expander.push_context (ctx);
+    expander.context.enter (ctx);
 
     expand_macro_children (values, extractor);
 
-    expander.pop_context ();
+    expander.context.exit ();
   }
 
   /**

@@ -164,7 +164,7 @@ void
 ExpandVisitor::expand_inner_items (
   std::vector<std::unique_ptr<AST::Item>> &items)
 {
-  expander.push_context (MacroExpander::ContextType::ITEM);
+  expander.context.enter (MacroExpander::ContextType::Item);
 
   for (auto it = items.begin (); it != items.end (); it++)
     {
@@ -236,14 +236,14 @@ ExpandVisitor::expand_inner_items (
 
   expand_macro_children (items, &AST::SingleASTNode::take_item);
 
-  expander.pop_context ();
+  expander.context.exit ();
 }
 
 void
 ExpandVisitor::expand_inner_stmts (AST::BlockExpr &expr)
 {
   auto &stmts = expr.get_statements ();
-  expander.push_context (MacroExpander::ContextType::STMT);
+  expander.context.enter (MacroExpander::ContextType::Stmt);
 
   for (auto it = stmts.begin (); it != stmts.end (); it++)
     {
@@ -324,15 +324,15 @@ ExpandVisitor::expand_inner_stmts (AST::BlockExpr &expr)
 
   expand_macro_children (stmts, &AST::SingleASTNode::take_stmt);
 
-  expander.pop_context ();
+  expander.context.exit ();
 }
 
 void
 ExpandVisitor::maybe_expand_expr (std::unique_ptr<AST::Expr> &expr)
 {
-  expander.push_context (MacroExpander::ContextType::EXPR);
+  expander.context.enter (MacroExpander::ContextType::Expr);
   expr->accept_vis (*this);
-  expander.pop_context ();
+  expander.context.exit ();
 
   auto final_fragment = expander.take_expanded_fragment ();
   if (final_fragment.should_expand ()
@@ -343,27 +343,27 @@ ExpandVisitor::maybe_expand_expr (std::unique_ptr<AST::Expr> &expr)
 void
 ExpandVisitor::maybe_expand_type (std::unique_ptr<AST::Type> &type)
 {
-  expander.push_context (MacroExpander::ContextType::TYPE);
+  expander.context.enter (MacroExpander::ContextType::Type);
 
   type->accept_vis (*this);
   auto final_fragment = expander.take_expanded_fragment ();
   if (final_fragment.should_expand () && final_fragment.is_type_fragment ())
     type = final_fragment.take_type_fragment ();
 
-  expander.pop_context ();
+  expander.context.exit ();
 }
 
 void
 ExpandVisitor::maybe_expand_pattern (std::unique_ptr<AST::Pattern> &pattern)
 {
-  expander.push_context (MacroExpander::ContextType::PATTERN);
+  expander.context.enter (MacroExpander::ContextType::Pattern);
 
   pattern->accept_vis (*this);
   auto final_fragment = expander.take_expanded_fragment ();
   if (final_fragment.should_expand () && final_fragment.is_pattern_fragment ())
     pattern = final_fragment.take_pattern_fragment ();
 
-  expander.pop_context ();
+  expander.context.exit ();
 }
 
 // FIXME: Can this be refactored into a `scoped` method? Which takes a
@@ -881,13 +881,13 @@ ExpandVisitor::visit (AST::Trait &trait)
   if (trait.has_where_clause ())
     expand_where_clause (trait.get_where_clause ());
 
-  expander.push_context (MacroExpander::ContextType::TRAIT);
+  expander.context.enter (MacroExpander::ContextType::Trait);
 
-  expand_macro_children (MacroExpander::ContextType::TRAIT,
+  expand_macro_children (MacroExpander::ContextType::Trait,
 			 trait.get_trait_items (),
 			 &AST::SingleASTNode::take_assoc_item);
 
-  expander.pop_context ();
+  expander.context.exit ();
 }
 
 void
@@ -899,16 +899,16 @@ ExpandVisitor::visit (AST::InherentImpl &impl)
     visit (generic);
 
   // FIXME: Is that correct? How do we test that?
-  expander.push_context (MacroExpander::ContextType::ITEM);
+  expander.context.enter (MacroExpander::ContextType::Item);
 
   maybe_expand_type (impl.get_type_ptr ());
 
-  expander.pop_context ();
+  expander.context.exit ();
 
   if (impl.has_where_clause ())
     expand_where_clause (impl.get_where_clause ());
 
-  expand_macro_children (MacroExpander::ContextType::IMPL,
+  expand_macro_children (MacroExpander::ContextType::Impl,
 			 impl.get_impl_items (),
 			 &AST::SingleASTNode::take_assoc_item);
 }
@@ -922,18 +922,18 @@ ExpandVisitor::visit (AST::TraitImpl &impl)
     visit (param);
 
   // FIXME: Is that correct? How do we test that?
-  expander.push_context (MacroExpander::ContextType::ITEM);
+  expander.context.enter (MacroExpander::ContextType::Item);
 
   maybe_expand_type (impl.get_type_ptr ());
 
-  expander.pop_context ();
+  expander.context.exit ();
 
   visit (impl.get_trait_path ());
 
   if (impl.has_where_clause ())
     expand_where_clause (impl.get_where_clause ());
 
-  expand_macro_children (MacroExpander::ContextType::TRAIT_IMPL,
+  expand_macro_children (MacroExpander::ContextType::TraitImpl,
 			 impl.get_impl_items (),
 			 &AST::SingleASTNode::take_assoc_item);
 }
@@ -953,7 +953,7 @@ ExpandVisitor::visit (AST::ExternBlock &block)
 {
   visit_inner_attrs (block);
 
-  expand_macro_children (MacroExpander::ContextType::EXTERN,
+  expand_macro_children (MacroExpander::ContextType::Extern,
 			 block.get_extern_items (),
 			 &AST::SingleASTNode::take_external_item);
 }
