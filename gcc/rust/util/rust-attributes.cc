@@ -157,6 +157,7 @@ Attributes::extract_string_literal (const AST::Attribute &attr)
 
   return literal_expr.as_string ();
 }
+
 BuiltinAttributeMappings *
 BuiltinAttributeMappings::get ()
 {
