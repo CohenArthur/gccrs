@@ -105,14 +105,14 @@ ForeverStack<N>::pop ()
 
   rust_debug ("popping link");
 
-  for (const auto &kv : cursor ().rib (N).get_values ())
-    rust_debug ("current_rib: k: %s, v: %s", kv.first.c_str (),
-		kv.second.to_string ().c_str ());
+  // for (const auto &kv : cursor ().rib.get_values ())
+  //   rust_debug ("current_rib: k: %s, v: %s", kv.first.c_str (),
+  // kv.second.to_string ().c_str ());
 
-  if (cursor ().parent.has_value ())
-    for (const auto &kv : cursor ().parent.value ().rib (N).get_values ())
-      rust_debug ("new cursor: k: %s, v: %s", kv.first.c_str (),
-		  kv.second.to_string ().c_str ());
+  // if (cursor ().parent.has_value ())
+  //   for (const auto &kv : cursor ().parent.value ().rib.get_values ())
+  //     rust_debug ("new cursor: k: %s, v: %s", kv.first.c_str (),
+  //   kv.second.to_string ().c_str ());
 
   update_cursor (cursor ().parent.value ());
 }
