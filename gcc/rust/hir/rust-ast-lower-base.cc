@@ -843,6 +843,10 @@ ASTLoweringBase::handle_doc_item_attribute (const ItemWrapper &,
   const AST::AttrInput &input = attr.get_attr_input ();
   bool is_token_tree
     = input.get_attr_input_type () == AST::AttrInput::AttrInputType::TOKEN_TREE;
+
+  if (!is_token_tree)
+    return;
+
   rust_assert (is_token_tree);
   const auto &option = static_cast<const AST::DelimTokenTree &> (input);
   AST::AttrInputMetaItemContainer *meta_item = option.parse_to_meta_item ();
