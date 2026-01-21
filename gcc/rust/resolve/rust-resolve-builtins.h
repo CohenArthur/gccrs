@@ -33,6 +33,9 @@ namespace Builtins {
 void setup_lang_prelude (NameResolutionContext &ctx);
 void setup_type_ctx ();
 
+// Return the NodeId associated with a builtin type name if it exists
+tl::optional<NodeId> find_builtin_node_id (const std::string &name);
+
 } // namespace Builtins
 } // namespace Resolver2_0
 } // namespace Rust
