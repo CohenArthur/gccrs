@@ -522,6 +522,14 @@ resolve_type_path_like (NameResolutionContext &ctx, bool block_big_self,
       return;
     }
 
+  if (Analysis::Mappings::get ().is_module (resolved->get_node_id ()))
+    {
+      rust_error_at (type.get_locus (), ErrorCode::E0573,
+		     "expected type, found module %qs",
+		     unwrap_segment_error_string (type).c_str ());
+      return;
+    }
+
   // if (ctx.types.forward_declared (resolved->get_node_id (),
   // 		  type.get_node_id ()))
   //   {
