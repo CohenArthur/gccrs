@@ -362,9 +362,9 @@ public:
   {}
 
   // Creates an empty SimplePath.
-  static SimplePath create_empty ()
+  static SimplePath create_empty (location_t locus = UNDEF_LOCATION)
   {
-    return SimplePath (std::vector<SimplePathSegment> ());
+    return SimplePath (std::vector<SimplePathSegment> (), false, locus);
   }
 
   // Returns whether the SimplePath is empty, i.e. has path segments.
