@@ -392,15 +392,21 @@ Early::finalize_simple_import (const Early::ImportPair &mapping)
 {
   // FIXME: We probably need to store namespace information
 
-  auto locus = mapping.import_kind.to_resolve.get_locus ();
+  auto import = mapping.import_kind.to_resolve;
+  auto import_id = Analysis::Mappings::get ().get_next_node_id ();
   auto data = mapping.data;
   auto identifier
     = mapping.import_kind.to_resolve.get_final_segment ().get_segment_name ();
 
   for (auto &&definition : data.definitions ())
-    toplevel
-      .insert_or_error_out (
-	identifier, locus, definition.first.get_node_id (), definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+    {
+      ctx.map_usage (Usage (import_id),
+		     Definition (definition.first.get_node_id ()));
+
+      toplevel
+	.insert_or_error_out (identifier,
+			      import.get_locus (), import_id, definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+    }
 }
 
 void
@@ -428,6 +434,7 @@ Early::finalize_rebind_import (const Early::ImportPair &mapping)
 {
   // We can fetch the value here as `resolve_rebind` will only be called on
   // imports of the right kind
+  auto import_id = Analysis::Mappings::get ().get_next_node_id ();
   auto &path = mapping.import_kind.to_resolve;
   auto &rebind = mapping.import_kind.rebind.value ();
   auto data = mapping.data;
@@ -464,8 +471,14 @@ Early::finalize_rebind_import (const Early::ImportPair &mapping)
     }
 
   for (auto &&definition : data.definitions ())
-    toplevel.insert_or_error_out (
-      declared_name, locus, definition.first.get_node_id (), definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+    {
+      ctx.map_usage (Usage (import_id),
+		     Definition (definition.first.get_node_id ()));
+
+      toplevel
+	.insert_or_error_out (declared_name,
+			      path.get_locus (), import_id, definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+    }
 }
 
 void
