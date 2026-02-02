@@ -17,7 +17,9 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-name-resolution-context.h"
+#include "expected.h"
 #include "optional.h"
+#include "rust-location.h"
 #include "rust-mapping-common.h"
 
 namespace Rust {
@@ -323,6 +325,70 @@ NameResolutionContext::scoped (Rib::Kind rib_kind, Namespace ns,
     case Namespace::Labels:
     case Namespace::Macros:
       gcc_unreachable ();
+    }
+}
+
+enum class LookupFinalizeError
+{
+  // Impossible - we did not find any definition corresponding to a Usage. This
+  // is an internal compiler error
+  NoDefinition,
+  // There was a loop in the map, such as an import resolving to another import
+  // which eventually resolved to the original import.
+  // Report the error and stop the pipeline
+  Loop,
+  // We already have a mapping between a Usage and an actual Definition, rather
+  // than an import pointing to a Definition. Do nothing.
+  AlreadyLeaf,
+};
+
+static tl::expected<Definition, LookupFinalizeError>
+find_leaf_definition (const Usage &key,
+		      std::map<Usage, Definition> &resolved_nodes,
+		      std::set<Usage> &keys_seen)
+{
+  auto original_definition = resolved_nodes.find (key);
+  auto possible_import = Usage (original_definition->second.id);
+
+  if (original_definition == resolved_nodes.end ())
+    return tl::make_unexpected (LookupFinalizeError::NoDefinition);
+
+  if (!keys_seen.insert (key).second)
+    return tl::make_unexpected (LookupFinalizeError::Loop);
+
+  if (resolved_nodes.find (possible_import) == resolved_nodes.end ())
+    return tl::make_unexpected (LookupFinalizeError::AlreadyLeaf);
+
+  // We're dealing with an import - a reference to another
+  // definition. Go through the chain and update the original key's
+  // corresponding definition.
+  return find_leaf_definition (possible_import, resolved_nodes, keys_seen);
+}
+
+void
+NameResolutionContext::finalize_early ()
+{
+  // Loop detection
+  auto keys_seen = std::set<Usage> ();
+
+  for (auto &k_v : resolved_nodes)
+    {
+      auto result = find_leaf_definition (k_v.first, resolved_nodes, keys_seen);
+
+      if (!result)
+	{
+	  // Trigger an ICE if we haven't found a definition because that's
+	  // really weird
+	  rust_assert (result.error () != LookupFinalizeError::NoDefinition);
+
+	  if (result.error () == LookupFinalizeError::AlreadyLeaf)
+	    continue;
+
+	  rust_error_at (UNDEF_LOCATION, "import loop");
+	}
+
+      // Replace the Definition for this Usage in the map. This may be a no-op.
+      k_v.second = result.value ();
     }
 }
 

@@ -1059,6 +1059,8 @@ Session::expansion (AST::Crate &crate, Resolver2_0::NameResolutionContext &ctx)
       Resolver2_0::TopLevel (ctx).go (crate);
     }
 
+  ctx.finalize_early ();
+
   // error reporting - check unused macros, get missing fragment specifiers
 
   // build test harness
