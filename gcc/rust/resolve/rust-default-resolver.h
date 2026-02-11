@@ -22,6 +22,7 @@
 
 #include "rust-ast-visitor.h"
 #include "rust-name-resolution-context.h"
+#include "rust-stacked-contexts.h"
 
 namespace Rust {
 namespace Resolver2_0 {
@@ -89,6 +90,8 @@ protected:
   DefaultResolver (NameResolutionContext &ctx) : ctx (ctx) {}
 
   NameResolutionContext &ctx;
+
+  // StackedContexts<NodeId> lang_prelude_ctx;
 };
 
 } // namespace Resolver2_0

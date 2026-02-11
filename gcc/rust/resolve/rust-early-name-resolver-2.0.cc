@@ -23,6 +23,8 @@
 #include "rust-diagnostics.h"
 #include "rust-hir-map.h"
 #include "rust-item.h"
+#include "rust-mapping-common.h"
+#include "rust-rib.h"
 #include "rust-toplevel-name-resolver-2.0.h"
 #include "rust-attributes.h"
 #include "rust-finalize-imports-2.0.h"
