@@ -99,7 +99,5 @@ MacroBuiltin::assert_handler (location_t invoc_locus,
     tokens.push_back (std::make_unique<AST::Token> (token));
 
   return AST::Fragment ({node}, std::move (tokens));
-
-  return AST::Fragment::create_error ();
 }
 } // namespace Rust
