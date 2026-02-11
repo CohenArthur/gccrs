@@ -23,6 +23,7 @@
 #include "rust-ast-visitor.h"
 #include "rust-ast-builder.h"
 #include "rust-macro-builtins.h"
+#include "options.h"
 
 namespace Rust {
 namespace AST {
