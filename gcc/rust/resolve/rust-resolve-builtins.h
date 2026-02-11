@@ -19,6 +19,9 @@
 #ifndef RUST_RESOLVE_BUILTINS_H
 #define RUST_RESOLVE_BUILTINS_H
 
+#include "optional.h"
+#include "rust-ast.h"
+
 namespace Rust {
 namespace Resolver2_0 {
 
