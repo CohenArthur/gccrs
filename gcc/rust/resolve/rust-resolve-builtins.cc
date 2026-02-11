@@ -76,7 +76,12 @@ setup_lang_prelude (NameResolutionContext &ctx)
     for (size_t i = 0; i < builtin_count; i++)
       {
 	NodeId node_id = mappings.get_next_node_id ();
-	rust_assert (ctx.types.insert (Identifier (builtin_names[i]), node_id));
+	auto new_node_id
+	  = ctx.types.insert (Identifier (builtin_names[i]), node_id);
+
+	rust_assert (new_node_id);
+	rust_assert (*new_node_id == node_id);
+
 	builtin_node_ids[i] = node_id;
       }
   });

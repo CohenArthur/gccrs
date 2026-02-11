@@ -62,6 +62,9 @@ DefaultResolver::visit (AST::BlockExpr &expr)
 void
 DefaultResolver::visit (AST::Module &module)
 {
+  rust_debug ("[ARTHUR] I'm a module and my node id is %d",
+	      module.get_node_id ());
+
   auto item_fn_1
     = [this, &module] () { AST::DefaultASTVisitor::visit (module); };
 
@@ -85,6 +88,15 @@ DefaultResolver::visit (AST::Function &function)
 			     function.get_function_name (),
 			     std::move (def_fn_1));
   };
+
+  // if (function.get_function_name ().as_string () == "from_be_bytes")
+  //   {
+  // auto str = ctx.values.as_debug_string ();
+
+  // std::cerr << "ARTHUR debug\n\n" << str << std::endl;
+
+  // rust_warning_at (function.get_locus (), 0, "[ARTHUR] found it!");
+  // }
 
   ctx.scoped (Rib::Kind::Function, function.get_node_id (), def_fn_2,
 	      function.get_function_name ());
@@ -195,16 +207,29 @@ DefaultResolver::visit (AST::InherentImpl &impl)
     ctx.canonical_ctx.scope_impl (impl, std::move (inner_fn_2));
   };
 
+  auto lang_item_impl = is_lang_impl (impl.get_outer_attrs ());
+
+  // if (lang_item_impl)
+  // lang_prelude_ctx.enter (impl.get_node_id ());
+
   ctx.scoped (Rib::Kind::Generics, impl.get_node_id (), inner_fn_3);
 
-  if (is_lang_impl (impl.get_outer_attrs ()))
+  // if (lang_item_impl)
+  //   lang_prelude_ctx.exit ();
+
+  if (lang_item_impl)
     {
+      // rust_warning_at (impl.get_locus (), 0, "found lang item impl");
+
       if (impl.get_type ().get_type_kind () == AST::Type::Kind::TypePath)
 	{
 	  auto type = static_cast<AST::TypePath &> (impl.get_type ());
 	  auto type_name = type.as_string ();
 
 	  ctx.types.insert_lang_prelude (type_name, impl.get_node_id ());
+	  // ctx.values.insert_lang_prelude (type_name, impl.get_node_id ());
+	  // ctx.labels.insert_lang_prelude (type_name, impl.get_node_id ());
+	  // ctx.macros.insert_lang_prelude (type_name, impl.get_node_id ());
 	}
     }
 }

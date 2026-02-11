@@ -452,6 +452,10 @@ Late::visit (AST::PathInExpression &expr)
 
   if (!resolved)
     {
+      //      resolved = ctx.values.resolve_path (
+      // expr, Namespace::Values,
+      // ctx.values.access_lang_prelude_unchecked_id ());
+
       if (!ctx.lookup (expr.get_segments ().front ().get_node_id ()))
 	rust_error_at (expr.get_locus (), ErrorCode::E0433,
 		       "Cannot find path %qs in this scope",
