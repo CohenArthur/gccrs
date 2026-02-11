@@ -24,6 +24,7 @@
 #include "rust-hir-map.h"
 #include "rust-item.h"
 #include "rust-name-resolution-context.h"
+#include "rust-mapping-common.h"
 #include "rust-rib.h"
 #include "rust-toplevel-name-resolver-2.0.h"
 #include "rust-attributes.h"

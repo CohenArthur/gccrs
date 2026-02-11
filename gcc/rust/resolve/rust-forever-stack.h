@@ -712,6 +712,11 @@ public:
   tl::optional<Rib::Definition> get_from_prelude (NodeId prelude,
 						  const Identifier &name);
 
+  const NodeId &access_lang_prelude_unchecked_id () const
+  {
+    return lang_prelude.id;
+  }
+
   // FIXME: Documentation
   tl::optional<Rib &> to_rib (NodeId rib_id);
   tl::optional<const Rib &> to_rib (NodeId rib_id) const;

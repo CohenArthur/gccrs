@@ -23,6 +23,7 @@
 #include "rust-system.h"
 #include "rust-ast-visitor.h"
 #include "rust-name-resolution-context.h"
+#include "rust-stacked-contexts.h"
 
 namespace Rust {
 namespace Resolver2_0 {
