@@ -255,6 +255,8 @@ public:
   /* View all the values stored in the rib */
   const std::unordered_map<std::string, Definition> &get_values () const;
 
+  std::string debug_str () const;
+
 private:
   // TODO: Switch this to (NodeId, shadowable = false);
   std::unordered_map<std::string, Definition> values;

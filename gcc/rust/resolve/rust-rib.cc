@@ -17,6 +17,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-rib.h"
+#include "options.h"
 #include "rust-name-resolution-context.h"
 
 namespace Rust {
@@ -189,6 +190,19 @@ const std::unordered_map<std::string, Rib::Definition> &
 Rib::get_values () const
 {
   return values;
+}
+
+std::string
+Rib::debug_str () const
+{
+  std::stringstream stream;
+  stream << "Rib kind: " << kind_to_string (kind) << '\n';
+
+  for (const auto &kv : values)
+    stream << "\tValue: " << kv.first << " -> " << kv.second.to_string ()
+	   << '\n';
+
+  return stream.str ();
 }
 
 } // namespace Resolver2_0
