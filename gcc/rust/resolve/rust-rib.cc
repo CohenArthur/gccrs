@@ -183,6 +183,9 @@ Rib::get (const std::string &name)
   if (it == values.end ())
     return tl::nullopt;
 
+  if (!OPT_frust_incomplete_and_experimental_compiler_do_not_use)
+    debug_str ();
+
   return it->second;
 }
 
