@@ -16,6 +16,7 @@
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#include "rust-ast-fragment.h"
 #include "rust-fmt.h"
 #include "rust-ast-builder.h"
 #include "rust-macro-builtins.h"
@@ -93,6 +94,8 @@ MacroBuiltin::concat_handler (location_t invoc_locus,
 			      AST::MacroInvocData &invoc,
 			      AST::InvocKind semicolon)
 {
+  return AST::Fragment::create_empty ();
+
   auto invoc_token_tree = invoc.get_delim_tok_tree ();
   MacroInvocLexer lex (invoc_token_tree.to_token_stream ());
   Parser<MacroInvocLexer> parser (lex);
