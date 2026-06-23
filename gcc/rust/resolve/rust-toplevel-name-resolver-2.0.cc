@@ -45,7 +45,12 @@ TopLevel::check_multiple_insertion_error (
   const location_t &locus, const NodeId node_id)
 {
   if (result)
-    dirty = true;
+    {
+      dirty = true;
+      // rust_warning_at (locus, 0,
+      //    "dirtied the toplevel :pensive: %qs NodeId: %d",
+      //    identifier.as_string ().c_str (), node_id);
+    }
   else if (result.error ().existing != node_id)
     {
       rich_location rich_loc (line_table, locus);

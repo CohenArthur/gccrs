@@ -470,7 +470,6 @@ Early::finalize_simple_import (const Early::ImportPair &mapping)
       toplevel.insert_or_error_out (identifier, import.get_locus (),
 				    definition.definition.get_node_id (),
 				    definition.ns);
-
       dirty = dirty || toplevel.is_dirty ();
     }
 }
