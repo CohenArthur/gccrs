@@ -421,6 +421,8 @@ private:
 
     bool compare (const Link &other) const { return id < other.id; }
 
+    bool operator== (const Link &other) const { return id == other.id; }
+
     NodeId id;
     tl::optional<Identifier> path;
   };
@@ -527,8 +529,17 @@ public:
     Rib type_rib;
     Rib label_rib;
     Rib macro_rib;
+
+    struct LinkHasher
+    {
+      std::size_t operator() (const Link &link) const
+      {
+	return std::hash<NodeId> () (link.id);
+      }
+    };
+
     // all linked nodes
-    std::map<Link, Node, LinkCmp> children;
+    std::unordered_map<Link, Node, LinkHasher> children;
 
     NodeId id; // The node id of the Node's scope
 
