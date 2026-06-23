@@ -65,7 +65,8 @@ Early::go (AST::Crate &crate)
   // We start with resolving the list of imports that `TopLevel` has built for
   // us
 
-  dirty = toplevel.is_dirty ();
+  dirty = dirty || toplevel.is_dirty ();
+
   // We now proceed with resolving macros, which can be nested in almost any
   // items
   textual_scope.push ();
@@ -414,9 +415,12 @@ Early::finalize_simple_import (const Early::ImportPair &mapping)
     = mapping.import_kind.to_resolve.get_final_segment ().get_segment_name ();
 
   for (auto &&definition : data.definitions ())
-    toplevel
-      .insert_or_error_out (
+    {
+      toplevel.insert_or_error_out (
 	identifier, locus, definition.first.get_node_id (), definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+
+      dirty = dirty || toplevel.is_dirty ();
+    }
 }
 
 void
@@ -480,8 +484,12 @@ Early::finalize_rebind_import (const Early::ImportPair &mapping)
     }
 
   for (auto &&definition : data.definitions ())
-    toplevel.insert_or_error_out (
-      declared_name, locus, definition.first.get_node_id (), definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+    {
+      toplevel.insert_or_error_out (
+	declared_name, locus, definition.first.get_node_id (), definition.second /* TODO: This isn't clear - it would be better if it was called .ns or something */);
+
+      dirty = dirty || toplevel.is_dirty ();
+    }
 }
 
 void
