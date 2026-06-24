@@ -805,6 +805,12 @@ public:
   /* If declared with #[prelude_import], the current standard library module */
   tl::optional<NodeId> prelude;
 
+  template <Namespace N>
+  bool
+  should_search_prelude (const typename ForeverStack<N>::Node *current_node,
+			 const typename ForeverStack<N>::SegIterator &iterator,
+			 const std::vector<ResolutionPath::Segment> &segments);
+
 private:
   /* Map of "usage" nodes which have been resolved to a "definition" node */
   std::map<Usage, Definition> resolved_nodes;

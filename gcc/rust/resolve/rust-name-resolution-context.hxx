@@ -28,6 +28,26 @@ namespace Rust {
 namespace Resolver2_0 {
 
 template <Namespace N>
+bool
+NameResolutionContext::should_search_prelude (
+  const typename ForeverStack<N>::Node *current_node,
+  const typename ForeverStack<N>::SegIterator &iterator,
+  const std::vector<ResolutionPath::Segment> &segments)
+{
+  // Check whether the current_node is a root node
+  if (current_node->is_root ())
+    return true;
+
+  // Check whether we're at the start of a module (we can't travel elsewhere
+  // from the start of a module)
+  if (is_start (iterator, segments)
+      && current_node->rib.kind == Rib::Kind::Module)
+    return true;
+
+  return false;
+}
+
+template <Namespace N>
 tl::optional<Rib::Definition>
 NameResolutionContext::resolve_path (
   ForeverStack<N> &stack, const ResolutionPath &path, ResolutionMode mode,

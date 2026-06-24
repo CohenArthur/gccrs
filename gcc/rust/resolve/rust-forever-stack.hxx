@@ -419,6 +419,26 @@ is_start (const I &iterator, const C &collection)
 }
 
 template <Namespace N>
+bool
+ForeverStack<N>::should_search_prelude (
+  const typename ForeverStack<N>::Node *current_node,
+  const typename ForeverStack<N>::SegIterator &iterator,
+  const std::vector<ResolutionPath::Segment> &segments)
+{
+  // Check whether the current_node is a root node
+  if (current_node->is_root ())
+    return true;
+
+  // Check whether we're at the start of a module (we can't travel elsewhere
+  // from the start of a module)
+  if (is_start (iterator, segments)
+      && current_node->rib.kind == Rib::Kind::Module)
+    return true;
+
+  return false;
+}
+
+template <Namespace N>
 typename ForeverStack<N>::Node &
 ForeverStack<N>::find_closest_module (Node &starting_point)
 {
@@ -620,7 +640,8 @@ ForeverStack<N>::resolve_segments (
 		}
 	    }
 
-	  if (current_node->is_root () && !searched_prelude)
+	  if (!searched_prelude
+	      && should_search_prelude (current_node, iterator, segments))
 	    {
 	      searched_prelude = true;
 	      current_node = &lang_prelude;

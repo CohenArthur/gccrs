@@ -925,6 +925,11 @@ public:
     return (definition_rib
 	    && definition_rib.value ().kind == Rib::Kind::ForwardTypeParamBan);
   }
+
+  bool
+  should_search_prelude (const typename ForeverStack<N>::Node *current_node,
+			 const typename ForeverStack<N>::SegIterator &iterator,
+			 const std::vector<ResolutionPath::Segment> &segments);
 };
 
 } // namespace Resolver2_0
