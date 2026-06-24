@@ -94,7 +94,11 @@ MacroBuiltin::concat_handler (location_t invoc_locus,
 			      AST::MacroInvocData &invoc,
 			      AST::InvocKind semicolon)
 {
-  return AST::Fragment::create_empty ();
+  auto fake_node = AST::SingleASTNode (make_string (invoc_locus, ""));
+  auto fake_str_tok = make_token (Token::make_string (invoc_locus, ""));
+
+  return AST::Fragment ({fake_node}, std::move (fake_str_tok));
+  // return AST::Fragment::create_empty ();
 
   auto invoc_token_tree = invoc.get_delim_tok_tree ();
   MacroInvocLexer lex (invoc_token_tree.to_token_stream ());
