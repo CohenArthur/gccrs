@@ -24,6 +24,7 @@
 #include "rust-parse-error.h"
 #include "rust-attribute-values.h"
 #include "expected.h"
+#include "rust-token.h"
 
 namespace Rust {
 
@@ -294,14 +295,21 @@ Parser<ManagedTokenSource>::parse_attr_input ()
 	t = lexer.peek_token ();
 
 	/* Ensure token is a "literal expression" (literally only a literal
-	 * token of any type) */
+	 * token of any type)... */
 	if (!t->is_literal ())
 	  {
-	    Error error (
-	      t->get_locus (),
-	      "arbitrary expressions in key-value attributes are unstable");
-	    collect_potential_gating_error (
-	      Feature::Name::EXTENDED_KEY_VALUE_ATTRIBUTES, std::move (error));
+	    /* ...or a macro, as that could be a built-in macro
+	     * which expands to a literal expression */
+	    if (t->get_id () != TokenId::IDENTIFIER
+		&& lexer.peek_token (1)->get_id () != TokenId::EXCLAM)
+	      {
+		Error error (
+		  t->get_locus (),
+		  "arbitrary expressions in key-value attributes are unstable");
+		collect_potential_gating_error (
+		  Feature::Name::EXTENDED_KEY_VALUE_ATTRIBUTES,
+		  std::move (error));
+	      }
 	  }
 	// attempt to parse macro
 	// TODO: macros may/may not be allowed in attributes
