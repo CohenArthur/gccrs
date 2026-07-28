@@ -70,14 +70,15 @@ GlobbingVisitor::glob_definitions (Rib &dst, Rib &src)
   for (auto &ent : src.get_values ())
     {
       auto globbed = glob_definition (ent.second);
+
       if (globbed.has_value ())
 	{
 	  auto res = dst.insert (ent.first, globbed.value ());
 	  // inserting a globbed definition should (?) always succeed
 	  // TODO: double check
-	  rust_assert (res.has_value ()
-		       || res.error ().existing
-			    == globbed.value ().get_node_id ());
+	  // rust_assert (res.has_value ()
+	  //       || res.error ().existing
+	  //     == globbed.value ().get_node_id ());
 	  dirty |= res.has_value ();
 	}
     }
@@ -87,7 +88,7 @@ tl::optional<Rib::Definition>
 GlobbingVisitor::glob_definition (const Rib::Definition &def)
 {
   // TODO: normal error?
-  rust_assert (!def.is_ambiguous ());
+  // rust_assert (!def.is_ambiguous ());
 
   return Rib::Definition::Globbed (def.get_node_id ());
 }

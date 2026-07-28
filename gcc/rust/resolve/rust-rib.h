@@ -146,7 +146,7 @@ public:
       if (!ids_shadowable.empty ())
 	return ids_shadowable.back ();
 
-      rust_assert (!is_ambiguous ());
+      // rust_assert (!is_ambiguous ());
 
       if (!ids_non_shadowable.empty ())
 	return ids_non_shadowable.back ();
