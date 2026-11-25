@@ -21,9 +21,14 @@
 #include "rust-builtin-ast-nodes.h"
 #include "rust-diagnostics.h"
 #include "rust-expr.h"
+#include "rust-finalized-name-resolution-context.h"
+#include "rust-hir-map.h"
 #include "rust-item.h"
 #include "rust-keyword-values.h"
+#include "rust-location.h"
 #include "rust-path.h"
+#include "rust-rib.h"
+#include "rust-session-manager.h"
 #include "rust-system.h"
 #include "rust-token.h"
 
@@ -48,6 +53,32 @@ std::vector<CollectItem>
 TokenCollector::collect () const
 {
   return tokens;
+}
+
+void
+TokenCollector::format_lang_item (LangItem::Kind lang_item)
+{
+  auto &mappings = Analysis::Mappings::get ();
+  auto lang_node = mappings.get_lang_item_node (lang_item);
+
+  auto &nr_ctx = Resolver2_0::FinalizedNameResolutionContext::get ();
+
+  auto canonical_path = nr_ctx.get_underlying ().canonical_ctx.get_path (
+    lang_node, Resolver2_0::Namespace::Types);
+
+  push (Rust::Token::make (CRATE, UNDEF_LOCATION));
+  push (Rust::Token::make (SCOPE_RESOLUTION, UNDEF_LOCATION));
+
+  iter_collection_with_separator (
+    canonical_path.get_segments (),
+    [this] (const std::pair<NodeId, std::string> &pair) {
+      auto &segment = pair.second;
+
+      push (Rust::Token::make_identifier (segment));
+    },
+    SCOPE_RESOLUTION);
+
+  auto str = canonical_path.get ();
 }
 
 void
@@ -599,13 +630,7 @@ TokenCollector::visit (PathInExpression &path)
   describe_node (std::string ("PathInExpression"), [this, &path] () {
     if (path.is_lang_item ())
       {
-	push (Rust::Token::make (TokenId::HASH, path.get_locus ()));
-	push (Rust::Token::make (TokenId::LEFT_SQUARE, path.get_locus ()));
-	push (Rust::Token::make_identifier (path.get_locus (), "lang"));
-	push (Rust::Token::make (TokenId::EQUAL, path.get_locus ()));
-	push (Rust::Token::make_string (
-	  path.get_locus (), LangItem::ToString (path.get_lang_item ())));
-	push (Rust::Token::make (TokenId::RIGHT_SQUARE, path.get_locus ()));
+	format_lang_item (path.get_lang_item ());
 
 	return;
       }
@@ -623,12 +648,15 @@ TokenCollector::visit (TypePathSegment &segment)
   // Syntax:
   //    PathIdentSegment
   describe_node (std::string ("TypePathSegment"), [this, &segment] () {
-    auto locus = segment.is_lang_item ()
-		   ? segment.get_locus ()
-		   : segment.get_ident_segment ().get_locus ();
-    auto segment_string = segment.is_lang_item ()
-			    ? LangItem::PrettyString (segment.get_lang_item ())
-			    : segment.get_ident_segment ().as_string ();
+    if (segment.is_lang_item ())
+      {
+	format_lang_item (segment.get_lang_item ());
+
+	return;
+      }
+
+    auto locus = segment.get_ident_segment ().get_locus ();
+    auto segment_string = segment.get_ident_segment ().as_string ();
     push (Rust::Token::make_identifier (locus, std::move (segment_string)));
   });
 }
@@ -642,12 +670,15 @@ TokenCollector::visit (TypePathSegmentGeneric &segment)
   //    `<` `>`
   //    | `<` ( GenericArg `,` )* GenericArg `,`? `>`
   describe_node (std::string ("TypePathSegmentGeneric"), [this, &segment] () {
-    auto locus = segment.is_lang_item ()
-		   ? segment.get_locus ()
-		   : segment.get_ident_segment ().get_locus ();
-    auto segment_string = segment.is_lang_item ()
-			    ? LangItem::PrettyString (segment.get_lang_item ())
-			    : segment.get_ident_segment ().as_string ();
+    if (segment.is_lang_item ())
+      {
+	format_lang_item (segment.get_lang_item ());
+
+	return;
+      }
+
+    auto locus = segment.get_ident_segment ().get_locus ();
+    auto segment_string = segment.get_ident_segment ().as_string ();
     push (Rust::Token::make_identifier (locus, std::move (segment_string)));
 
     push (Rust::Token::make (LEFT_ANGLE, UNDEF_LOCATION));

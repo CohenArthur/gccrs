@@ -195,6 +195,11 @@ public:
 
   bool operator< (const CanonicalPath &b) const { return get () < b.get (); }
 
+  const std::vector<std::pair<NodeId, std::string>> &get_segments () const
+  {
+    return segs;
+  }
+
 private:
   explicit CanonicalPath (std::vector<std::pair<NodeId, std::string>> path,
 			  CrateNum crate_num)

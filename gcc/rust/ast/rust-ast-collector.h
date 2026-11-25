@@ -19,6 +19,7 @@
 #ifndef RUST_AST_COLLECTOR_H
 #define RUST_AST_COLLECTOR_H
 
+#include "rust-hir-map.h"
 #include "rust-token.h"
 #include "rust-ast-visitor.h"
 #include "rust-ast.h"
@@ -156,6 +157,29 @@ private:
   }
 
   /**
+   * Similar to `visit_items_joined_by_separator` but with an extra argument for
+   * a free function. This is useful when iterating on a collection of elements
+   * which aren't necessarily visitable by the TokenCollector
+   */
+  template <typename T, typename F>
+  void iter_collection_with_separator (T &collection, F fn,
+				       TokenId separator = COMMA,
+				       size_t start_offset = 0,
+				       size_t end_offset = 0)
+  {
+    if (collection.size () > start_offset)
+      {
+	fn (collection.at (start_offset));
+	auto size = collection.size () - end_offset;
+	for (size_t i = start_offset + 1; i < size; i++)
+	  {
+	    push (Rust::Token::make (separator, UNDEF_LOCATION));
+	    fn (collection.at (i));
+	  }
+      }
+  }
+
+  /**
    * Visit item placing end of line after.
    */
   template <typename T>
@@ -226,6 +250,8 @@ private:
   void visit_closure_common (ClosureExpr &expr);
 
   void visit_loop_common (BaseLoopExpr &expr);
+
+  void format_lang_item (LangItem::Kind lang_item);
 
 public:
   /**

@@ -746,6 +746,10 @@ Session::compile_crate (const char *filename)
 
   AST::CollectLangItems ().go (parsed_crate);
 
+  // Register the name resolution context globally for further use by later
+  // compiler passes as well as the various debug dumps
+  Resolver2_0::FinalizedNameResolutionContext::init (name_resolution_ctx);
+
   rust_debug ("\033[0;31mSUCCESSFULLY FINISHED EXPANSION \033[0m");
   if (options.dump_option_enabled (CompileOptions::EXPANSION_DUMP))
     {
@@ -781,10 +785,6 @@ Session::compile_crate (const char *filename)
 
   if (last_step == CompileOptions::CompileStep::Lowering)
     return;
-
-  // Name resolution is complete.  Freeze its context before lowering so HIR
-  // construction can register information keyed by resolved definitions.
-  Resolver2_0::FinalizedNameResolutionContext::init (name_resolution_ctx);
 
   // lower AST to HIR
   std::unique_ptr<HIR::Crate> lowered
